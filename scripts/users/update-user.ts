@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, ilike, or } from "drizzle-orm";
 import inquirer from "inquirer";
 import { db } from "../../src/db";
 import { user } from "../../src/db/schema/auth";
@@ -7,32 +7,76 @@ import { auth } from "../../src/lib/auth";
 async function updateUser() {
   console.log("🛠️  User Update Tool");
 
-  const { email } = await inquirer.prompt([
-    {
-      type: "input",
-      name: "email",
-      message: "Enter the email of the user to update:",
-    },
-  ]);
+  while (true) {
+    const { searchTerm } = await inquirer.prompt([
+      {
+        type: "input",
+        name: "searchTerm",
+        message: "🔍 Search User (Name or Email) [Leave empty to cancel]:",
+      },
+    ]);
 
-  const existingUser = await db.query.user.findFirst({
-    where: eq(user.email, email),
-  });
+    if (!searchTerm.trim()) {
+      console.log("👋 Bye!");
+      return;
+    }
 
-  if (!existingUser) {
-    console.error("❌ User not found!");
-    return;
+    const users = await db.query.user.findMany({
+      where: or(
+        ilike(user.name, `%${searchTerm}%`),
+        ilike(user.email, `%${searchTerm}%`),
+      ),
+      limit: 10,
+    });
+
+    if (users.length === 0) {
+      console.log("❌ No users found. Try again.");
+      continue;
+    }
+
+    console.log("\nFound users:");
+    users.forEach((u, index) => {
+      console.log(`${index + 1}. ${u.name} (${u.email}) - ${u.role}`);
+    });
+    console.log("0. 🔙 Search Again");
+
+    const { selectedIndex } = await inquirer.prompt([
+      {
+        type: "input",
+        name: "selectedIndex",
+        message: "Select a user to update (Enter number):",
+        validate: (input) => {
+          const num = Number.parseInt(input);
+          if (Number.isNaN(num) || num < 0 || num > users.length) {
+            return "Please enter a valid number.";
+          }
+          return true;
+        },
+      },
+    ]);
+
+    const index = Number.parseInt(selectedIndex);
+    if (index === 0) continue;
+
+    const selectedUser = users[index - 1];
+
+    if (!selectedUser) continue;
+
+    console.log(
+      `\n✅ Selected: ${selectedUser.name} (${selectedUser.email})\n`,
+    );
+
+    await handleUserUpdate(selectedUser);
+    return; // Exit after one update? Or loop? The prompt implied one flow. Let's return.
   }
+}
 
-  console.log(
-    `Found user: ${existingUser.name} (${existingUser.email}) - Role: ${existingUser.role}`,
-  );
-
+async function handleUserUpdate(existingUser: typeof user.$inferSelect) {
   const { action } = await inquirer.prompt([
     {
       type: "list",
       name: "action",
-      message: "What would you like to update?",
+      message: "What would you like to update? (Name, Role, Password, Cancel)",
       choices: ["Name", "Role", "Password", "Cancel"],
     },
   ]);
