@@ -1,7 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
+import { IDEShell } from "@/components/exam/ide-shell";
 import { db } from "@/db";
-import { examAssignments } from "@/db/schema";
+import { examAssignments, exams, questions } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 export default async function SessionPage({
@@ -23,23 +24,65 @@ export default async function SessionPage({
     ),
   });
 
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
-      <h1 className="text-2xl font-bold">Exam Session Active</h1>
-      <p className="mt-4 text-lg">User: {session.user.name}</p>
-      <div className="mt-6 rounded-lg border p-6 shadow-sm">
-        <h2 className="mb-2 font-semibold">Debug Info</h2>
-        <p className="font-mono text-sm">Assignment ID: {assignment?.id}</p>
-        <p className="mt-2 font-mono text-sm">
-          Assigned Questions:{" "}
-          <span className="bg-muted px-2 py-1">
-            {JSON.stringify(assignment?.assignedQuestionIds, null, 2)}
-          </span>
-        </p>
+  if (!assignment) {
+    // Determine what to do if no assignment - maybe redirect or show error
+    return (
+      <div className="flex h-screen items-center justify-center">
+        Error: Exam session not initialized. Please try onboarding again.
       </div>
-      <p className="mt-8 text-muted-foreground">
-        Full IDE Interface implementation scheduled for Phase 5.
-      </p>
-    </div>
+    );
+  }
+
+  // Fetch only the questions assigned to this user
+  const questionIds = assignment.assignedQuestionIds as string[];
+
+  if (!questionIds || questionIds.length === 0) {
+    return <div>No questions assigned.</div>;
+  }
+
+  const questionList = await db.query.questions.findMany({
+    where: inArray(questions.id, questionIds),
+    columns: {
+      id: true,
+      title: true,
+      problemStatement: true,
+    },
+    with: {
+      testCases: {
+        where: (tc, { eq }) => eq(tc.isHidden, false),
+        columns: {
+          id: true,
+          input: true,
+          expectedOutput: true,
+        },
+      },
+    },
+  });
+
+  // Fetch exam details for title and config
+  const exam = await db.query.exams.findFirst({
+    where: eq(exams.id, examId),
+    columns: {
+      title: true,
+      durationMinutes: true,
+    },
+  });
+
+  // Calculate strict end time based on assignment start time or exam duration
+  // For now, using assignment.startedAt + duration would be best if we had startedAt.
+  // Falling back to current time + duration for demo purposes if startedAt is missing, or duration.
+  const durationMs = (exam?.durationMinutes || 90) * 60 * 1000;
+  const assignmentStartedAt = assignment.startedAt
+    ? new Date(assignment.startedAt)
+    : new Date();
+  const endTime = new Date(assignmentStartedAt.getTime() + durationMs);
+
+  return (
+    <IDEShell
+      questions={questionList}
+      user={{ name: session.user.name, image: session.user.image || undefined }}
+      endTime={endTime}
+      examTitle={exam?.title || "Exam Session"}
+    />
   );
 }

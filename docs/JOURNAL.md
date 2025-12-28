@@ -109,7 +109,40 @@
     - `scripts/test-group-b.ts`: Moves a user to a restricted future slot for testing access denial.
     - `scripts/test-countdown.ts`: Sets a slot 2 minutes in the future to test the live timer.
 
+### Phase 5: The IDE Interface
+**Goal**: Implement the exam IDE with 3-panel layout, code editor, and question navigation.
+
+**Completed Actions**:
+1.  **Dependencies**:
+    - Installed `react-resizable-panels`, `@uiw/react-codemirror`, `nuqs`, `zustand`, `react-markdown`.
+    - Added Shadcn `sidebar` component (`npx shadcn@latest add sidebar`).
+2.  **Layout Implementation**:
+    - Refactored `IDEShell` to use `SidebarProvider` and `SidebarInset`.
+    - Structure: [Collapsible Sidebar] -> [Header] -> [Resizable Problem/Editor].
+3.  **Components**:
+    - **ExamSidebar**: Replaced basic navigation with Shadcn Sidebar (Collapsible, Mobile-friendly).
+    - **ExamHeader**: Refactored to center the clock absolutely and display the exam title on the left.
+    - **Code Editor**: `CodePlayground` with `CodeMirror` (Java) persistence.
+    - **Problem Viewer**: Renders markdown content.
+4.  **State Management**:
+    - `exam-store.ts` (Zustand) for code persistence.
+    - `nuqs` for URL-based question navigation.
+
+
+### Phase 6: Console & Code Execution (In Progress)
+**Goal**: Implement test case visualization and code execution pipeline.
+
+**Completed Actions**:
+1.  **Dependencies**:
+    - Added Shadcn `tabs`, `scroll-area`, `textarea` components.
+2.  **Components**:
+    - Created `src/types/problem.ts` with `TestCase` and `TestcaseResult` types.
+    - Created `src/components/exam/test-case-console.tsx` implementing 3-tab console (Test Cases, Results, Custom I/O).
+    - Updated `CodePlayground` to integrate console and add Run/Submit buttons.
+3.  **Data Flow**:
+    - Updated `session/page.tsx` to fetch public test cases (non-hidden) with questions.
+    - Updated `Question` type in `ide-shell.tsx` to include `testCases`.
+
 ### Next Steps
-- Begin Phase 5: The IDE Interface.
-- Implement the 3-panel layout (Sidebar, Problem, Editor).
-- Integrate CodeMirror for Java.
+- Implement backend Server Action for code execution (connect to Turbo Engine).
+- Handle submission logic and scoring.
