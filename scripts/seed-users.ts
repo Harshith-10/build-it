@@ -1,3 +1,4 @@
+import { Presets, SingleBar } from "cli-progress";
 import { parse } from "csv-parse/sync";
 import fs from "fs";
 import pLimit from "p-limit";
@@ -56,10 +57,6 @@ async function seedUsers() {
 
     console.log(`Processing ${file}: ${records.length} records found.`);
 
-    // Extract basic info from filename if needed (though CSV has columns)
-    // Filename format: "Aeronautical Engineering - III Semester (Section - A).csv"
-    // But CSV content is more reliable: Branch, Sem, Sec are columns.
-
     for (const record of records) {
       const rollNo = record["Roll No"];
       const dobStr = record["D.O.B"]; // Format: dd-mm-yyyy or similar
@@ -90,6 +87,20 @@ async function seedUsers() {
 
   console.log(`Total students to seed: ${allStudents.length}`);
 
+  // Initialize progress bar
+  const progressBar = new SingleBar(
+    {
+      format:
+        "Progress |" + "{bar}" + "| {percentage}% || {value}/{total} Users",
+      barCompleteChar: "\u2588",
+      barIncompleteChar: "\u2591",
+      hideCursor: true,
+    },
+    Presets.shades_classic,
+  );
+
+  progressBar.start(allStudents.length, 0);
+
   // Use p-limit to seed users in parallel
   const tasks = allStudents.map((student) => {
     return limit(async () => {
@@ -111,46 +122,22 @@ async function seedUsers() {
             callbackURL: "http://localhost:3000", // Dummy callback
           },
         });
-
-        // Update extended fields that signUpEmail might not handle if custom schema isn't fully integrated in the API call automatically (depending on better-auth config)
-        // However, better-auth usually handles extra fields if they are in the body and schema matches.
-        // Let's assume passed body fields are extended.
-        // Actually, we need to pass extra fields to signUpEmail?
-        // Better Auth schema extension usually allows extra fields in signUpEmail if mapped.
-        // But if not, we might need a direct DB update or use updateUser.
-        // Let's try passing them in the body first.
-
-        // Wait, the user specifically asked to use auth.api.signUpEmail.
-        // Let's re-verify if signUpEmail accepts extra fields.
-        // It accepts `...rest` in body usually ?
-        // If strict, we might fail.
-        // But given the constraints, let's use the API as requested.
-
-        // Actually, better-auth might not support custom fields in signUpEmail by default without plugins or config.
-        // But let's check the schema again. user table has these fields.
-        // We will pass them in the body and see.
-        // Wait, the client method signature in TS might complain.
-        // Since we are in a script, we can ignore TS errors or cast to any.
-
-        // However, better-auth's `signUpEmail` takes `body` which is strictly typed.
-        // We might need to assume it works or use a workaround.
-        // Let's try to update the user immediately after creation if needed, but that defies "parallel" speed if we do 2 calls.
-
-        // Re-reading user request: "Do not forget to include all the avaiable fields"
-        // So I should pass them.
       } catch (error: any) {
         if (error?.body?.message?.includes("already exists")) {
           // Ignore duplicates
           // console.log(`Skipping ${student.email} - already exists`);
           return;
         }
-        console.error(`Failed to seed ${student.email}:`, error?.body || error);
+        // console.error(`Failed to seed ${student.email}:`, error?.body || error);
         // We continue despite errors
+      } finally {
+        progressBar.increment();
       }
     });
   });
 
   await Promise.all(tasks);
+  progressBar.stop();
   console.log("Seeding complete!");
 }
 
