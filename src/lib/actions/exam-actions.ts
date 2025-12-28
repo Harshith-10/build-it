@@ -33,6 +33,14 @@ export async function initializeExamSession(examId: string) {
     });
 
     if (existingAssignment) {
+      // Block if exam was already submitted/completed
+      if (existingAssignment.status === "completed") {
+        return {
+          success: false,
+          error: "You have already submitted this exam. You cannot restart it.",
+        };
+      }
+
       return {
         success: true,
         assignmentId: existingAssignment.id,

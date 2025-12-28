@@ -5,6 +5,8 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { recordMalpractice } from "@/lib/actions/malpractice-actions";
 
+const DEBOUNCE_MS = 300;
+
 interface AntiCheatGuardProps {
   assignmentId: string;
 }
@@ -12,10 +14,22 @@ interface AntiCheatGuardProps {
 export function AntiCheatGuard({ assignmentId }: AntiCheatGuardProps) {
   const router = useRouter();
   const lastCopiedText = useRef<string>("");
+  const lastViolationTimes = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const handleViolation = async (type: string, details?: string) => {
+      // Debounce per event type: skip if this type was recorded within the last DEBOUNCE_MS
+      const now = Date.now();
+      const lastTime = lastViolationTimes.current[type] || 0;
+      if (now - lastTime < DEBOUNCE_MS) {
+        console.log(`[AntiCheat] Debounced ${type}`);
+        return;
+      }
+      lastViolationTimes.current[type] = now;
+
+      console.log(`[AntiCheat] Recording violation: ${type}`);
       const result = await recordMalpractice(assignmentId, type, details);
+      console.log(`[AntiCheat] Result:`, result);
 
       if (result.terminated && result.redirectPath) {
         toast.error("MALPRACTICE LIMIT EXCEEDED", {
@@ -27,6 +41,10 @@ export function AntiCheatGuard({ assignmentId }: AntiCheatGuardProps) {
         toast.warning("Warning: Malpractice Detected", {
           description: `${result.warningsLeft} warnings remaining before termination.`,
         });
+      } else {
+        console.log(
+          `[AntiCheat] Not showing toast - success: ${result.success}, error: ${result.error}`,
+        );
       }
     };
 
@@ -58,6 +76,9 @@ export function AntiCheatGuard({ assignmentId }: AntiCheatGuardProps) {
 
     // 4. Tab Switching
     const handleVisibilityChange = () => {
+      console.log(
+        `[AntiCheat] visibilitychange fired, hidden: ${document.hidden}`,
+      );
       if (document.hidden) {
         handleViolation("tab_switch", "User switched tabs or minimized window");
       }

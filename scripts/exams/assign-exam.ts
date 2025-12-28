@@ -14,12 +14,19 @@ async function assignExam() {
 
   const { examId } = await inquirer.prompt([
     {
-      type: "list",
+      type: "rawlist",
       name: "examId",
       message: "Select Exam:",
-      choices: allExams.map((e) => ({ name: e.title, value: e.id })),
+      choices: [
+        ...allExams.map((e) => ({ name: e.title, value: e.id })),
+        { name: "Exit", value: "exit" },
+      ],
     },
   ]);
+
+  if (examId === "exit") return;
+
+  const realExamId = typeof examId === "object" ? examId.id : examId;
 
   // 2. Select Group
   const allGroups = await db.select().from(userGroups).orderBy(userGroups.name);
@@ -27,16 +34,26 @@ async function assignExam() {
 
   const { groupId } = await inquirer.prompt([
     {
-      type: "list",
+      type: "rawlist",
       name: "groupId",
       message: "Select User Group:",
-      choices: allGroups.map((g) => ({ name: g.name, value: g.id })),
+      choices: [
+        ...allGroups.map((g) => ({ name: g.name, value: g.id })),
+        { name: "Exit", value: "exit" },
+      ],
     },
   ]);
 
+  if (groupId === "exit") return;
+
+  const realGroupId = typeof groupId === "object" ? groupId.id : groupId;
+
   // Check if already assigned
   const existing = await db.query.examGroups.findFirst({
-    where: and(eq(examGroups.examId, examId), eq(examGroups.groupId, groupId)),
+    where: and(
+      eq(examGroups.examId, realExamId),
+      eq(examGroups.groupId, realGroupId),
+    ),
   });
 
   if (existing) {
@@ -89,8 +106,8 @@ async function assignExam() {
   }
 
   await db.insert(examGroups).values({
-    examId,
-    groupId,
+    examId: realExamId,
+    groupId: realGroupId,
     startTime: startTimeVal,
     endTime: endTimeVal,
   });

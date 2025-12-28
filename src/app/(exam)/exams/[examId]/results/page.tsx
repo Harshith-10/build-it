@@ -39,6 +39,11 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     ),
     with: {
       exam: true,
+      submissions: {
+        columns: {
+          questionId: true,
+        },
+      },
     },
   });
 
@@ -48,12 +53,11 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
 
   // Calculate stats
   const score = assignment.score || 0;
-  // Determine questions solved based on score (Reverse engineer 20-40-50 rule)
-  // 20->1, 40->2, 50->3.
-  let questionsSolved = 0;
-  if (score >= 50) questionsSolved = 3;
-  else if (score >= 40) questionsSolved = 2;
-  else if (score >= 20) questionsSolved = 1;
+  // Count unique questions attempted based on submissions
+  const questionsAttempted = new Set(
+    assignment.submissions.map((s) => s.questionId),
+  ).size;
+  const totalQuestions = (assignment.assignedQuestionIds as string[]).length;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
@@ -95,9 +99,11 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
             </div>
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">
-                Questions Solved
+                Questions Attempted
               </div>
-              <div className="font-mono font-medium">{questionsSolved} / 3</div>
+              <div className="font-mono font-medium">
+                {questionsAttempted} / {totalQuestions}
+              </div>
             </div>
           </div>
         </CardContent>

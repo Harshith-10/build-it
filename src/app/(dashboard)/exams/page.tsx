@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { ArrowRight, Calendar, Clock, Timer } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -15,7 +15,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { db } from "@/db";
-import { examGroups, exams, userGroupMembers } from "@/db/schema";
+import {
+  examAssignments,
+  examGroups,
+  exams,
+  userGroupMembers,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { ExamCardAction } from "./exam-card-action";
 
@@ -63,6 +68,20 @@ export default async function ExamsPage() {
     },
   });
 
+  // Fetch user's exam assignments to check for completed status
+  const userAssignments = await db.query.examAssignments.findMany({
+    where: eq(examAssignments.userId, userId),
+    columns: {
+      examId: true,
+      status: true,
+    },
+  });
+
+  // Create a map of examId -> assignment status
+  const assignmentStatusMap = new Map(
+    userAssignments.map((a) => [a.examId, a.status]),
+  );
+
   const now = new Date();
 
   const examsWithSlots = allExams
@@ -102,11 +121,15 @@ export default async function ExamsPage() {
       else if (now > effectiveEnd) status = "ended";
       else status = "active";
 
+      // Check if user has already submitted this exam
+      const assignmentStatus = assignmentStatusMap.get(exam.id);
+
       return {
         ...exam,
         effectiveStart,
         effectiveEnd,
         computedStatus: status,
+        isSubmitted: assignmentStatus === "completed",
       };
     });
 
@@ -177,6 +200,7 @@ export default async function ExamsPage() {
                     exam.computedStatus as "upcoming" | "active" | "ended"
                   }
                   effectiveStart={exam.effectiveStart}
+                  isSubmitted={exam.isSubmitted}
                 />
               </CardFooter>
             </Card>

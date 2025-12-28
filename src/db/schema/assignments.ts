@@ -66,6 +66,7 @@ export const submissions = pgTable("submissions", {
   code: text("code").notNull(),
   verdict: submissionVerdictEnum("verdict").notNull(),
   testCasesPassed: integer("test_cases_passed").default(0),
+  totalTestCases: integer("total_test_cases").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

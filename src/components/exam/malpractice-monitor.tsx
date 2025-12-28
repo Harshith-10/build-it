@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +11,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const DEBOUNCE_MS = 300;
+
 export function MalpracticeMonitor({
   children,
 }: {
@@ -18,27 +20,36 @@ export function MalpracticeMonitor({
 }) {
   const [warningOpen, setWarningOpen] = useState(false);
   const [violationType, setViolationType] = useState("");
+  const lastAlertTime = useRef<number>(0);
 
   useEffect(() => {
+    const showWarning = (message: string) => {
+      // Debounce: skip if an alert was shown within the last DEBOUNCE_MS
+      const now = Date.now();
+      if (now - lastAlertTime.current < DEBOUNCE_MS) {
+        return;
+      }
+      lastAlertTime.current = now;
+      setViolationType(message);
+      setWarningOpen(true);
+    };
+
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        setViolationType("You exited fullscreen mode.");
-        setWarningOpen(true);
+        showWarning("You exited fullscreen mode.");
       }
     };
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setViolationType("You switched tabs/windows.");
-        setWarningOpen(true);
+        showWarning("You switched tabs/windows.");
       }
     };
 
     const handleBlur = () => {
       // Blur can be triggered by interacting with browser chrome, etc.
       // Often redundant with visibilityChange but catches window focus loss specifically.
-      setViolationType("You lost focus on the exam window.");
-      setWarningOpen(true);
+      showWarning("You lost focus on the exam window.");
     };
 
     // Fullscreen enforcement

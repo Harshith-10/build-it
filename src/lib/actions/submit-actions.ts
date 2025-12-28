@@ -1,6 +1,6 @@
 "use server";
 
-import { and, countDistinct, desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
@@ -147,47 +147,62 @@ export async function submitQuestion(
       }
     }
 
-    // 6. Insert Submission
+    // 6. Insert Submission (with totalTestCases for ratio calculation)
     await db.insert(submissions).values({
       assignmentId: input.assignmentId,
       questionId: input.questionId,
       code: input.code,
       verdict: verdict,
       testCasesPassed: passedCount,
+      totalTestCases: gradingTestCases.length,
     });
 
-    // 7. Calculate New Score (20-40-50 Rule) in a Transaction-like check
-    // We need to count how many DISTINCT questions have a 'passed' submission for this assignment
+    // 7. Calculate New Score (Granular 20-40-50 Rule with partial marks)
+    // For each assigned question, find the best submission (highest pass ratio)
+    // Marks distribution: Q1=20, Q2=20, Q3=10 (total 50)
+    const MARKS_PER_QUESTION = [20, 20, 10];
 
-    // First, get all passed submissions for this assignment
-    const passedSubmissions = await db.query.submissions.findMany({
-      where: and(
-        eq(submissions.assignmentId, input.assignmentId),
-        eq(submissions.verdict, "passed"),
-      ),
+    // Get all submissions for this assignment grouped by question
+    const allSubmissions = await db.query.submissions.findMany({
+      where: eq(submissions.assignmentId, input.assignmentId),
       columns: {
         questionId: true,
+        testCasesPassed: true,
+        totalTestCases: true,
       },
     });
 
-    // Count unique questions solved
-    const uniqueSolvedQuestions = new Set(
-      passedSubmissions.map((s) => s.questionId),
-    ).size;
-
-    // Apply 20-40-50 Logic
+    // For each assigned question, calculate the best score (highest ratio)
+    const assignedQuestionIds = assignment.assignedQuestionIds as string[];
     let newScore = 0;
-    if (uniqueSolvedQuestions === 1) newScore = 20;
-    else if (uniqueSolvedQuestions === 2) newScore = 40;
-    else if (uniqueSolvedQuestions === 3) newScore = 50;
 
-    // Check if score actually increased (Monotonic check)
-    // Actually, simply recalculating based on "set of solved questions" IS monotonic
-    // because you can't "un-solve" a question in this logic (history is preserved).
-    // Unless we assume re-submitting a broken code invalidates previous success?
-    // Plan says: "Score is monotonically increasing; retries do not decrease score."
-    // So we should query ALL valid 'passed' submissions from history.
+    for (let i = 0; i < assignedQuestionIds.length; i++) {
+      const questionId = assignedQuestionIds[i];
+      const questionSubmissions = allSubmissions.filter(
+        (s) => s.questionId === questionId,
+      );
 
+      if (questionSubmissions.length === 0) continue;
+
+      // Find the best ratio for this question
+      let bestRatio = 0;
+      for (const sub of questionSubmissions) {
+        const passed = sub.testCasesPassed ?? 0;
+        const total = sub.totalTestCases ?? 0;
+        if (total > 0) {
+          const ratio = passed / total;
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
+          }
+        }
+      }
+
+      // Calculate marks for this question: ratio × marksPerQuestion
+      const marksForQuestion = Math.round(bestRatio * MARKS_PER_QUESTION[i]);
+      newScore += marksForQuestion;
+    }
+
+    // Score is monotonically increasing - only update if new score is higher
     if (newScore > (assignment.score || 0)) {
       await db
         .update(examAssignments)

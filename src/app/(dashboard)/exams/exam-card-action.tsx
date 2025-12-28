@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,12 +11,14 @@ interface ExamCardActionProps {
   examId: string;
   status: "upcoming" | "active" | "ended";
   effectiveStart: Date;
+  isSubmitted?: boolean;
 }
 
 export function ExamCardAction({
   examId,
   status: initialStatus,
   effectiveStart,
+  isSubmitted = false,
 }: ExamCardActionProps) {
   const [status, setStatus] = useState(initialStatus);
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
@@ -59,6 +61,18 @@ export function ExamCardAction({
 
     return () => clearInterval(interval);
   }, [status, effectiveStart, router]);
+
+  // If exam is already submitted, show "Submitted" button with link to results
+  if (isSubmitted) {
+    return (
+      <Button variant="secondary" className="w-full group" asChild>
+        <Link href={`/exams/${examId}/results`}>
+          <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+          Submitted - View Results
+        </Link>
+      </Button>
+    );
+  }
 
   if (status === "active") {
     return (
