@@ -189,6 +189,75 @@
     - Fixed test case selection not resetting when switching problems (`useEffect` in `test-case-console.tsx`).
 
 ### Next Steps
-- Begin Phase 7: Submission & Scoring Logic.
-- Implement `submitQuestion()` action with hidden test case grading.
-- Implement "20-40-50" scoring algorithm.
+### Phase 7: Submission & Scoring Logic (Completed)
+**Goal**: Implement the submission pipeline, scoring algorithm, and enhance user feedback.
+
+**Completed Actions**:
+1.  **Server Actions**:
+    - Implemented `submitQuestion(assignmentId, code)`:
+        - Authenticates user.
+        - Fetches **hidden** test cases from DB.
+        - Executes code via Turbo Engine.
+        - Records verdict (passed, failed, etc.) in `submissions` table.
+        - Calculates score using "20-40-50" rule (distinct solved questions).
+        - Updates `exam_assignments.score` monotonically.
+        - Revalidates paths for real-time UI updates.
+    - Implemented `getSubmissions(assignmentId, questionId)`:
+        - Fetches submission history for the specific question.
+2.  **UI Integration**:
+    - **Submission Button**: Integrated `submitQuestion` with loading states and `sonner` toasts.
+    - **Visual Feedback**:
+        - Sidebar: Added green checkmarks for questions with at least one passed submission.
+        - Console: Displays compilation/runtime errors from submissions.
+    - **Problem Viewer**:
+        - Added **Submissions Tab**: Lists history with verdicts, timestamps, and "Restore Code" button.
+        - **Layout Fixes**:
+            - Implemented tabbed interface for Description/Submissions.
+            - Fixed global layout scrolling by constraining `IDEShell` height.
+            - Fixed code viewer layout using CSS grid to enable horizontal scrolling.
+3.  **Data Flow**:
+    - Updated `SessionPage` to fetch `completedQuestionIds` and pass them down context/props.
+    - Passed `assignmentId` to all relevant components.
+
+### Phase 8: Security & Final Polish (Completed)
+**Goal**: Implement anti-cheat measures, auto-submit functionality, and final polish for exam integrity.
+
+**Completed Actions**:
+1.  **Smart Anti-Cheat (Smart Paste)**:
+    - Implemented `AntiCheatGuard` component.
+    - **Logic**: Blocks pasting content from external sources (clipboard history mismatch) while allowing internal copy-paste within the editor.
+    - **Listeners**:
+        - `contextmenu`: Disabled right-click.
+        - `visibilitychange`: Detects tab switching.
+        - `fullscreenchange`: Detects exiting fullscreen mode.
+    - **Capture Phase**: Used `capture: true` for event listeners to intercept events before CodeMirror consumes them.
+2.  **Strict Malpractice Enforcement**:
+    - **Database**:
+        - Added `malpractice_count` and `is_terminated` to `exam_assignments` table.
+        - Created `malpractice_events` table to log every incident.
+    - **Server Logic**:
+        - Created `recordMalpractice` action.
+        - **Rule of 3**: Automatically terminates the exam (Score: 0) upon the 3rd violation.
+    - **UI Feedback**: Shows warning toasts with remaining attempts. Redirects to Results page on termination.
+3.  **Auto-Submit**:
+    - Integrated with `ExamHeader` timer.
+    - Automatically calls `finishExam(force=true)` when the timer reaches `00:00:00`, bypassing user confirmation.
+4.  **Rate Limiting**:
+    - Added **5-second cooldown** to the "Run Code" button in `CodePlayground`.
+    - Prevents server abuse and spamming.
+5.  **Verification**:
+    - Created `scripts/phase8-seed.ts` to generate active exams for testing.
+    - Used browser subagent to verify Smart Paste behaviors (Blocked vs Allowed).
+    - Verified Rate Limiting UI behavior.
+    - Verified Termination logic (Manual).
+
+### Project Completion
+The Core Secure Coding Exam Platform (Build-It) is now feature complete across all planned phases.
+- **Phase 1-3**: Infrastructure, Auth, Dashboard, User Management.
+- **Phase 4**: Session Logic, Randomization, Slots.
+- **Phase 5**: IDE Interface.
+- **Phase 6**: Code Execution Pipeline (Turbo).
+- **Phase 7**: Submission & Scoring.
+- **Phase 8**: Security & Anti-Cheat.
+
+Ready for Deployment.

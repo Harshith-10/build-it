@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { IDEShell } from "@/components/exam/ide-shell";
 import { db } from "@/db";
-import { examAssignments, exams, questions } from "@/db/schema";
+import { examAssignments, exams, questions, submissions } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 export default async function SessionPage({
@@ -77,12 +77,27 @@ export default async function SessionPage({
     : new Date();
   const endTime = new Date(assignmentStartedAt.getTime() + durationMs);
 
+  // Fetch passed submissions for this assignment to mark questions as completed
+  const passedSubmissions = await db.query.submissions.findMany({
+    where: and(
+      eq(submissions.assignmentId, assignment.id),
+      eq(submissions.verdict, "passed"),
+    ),
+    columns: {
+      questionId: true,
+    },
+  });
+
+  const completedQuestionIds = passedSubmissions.map((s) => s.questionId);
+
   return (
     <IDEShell
       questions={questionList}
       user={{ name: session.user.name, image: session.user.image || undefined }}
       endTime={endTime}
       examTitle={exam?.title || "Exam Session"}
+      assignmentId={assignment.id}
+      completedQuestionIds={completedQuestionIds}
     />
   );
 }

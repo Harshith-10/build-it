@@ -2,7 +2,7 @@
 
 import { java } from "@codemirror/lang-java";
 import CodeMirror from "@uiw/react-codemirror";
-import { ChevronDown, Play, Send } from "lucide-react";
+import { ChevronDown, Loader2, Play, Send } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -37,9 +37,13 @@ interface JavaRuntime {
 
 interface CodePlaygroundProps {
   question: Question;
+  assignmentId: string;
 }
 
-export function CodePlayground({ question }: CodePlaygroundProps) {
+export function CodePlayground({
+  question,
+  assignmentId,
+}: CodePlaygroundProps) {
   const { code, setCode } = useExamStore();
   const [mounted, setMounted] = useState(false);
   const { theme } = useTheme();
@@ -58,6 +62,17 @@ export function CodePlayground({ question }: CodePlaygroundProps) {
     stderr: string;
   } | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Rate Limiting
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   useEffect(() => {
     setMounted(true);
@@ -100,7 +115,13 @@ export function CodePlayground({ question }: CodePlaygroundProps) {
       return;
     }
 
+    if (cooldown > 0) return;
+
+    // Start cooldown
+    setCooldown(5);
+
     setIsRunning(true);
+    setResults([]); // Clear previous results
     setConsoleOutput(null);
 
     // Determine if running test cases or custom input
@@ -193,8 +214,72 @@ export function CodePlayground({ question }: CodePlaygroundProps) {
   };
 
   const handleSubmit = async () => {
-    // TODO: Implement submission logic (Phase 7)
-    toast.info("Submission will be implemented in Phase 7");
+    if (!selectedVersion) {
+      toast.error("No Java runtime available.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Dynamically import to avoid circular dependency issues if any
+      const { submitQuestion } = await import("@/lib/actions/submit-actions");
+
+      const result = await submitQuestion({
+        assignmentId,
+        questionId: question.id,
+        code: currentCode,
+        language: "java",
+        version: selectedVersion,
+      });
+
+      if (!result.success) {
+        toast.error(result.error || "Submission failed");
+        if (result.verdict === "compile_error" && result.details) {
+          setActiveTab("custom");
+          setConsoleOutput({
+            stdout: "",
+            stderr: `Submission Compilation Error:\n${result.details}`,
+          });
+        }
+        return;
+      }
+
+      // Handle Success Verdicts
+      if (result.verdict === "passed") {
+        toast.success("Correct Answer!", {
+          description: `You passed all hidden test cases. Score updated to ${result.score}.`,
+        });
+      } else if (result.verdict === "failed") {
+        toast.error("Wrong Answer", {
+          description: `${result.testCasesPassed}/${result.totalTestCases} hidden test cases passed.`,
+        });
+      } else if (result.verdict === "compile_error") {
+        toast.error("Compilation Error", {
+          description: "Your code failed to compile on submission.",
+        });
+        setActiveTab("custom");
+        setConsoleOutput({
+          stdout: "",
+          stderr: `Submission Compilation Error:\n${result.details}`,
+        });
+      } else if (result.verdict === "runtime_error") {
+        toast.error("Runtime Error", {
+          description:
+            "Your code encountered a runtime error during submission.",
+        });
+        setActiveTab("custom");
+        setConsoleOutput({
+          stdout: "",
+          stderr: `Submission Runtime Error:\n${result.details}`,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong during submission.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -250,19 +335,32 @@ export function CodePlayground({ question }: CodePlaygroundProps) {
                   variant="outline"
                   size="sm"
                   onClick={handleRun}
-                  disabled={isRunning || !selectedVersion}
+                  disabled={isRunning || !selectedVersion || cooldown > 0}
                   className="gap-1.5"
                 >
-                  <Play className="h-3.5 w-3.5" />
-                  {isRunning ? "Running..." : "Run"}
+                  {isRunning ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5" />
+                  )}
+                  {isRunning
+                    ? "Running..."
+                    : cooldown > 0
+                      ? `Run (${cooldown}s)`
+                      : "Run"}
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleSubmit}
+                  disabled={isSubmitting || !selectedVersion || isRunning}
                   className="gap-1.5 bg-green-600 hover:bg-green-700 text-foreground"
                 >
-                  <Send className="h-3.5 w-3.5" />
-                  Submit
+                  {isSubmitting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  {isSubmitting ? "Submitting..." : "Submit"}
                 </Button>
               </ButtonGroup>
             </div>
@@ -297,6 +395,7 @@ export function CodePlayground({ question }: CodePlaygroundProps) {
           onCustomInputChange={setCustomInput}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          isRunning={isRunning}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

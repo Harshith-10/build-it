@@ -20,6 +20,7 @@ interface ExamSidebarProps {
   questions: Question[];
   activeId: string | null;
   onSelect: (id: string) => void;
+  completedQuestionIds: string[];
 }
 
 export function ExamSidebar({
@@ -27,6 +28,7 @@ export function ExamSidebar({
   questions,
   activeId,
   onSelect,
+  completedQuestionIds,
 }: ExamSidebarProps) {
   return (
     <Sidebar collapsible="icon">
@@ -56,6 +58,8 @@ export function ExamSidebar({
             <SidebarMenu>
               {questions.map((q, idx) => {
                 const isActive = activeId === q.id;
+                const isCompleted = completedQuestionIds.includes(q.id);
+
                 return (
                   <SidebarMenuItem key={q.id}>
                     <SidebarMenuButton
@@ -63,10 +67,10 @@ export function ExamSidebar({
                       onClick={() => onSelect(q.id)}
                       tooltip={q.title}
                     >
-                      {isActive ? (
-                        <CheckCircle2 className="text-primary" />
+                      {isCompleted ? (
+                        <CheckCircle2 className="text-green-500" />
                       ) : (
-                        <Circle />
+                        <Circle className="text-muted-foreground" />
                       )}
                       <span>
                         {idx + 1}. {q.title}

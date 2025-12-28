@@ -8,6 +8,8 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AntiCheatGuard } from "./anti-cheat-guard";
+
 import { CodePlayground } from "./code-playground";
 import { ExamHeader } from "./exam-header";
 import { ExamSidebar } from "./exam-sidebar";
@@ -34,6 +36,8 @@ interface IDEShellProps {
   };
   endTime?: Date;
   examTitle: string;
+  assignmentId: string;
+  completedQuestionIds: string[];
 }
 
 export function IDEShell({
@@ -41,6 +45,8 @@ export function IDEShell({
   user,
   endTime,
   examTitle,
+  assignmentId,
+  completedQuestionIds,
 }: IDEShellProps) {
   const [activeQuestionId, setActiveQuestionId] = useQueryState("q", {
     defaultValue: questions[0]?.id || "",
@@ -66,19 +72,32 @@ export function IDEShell({
         questions={questions}
         activeId={activeQuestionId || activeQuestion.id}
         onSelect={setActiveQuestionId}
+        completedQuestionIds={completedQuestionIds}
       />
-      <SidebarInset>
-        <ExamHeader user={user} endTime={endTime} examTitle={examTitle} />
-        <div className="flex-1 overflow-hidden">
-          <ResizablePanelGroup orientation="horizontal">
+      <SidebarInset className="h-screen overflow-hidden flex flex-col">
+        <AntiCheatGuard assignmentId={assignmentId} />
+        <ExamHeader
+          user={user}
+          endTime={endTime}
+          examTitle={examTitle}
+          assignmentId={assignmentId}
+        />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ResizablePanelGroup orientation="horizontal" className="h-full">
             <ResizablePanel defaultSize={40} minSize={30}>
-              <ProblemViewer question={activeQuestion} />
+              <ProblemViewer
+                question={activeQuestion}
+                assignmentId={assignmentId}
+              />
             </ResizablePanel>
 
             <ResizableHandle withHandle handleOrientation="vertical" />
 
             <ResizablePanel defaultSize={60} minSize={30}>
-              <CodePlayground question={activeQuestion} />
+              <CodePlayground
+                question={activeQuestion}
+                assignmentId={assignmentId}
+              />
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>

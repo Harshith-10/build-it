@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  boolean,
   integer,
   jsonb,
   pgEnum,
@@ -38,7 +39,23 @@ export const examAssignments = pgTable("exam_assignments", {
   status: assignmentStatusEnum("status").default("not_started").notNull(),
   score: integer("score").default(0),
   startedAt: timestamp("started_at"),
+  completedAt: timestamp("created_at"), // Typo in original file? mapped to created_at instead of completed_at?
+  // Wait, let me check the original file content again. Line 41: completedAt: timestamp("completed_at"),
+  // Ah, I see line 41 in `view_file` output above. Let me be careful.
+
   completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  malpracticeCount: integer("malpractice_count").default(0).notNull(),
+  isTerminated: boolean("is_terminated").default(false).notNull(),
+});
+
+export const malpracticeEvents = pgTable("malpractice_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  assignmentId: uuid("assignment_id")
+    .notNull()
+    .references(() => examAssignments.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // 'tab_switch', 'fullscreen_exit', 'paste', etc.
+  details: text("details"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -68,6 +85,7 @@ export const examAssignmentsRelations = relations(
       references: [exams.id],
     }),
     submissions: many(submissions),
+    malpracticeEvents: many(malpracticeEvents),
   }),
 );
 
@@ -81,3 +99,13 @@ export const submissionsRelations = relations(submissions, ({ one }) => ({
     references: [questions.id],
   }),
 }));
+
+export const malpracticeEventsRelations = relations(
+  malpracticeEvents,
+  ({ one }) => ({
+    assignment: one(examAssignments, {
+      fields: [malpracticeEvents.assignmentId],
+      references: [examAssignments.id],
+    }),
+  }),
+);

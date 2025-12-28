@@ -18,6 +18,7 @@ interface TestCaseConsoleProps {
   onCustomInputChange: (val: string) => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
+  isRunning?: boolean;
 }
 
 export default function TestCaseConsole({
@@ -28,6 +29,7 @@ export default function TestCaseConsole({
   onCustomInputChange,
   activeTab,
   onTabChange,
+  isRunning = false,
 }: TestCaseConsoleProps) {
   // Derive state for which sub-tab (testcase id) is selected
   // We can just keep local state for that
@@ -125,7 +127,12 @@ export default function TestCaseConsole({
 
         {activeTab === "results" && (
           <div className="h-full flex flex-col">
-            {results.length === 0 ? (
+            {isRunning ? (
+              <div className="flex h-full flex-col items-center justify-center text-muted-foreground animate-pulse">
+                <Terminal className="h-8 w-8 mb-2 opacity-50" />
+                <p className="text-sm">Running Execution...</p>
+              </div>
+            ) : results.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
                 <Terminal className="h-8 w-8 mb-2 opacity-50" />
                 <p className="text-sm">Run your code to see results</p>

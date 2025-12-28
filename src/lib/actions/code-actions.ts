@@ -89,7 +89,8 @@ export async function runCode(input: RunCodeInput): Promise<RunCodeResult> {
       id: tc.id,
       passed: tc.passed,
       input: input.testCases[index]?.input || "",
-      expectedOutput: tc.expected_output,
+      expectedOutput:
+        input.testCases[index]?.expectedOutput || tc.expected_output || "",
       actualOutput: tc.actual_output,
       run_details: {
         // Use per-testcase run_details if available, fallback to global run
