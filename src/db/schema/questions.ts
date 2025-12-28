@@ -15,7 +15,6 @@ export const questions = pgTable("questions", {
   title: text("title").notNull(),
   problemStatement: text("problem_statement").notNull(),
   difficulty: difficultyEnum("difficulty").notNull(),
-  constraints: text("constraints"),
   allowedLanguages: json("allowed_languages").default(["java"]),
   driverCode: json("driver_code").default({ java: "" }),
 });

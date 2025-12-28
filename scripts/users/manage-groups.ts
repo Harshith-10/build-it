@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import inquirer from "inquirer";
-import { db } from "../src/db";
-import { user } from "../src/db/schema/auth";
-import { userGroupMembers, userGroups } from "../src/db/schema/groups";
+import { db } from "../../src/db";
+import { user } from "../../src/db/schema/auth";
+import { userGroupMembers, userGroups } from "../../src/db/schema/groups";
 
 async function manageGroups() {
   console.log("👥  Group Management Tool");

@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import inquirer from "inquirer";
-import { db } from "../src/db";
-import { user } from "../src/db/schema/auth";
-import { auth } from "../src/lib/auth";
+import { db } from "../../src/db";
+import { user } from "../../src/db/schema/auth";
+import { auth } from "../../src/lib/auth";
 
 async function updateUser() {
   console.log("🛠️  User Update Tool");

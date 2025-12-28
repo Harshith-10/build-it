@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import inquirer from "inquirer";
-import { db } from "../src/db";
-import { user } from "../src/db/schema/auth";
+import { db } from "../../src/db";
+import { user } from "../../src/db/schema/auth";
 
 async function deleteUser() {
   console.log("🗑️  User Delete Tool");

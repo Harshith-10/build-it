@@ -3,7 +3,7 @@ import { parse } from "csv-parse/sync";
 import fs from "fs";
 import pLimit from "p-limit";
 import path from "path";
-import { auth } from "../src/lib/auth";
+import { auth } from "../../src/lib/auth";
 
 const USERS_DIR = path.join(process.cwd(), "data/users");
 const CONCURRENCY_LIMIT = 10;

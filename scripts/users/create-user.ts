@@ -1,5 +1,5 @@
 import inquirer from "inquirer";
-import { auth } from "../src/lib/auth";
+import { auth } from "../../src/lib/auth";
 
 async function createUser() {
   console.log("Welcome to the User Creation Wizard!");
