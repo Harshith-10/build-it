@@ -7,6 +7,7 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  trustedOrigins: [process.env.BETTER_AUTH_URL as string],
 
   emailAndPassword: {
     enabled: true,

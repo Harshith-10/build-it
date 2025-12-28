@@ -31,6 +31,7 @@ type SignInValues = z.infer<typeof signInSchema>;
 export default function SignIn() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     register,
@@ -53,6 +54,7 @@ export default function SignIn() {
       {
         onRequest: () => {
           setLoading(true);
+          setError(null);
         },
         onSuccess: () => {
           toast.success("Login successful");
@@ -60,6 +62,7 @@ export default function SignIn() {
         },
         onError: (ctx) => {
           setLoading(false);
+          setError(ctx.error.message);
           toast.error(ctx.error.message);
         },
       },
@@ -77,6 +80,11 @@ export default function SignIn() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="mb-4 rounded-md bg-red-500/15 p-3 text-sm text-red-500 font-medium">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -121,11 +129,11 @@ export default function SignIn() {
           <p className="text-center text-xs text-neutral-500">
             Powered by{" "}
             <Link
-              href="https://better-auth.com"
+              href="https://github.com/Harshith-10/turbo"
               className="underline hover:text-neutral-800 dark:hover:text-neutral-300 transition-colors"
               target="_blank"
             >
-              Better Auth
+              Turbo RCE
             </Link>
           </p>
         </div>

@@ -156,7 +156,7 @@ function SubmissionsList({
                 <span className="text-xs text-muted-foreground">
                   {new Date(sub.createdAt).toLocaleString()}
                 </span>
-                {sub.verdict === "failed" && (
+                {sub.verdict === "failed" && sub.testCasesPassed !== null && (
                   <span className="text-xs text-muted-foreground">
                     {sub.testCasesPassed} passed
                   </span>

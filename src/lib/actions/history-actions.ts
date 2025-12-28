@@ -10,7 +10,7 @@ export interface SubmissionHistoryItem {
   id: string;
   code: string;
   verdict: "passed" | "failed" | "compile_error" | "runtime_error";
-  testCasesPassed: number;
+  testCasesPassed: number | null;
   createdAt: Date;
 }
 

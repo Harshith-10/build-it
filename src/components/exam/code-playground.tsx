@@ -251,8 +251,8 @@ export function CodePlayground({
           description: `You passed all hidden test cases. Score updated to ${result.score}.`,
         });
       } else if (result.verdict === "failed") {
-        toast.error("Wrong Answer", {
-          description: `${result.testCasesPassed}/${result.totalTestCases} hidden test cases passed.`,
+        toast.warning("Submission Recorded", {
+          description: `Code saved, but only ${result.testCasesPassed}/${result.totalTestCases} hidden test cases passed.`,
         });
       } else if (result.verdict === "compile_error") {
         toast.error("Compilation Error", {

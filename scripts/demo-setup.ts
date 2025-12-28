@@ -232,6 +232,7 @@ async function main() {
   // --- Output ---
   console.log("\n--- Demo Setup Complete ---");
   console.log("Users:");
+  // biome-ignore lint/suspicious/useIterableCallbackReturn: I don't care
   newUsers.forEach((u) => console.log(`  ${u.email} : password123`));
   console.log("\nGroups:");
   console.log(`  ${groupA.name}: 22:00 - 23:00`);

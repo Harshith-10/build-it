@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { CheckCircle2 } from "lucide-react";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,7 @@ import {
 import { db } from "@/db";
 import { examAssignments } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { ReturnToDashboardButton } from "./return-to-dashboard-button";
 
 interface ResultsPageProps {
   params: Promise<{
@@ -102,9 +102,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
           </div>
         </CardContent>
         <CardFooter className="justify-center">
-          <Button asChild>
-            <Link href="/exams">Return to Dashboard</Link>
-          </Button>
+          <ReturnToDashboardButton />
         </CardFooter>
       </Card>
     </div>

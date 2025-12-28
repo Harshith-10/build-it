@@ -39,10 +39,6 @@ export const examAssignments = pgTable("exam_assignments", {
   status: assignmentStatusEnum("status").default("not_started").notNull(),
   score: integer("score").default(0),
   startedAt: timestamp("started_at"),
-  completedAt: timestamp("created_at"), // Typo in original file? mapped to created_at instead of completed_at?
-  // Wait, let me check the original file content again. Line 41: completedAt: timestamp("completed_at"),
-  // Ah, I see line 41 in `view_file` output above. Let me be careful.
-
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   malpracticeCount: integer("malpractice_count").default(0).notNull(),

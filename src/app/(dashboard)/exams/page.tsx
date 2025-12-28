@@ -65,42 +65,50 @@ export default async function ExamsPage() {
 
   const now = new Date();
 
-  const examsWithSlots = allExams.map((exam) => {
-    // If exam has group assignments matching user, try to find a valid slot
+  const examsWithSlots = allExams
+    .filter((exam) => {
+      // If user has no groups, they cannot see any group-restricted exams
+      if (userGroupIds.length === 0) return false;
+      // Because we filtered the 'groups' relation in the query to only match userGroupIds,
+      // if exam.groups has entries, it means the user matches at least one group.
+      return exam.groups.length > 0;
+    })
+    .map((exam) => {
+      // If exam has group assignments matching user, try to find a valid slot
 
-    let effectiveStart = exam.startTime;
-    let effectiveEnd = exam.endTime;
+      let effectiveStart = exam.startTime;
+      let effectiveEnd = exam.endTime;
 
-    if (exam.groups && exam.groups.length > 0) {
-      // Check if any group slot overrides
-      // We only pulled groups relevant to the user above
-      const activeSlot = exam.groups.find((g) => {
-        const s = g.startTime ?? exam.startTime;
-        const e = g.endTime ?? exam.endTime;
-        return now >= s && now <= e;
-      });
+      if (exam.groups && exam.groups.length > 0) {
+        // Check if any group slot overrides
+        // We only pulled groups relevant to the user above
+        const activeSlot = exam.groups.find((g) => {
+          const s = g.startTime ?? exam.startTime;
+          const e = g.endTime ?? exam.endTime;
+          return now >= s && now <= e;
+        });
 
-      const targetSlot = activeSlot || exam.groups[0];
+        const targetSlot = activeSlot || exam.groups[0];
 
-      effectiveStart = targetSlot.startTime ?? exam.startTime;
-      effectiveEnd = targetSlot.endTime ?? exam.endTime;
-    }
+        effectiveStart = targetSlot.startTime ?? exam.startTime;
+        effectiveEnd = targetSlot.endTime ?? exam.endTime;
+      }
 
-    // Determine status based on EFFECTIVE times
-    let status = exam.status; // Default to DB status first
+      // Determine status based on EFFECTIVE times
+      let status = exam.status; // Default to DB status first
 
-    // Override status logic based on time
-    if (now < effectiveStart) status = "upcoming";
-    else if (now > effectiveEnd) status = "ended";
-    else status = "active";
+      // Override status logic based on time
+      if (now < effectiveStart) status = "upcoming";
+      else if (now > effectiveEnd) status = "ended";
+      else status = "active";
 
-    return {
-      ...exam,
-      effectiveStart,
-      effectiveEnd,
-      computedStatus: status,
-    };
-  });
+      return {
+        ...exam,
+        effectiveStart,
+        effectiveEnd,
+        computedStatus: status,
+      };
+    });
 
   return (
     <div className="space-y-6">
