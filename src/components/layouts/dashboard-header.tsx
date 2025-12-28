@@ -1,5 +1,6 @@
 import { Zap } from "lucide-react";
 import Link from "next/link";
+import { ThemeToggle } from "../theme-toggle";
 import { UserDropdown } from "./user-dropdown";
 
 export function DashboardHeader() {
@@ -10,11 +11,10 @@ export function DashboardHeader() {
           <div className="bg-primary/10 p-1 rounded-md">
             <Zap className="h-5 w-5 text-primary" />
           </div>
-          <span className="hidden font-bold sm:inline-block">
-            BuildIt Platform
-          </span>
+          <span className="hidden font-bold sm:inline-block">BuildIT</span>
         </Link>
         <div className="flex flex-1 items-center justify-end space-x-2">
+          <ThemeToggle />
           <UserDropdown />
         </div>
       </div>
