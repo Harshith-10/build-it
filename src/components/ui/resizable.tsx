@@ -1,6 +1,6 @@
 "use client";
 
-import { GripVerticalIcon } from "lucide-react";
+import { GripHorizontalIcon, GripVerticalIcon } from "lucide-react";
 import type * as React from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
@@ -28,10 +28,12 @@ function ResizablePanel({ ...props }: React.ComponentProps<typeof Panel>) {
 
 function ResizableHandle({
   withHandle,
+  handleOrientation,
   className,
   ...props
 }: React.ComponentProps<typeof Separator> & {
   withHandle?: boolean;
+  handleOrientation?: "vertical" | "horizontal";
 }) {
   return (
     <Separator
@@ -44,7 +46,11 @@ function ResizableHandle({
     >
       {withHandle && (
         <div className="bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border">
-          <GripVerticalIcon className="size-2.5" />
+          {handleOrientation === "vertical" ? (
+            <GripVerticalIcon className="size-2.5" />
+          ) : (
+            <GripHorizontalIcon className="size-2.5" />
+          )}
         </div>
       )}
     </Separator>

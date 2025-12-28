@@ -49,7 +49,9 @@ async function main() {
       name: "examIndex",
       message: `Select Exam (1-${foundExams.length}):`,
       validate: (val) =>
-        val >= 1 && val <= foundExams.length ? true : "Invalid index",
+        val !== undefined && val >= 1 && val <= foundExams.length
+          ? true
+          : "Invalid index",
     },
   ]);
 
@@ -89,7 +91,9 @@ async function main() {
       name: "userIndex",
       message: `Select User (1-${foundUsers.length}):`,
       validate: (val) =>
-        val >= 1 && val <= foundUsers.length ? true : "Invalid index",
+        val !== undefined && val >= 1 && val <= foundUsers.length
+          ? true
+          : "Invalid index",
     },
   ]);
 

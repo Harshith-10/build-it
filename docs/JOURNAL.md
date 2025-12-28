@@ -138,11 +138,57 @@
 2.  **Components**:
     - Created `src/types/problem.ts` with `TestCase` and `TestcaseResult` types.
     - Created `src/components/exam/test-case-console.tsx` implementing 3-tab console (Test Cases, Results, Custom I/O).
-    - Updated `CodePlayground` to integrate console and add Run/Submit buttons.
+    - Updated `CodePlayground` to integrate console and add Run/Submit buttons with `ButtonGroup`.
 3.  **Data Flow**:
-    - Updated `session/page.tsx` to fetch public test cases (non-hidden) with questions.
-    - Updated `Question` type in `ide-shell.tsx` to include `testCases`.
+    - Updated `session/page.tsx` to fetch public test cases (non-hidden) with questions via Drizzle `with` relations.
+    - Updated `Question` type in `ide-shell.tsx` to include `testCases` array.
+4.  **UI Polish**:
+    - Added `ThemeToggle` to code editor header.
+    - Updated `ResizableHandle` component to support `handleOrientation` prop (vertical/horizontal grip icons).
+    - Changed default code boilerplate to `class Main { public static void main... }`.
+    - Updated `ExamHeader` to use `py-2` instead of fixed `h-16` for better responsiveness.
+    - Updated `globals.css` with custom AMOLED dark theme (true black background, indigo accents).
+    - Removed `bg-muted/50` from dashboard layout for cleaner look.
+5.  **Bug Fixes**:
+    - Fixed code editor resetting to default when cleared. Changed `code[id] || default` to `id in code ? code[id] : default` to preserve empty strings.
 
 ### Next Steps
 - Implement backend Server Action for code execution (connect to Turbo Engine).
 - Handle submission logic and scoring.
+
+### Phase 6: Code Execution Pipeline (Completed)
+**Goal**: Integrate with the Turbo Engine for code execution.
+
+**Completed Actions**:
+1.  **Environment Configuration**:
+    - Added `TURBO_API_BASE_URL=http://localhost:4000/api/v1` to `.env`.
+2.  **Turbo Adapter** (`src/lib/turbo.ts`):
+    - Implemented types matching the Turbo API (`JobRequest`, `JobResult`, `StageResult`, etc.).
+    - Created `executeCode()` function with configurable timeouts and memory limits.
+    - Added `getPackages()` to fetch installed runtimes from `/packages` endpoint.
+    - Implemented `TurboError` class for structured error handling.
+    - Added utility functions: `mapTestCases()`, `getStatusMessage()`.
+    - Fixed `StageStatus` type to use `SCREAMING_SNAKE_CASE` matching actual API responses.
+    - Added `run_details` to `TestCaseResult` type for per-testcase runtime errors.
+3.  **Server Actions** (`src/lib/actions/code-actions.ts`):
+    - `runCode()`: Runs code against provided test cases (for "Run" button).
+    - `runWithCustomInput()`: Runs code with user-provided stdin (for "Custom I/O" tab).
+    - `getJavaRuntimes()`: Fetches installed Java runtimes from Turbo server.
+    - All actions include authentication checks and proper error handling.
+4.  **UI Integration** (`src/components/exam/code-playground.tsx`):
+    - Replaced mock implementation with real server action calls.
+    - Added **Java Runtime Selector** dropdown in header (fetches versions from Turbo server).
+    - Context-aware execution: Runs custom input on "custom" tab, test cases otherwise.
+    - Integrated `sonner` toasts for user feedback.
+    - Shows compilation/runtime errors in "Input/Output" tab when they occur.
+5.  **Bug Fixes**:
+    - Fixed TypeScript error in `scripts/reset-session.ts`.
+    - Fixed runtime selector using `/packages` instead of empty `/runtimes` endpoint.
+    - Fixed status checks to use `SCREAMING_SNAKE_CASE` (e.g., `COMPILATION_ERROR`, `SUCCESS`).
+    - Fixed per-testcase runtime errors not displaying (now uses `tc.run_details.stderr`).
+    - Fixed test case selection not resetting when switching problems (`useEffect` in `test-case-console.tsx`).
+
+### Next Steps
+- Begin Phase 7: Submission & Scoring Logic.
+- Implement `submitQuestion()` action with hidden test case grading.
+- Implement "20-40-50" scoring algorithm.

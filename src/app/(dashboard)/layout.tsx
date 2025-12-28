@@ -6,7 +6,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-muted/50">
+    <div className="flex min-h-screen flex-col">
       <DashboardHeader />
       <main className="flex-1 h-full space-y-4 p-4 md:p-8 pt-6">{children}</main>
     </div>

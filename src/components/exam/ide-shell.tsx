@@ -75,7 +75,7 @@ export function IDEShell({
               <ProblemViewer question={activeQuestion} />
             </ResizablePanel>
 
-            <ResizableHandle />
+            <ResizableHandle withHandle handleOrientation="vertical" />
 
             <ResizablePanel defaultSize={60} minSize={30}>
               <CodePlayground question={activeQuestion} />

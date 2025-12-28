@@ -46,7 +46,7 @@ export function ExamHeader({ user, endTime, examTitle }: ExamHeaderProps) {
   }, [endTime]);
 
   return (
-    <header className="relative flex h-16 w-full items-center justify-between border-b bg-background px-4">
+    <header className="relative flex w-full items-center justify-between border-b bg-background px-4 py-2">
       {/* Left Section */}
       <div className="flex items-center gap-4">
         <SidebarTrigger />

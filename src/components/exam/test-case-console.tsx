@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Terminal, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -34,6 +34,13 @@ export default function TestCaseConsole({
   const [selectedCaseId, setSelectedCaseId] = useState<string>(
     testCases[0]?.id.toString() || "",
   );
+
+  // Reset selected case when test cases change (i.e., when switching problems)
+  useEffect(() => {
+    if (testCases.length > 0) {
+      setSelectedCaseId(testCases[0].id.toString());
+    }
+  }, [testCases]);
 
   return (
     <div className="h-full w-full bg-background flex flex-col overflow-hidden">
@@ -77,7 +84,7 @@ export default function TestCaseConsole({
                       className={cn(
                         "text-xs text-left px-3 py-2 rounded-md transition-colors",
                         selectedCaseId === tc.id.toString()
-                          ? "bg-secondary font-medium text-foreground"
+                          ? "bg-secondary font-medium text-secondary-foreground"
                           : "text-muted-foreground hover:bg-muted",
                       )}
                     >
