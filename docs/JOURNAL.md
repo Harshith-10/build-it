@@ -86,3 +86,30 @@
 - Begin Phase 4: Session Logic & Randomization.
 - Implement Onboarding UI & Fullscreen triggers.
 - Build the "Randomizer" Engine (Server Actions).
+
+### Phase 4: Session Logic & Randomization
+**Goal**: Implement the secure "Start Exam" flow, randomization, and group-specific access control.
+
+**Completed Actions**:
+1.  **Group Slots**:
+    - **Schema**: Updated `exam_groups` with `start_time` and `end_time` columns.
+    - **Logic**: Implemented validation to ensure users can only access exams during their specific group's assigned time slot.
+2.  **Server Actions**:
+    - Created `initializeExamSession` action.
+    - Handles **Idempotency**: Resumes existing sessions if found.
+    - Handles **Randomization**: Assigns 3 random questions from the bank to new sessions.
+3.  **UI Implementation**:
+    - **Onboarding Page**: Created `/exams/[id]/onboarding` displaying rules.
+    - **Fullscreen Enforcement**: Implemented logic to require fullscreen before starting the session.
+    - **Malpractice Detection**: Created `MalpracticeMonitor` component to detect/alert on Tab Switching, Window Blur, and Fullscreen Exit.
+    - **Live Countdown**: Added `ExamCardAction` to the dashboard to show a live countdown for slots opening within 15 minutes.
+4.  **Verification Scripts**:
+    - `scripts/phase4-seed.ts`: Generates verify exam, group, and users.
+    - `scripts/reset-session.ts`: Allows manual deletion of sessions for testing.
+    - `scripts/test-group-b.ts`: Moves a user to a restricted future slot for testing access denial.
+    - `scripts/test-countdown.ts`: Sets a slot 2 minutes in the future to test the live timer.
+
+### Next Steps
+- Begin Phase 5: The IDE Interface.
+- Implement the 3-panel layout (Sidebar, Problem, Editor).
+- Integrate CodeMirror for Java.

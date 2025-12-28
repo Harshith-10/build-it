@@ -14,6 +14,7 @@ async function main() {
         branch: "CSE",
         semester: "IV",
         section: "A",
+        image: "https://avatar.vercel.sh/21951A05J6",
         dob: new Date("2004-01-01"),
         regulation: "R23",
       },

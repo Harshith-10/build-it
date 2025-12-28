@@ -53,6 +53,8 @@ export const examGroups = pgTable("exam_groups", {
   groupId: uuid("group_id")
     .notNull()
     .references(() => userGroups.id, { onDelete: "cascade" }),
+  startTime: timestamp("start_time"),
+  endTime: timestamp("end_time"),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
 });
 
