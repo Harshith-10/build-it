@@ -1,6 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
 import { eq } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
 import { db } from "../../src/db";
 import { questions, testCases } from "../../src/db/schema";
 

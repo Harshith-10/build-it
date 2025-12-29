@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, History, RefreshCcw } from "lucide-react";
+import { History, RefreshCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";

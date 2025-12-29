@@ -1,4 +1,4 @@
-import { addHours, format, parse } from "date-fns";
+import { addHours, format } from "date-fns";
 import inquirer from "inquirer";
 import { db } from "@/db";
 import { exams } from "@/db/schema/exams";
@@ -24,7 +24,7 @@ async function createExam() {
       message: "Start Time (YYYY-MM-DD HH:mm):",
       default: format(new Date(), "yyyy-MM-dd HH:mm"),
       validate: (input) =>
-        !isNaN(Date.parse(input)) ? true : "Invalid date format",
+        !Number.isNaN(Date.parse(input)) ? true : "Invalid date format",
     },
     {
       type: "input",
@@ -32,7 +32,7 @@ async function createExam() {
       message: "End Time (YYYY-MM-DD HH:mm):",
       default: format(addHours(new Date(), 24), "yyyy-MM-dd HH:mm"),
       validate: (input) =>
-        !isNaN(Date.parse(input)) ? true : "Invalid date format",
+        !Number.isNaN(Date.parse(input)) ? true : "Invalid date format",
     },
     {
       type: "number",

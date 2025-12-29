@@ -1,11 +1,9 @@
 import { format } from "date-fns";
-import { and, eq, inArray } from "drizzle-orm";
-import { ArrowRight, Calendar, Clock, Timer } from "lucide-react";
+import { eq, inArray } from "drizzle-orm";
+import { Calendar, Clock, Timer } from "lucide-react";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,12 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { db } from "@/db";
-import {
-  examAssignments,
-  examGroups,
-  exams,
-  userGroupMembers,
-} from "@/db/schema";
+import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { ExamCardAction } from "./exam-card-action";
 
@@ -134,7 +127,7 @@ export default async function ExamsPage() {
     });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mx-auto max-w-screen-2xlqqq">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Exams</h2>
@@ -161,7 +154,11 @@ export default async function ExamsPage() {
             <Card key={exam.id} className="flex flex-col">
               <CardHeader>
                 <div className="flex items-center justify-between mb-2">
-                  <Badge className={getStatusColor(exam.computedStatus as any)}>
+                  <Badge
+                    className={getStatusColor(
+                      exam.computedStatus as "upcoming" | "active" | "ended",
+                    )}
+                  >
                     {exam.computedStatus.charAt(0).toUpperCase() +
                       exam.computedStatus.slice(1)}
                   </Badge>

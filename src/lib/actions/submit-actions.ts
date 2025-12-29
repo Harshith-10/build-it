@@ -1,15 +1,11 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import {
-  examAssignments,
-  submissions,
-  submissionVerdictEnum,
-} from "@/db/schema/assignments";
-import { questions, testCases } from "@/db/schema/questions";
+import { examAssignments, submissions } from "@/db/schema/assignments";
+import { testCases } from "@/db/schema/questions";
 import { auth } from "@/lib/auth";
 import {
   executeCode,

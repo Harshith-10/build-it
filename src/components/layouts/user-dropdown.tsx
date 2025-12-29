@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, LogOut, User } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -39,7 +39,7 @@ export function UserDropdown() {
           },
         },
       });
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to sign out");
     } finally {
       setIsSigningOut(false);

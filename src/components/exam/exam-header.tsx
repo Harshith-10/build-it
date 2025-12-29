@@ -85,7 +85,10 @@ export function ExamHeader({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [endTime]);
+  }, [
+    endTime, // Trigger auto-submit
+    submitExam,
+  ]);
 
   const handleFinishClick = () => setShowConfirmDialog(true);
   const handleConfirmFinish = () => {

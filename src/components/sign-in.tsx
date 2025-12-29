@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { signIn } from "@/lib/auth-client";
 
 const signInSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
+  identifier: z.string().min(1, "Email or Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -32,6 +32,7 @@ export default function SignIn() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -40,33 +41,47 @@ export default function SignIn() {
   } = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      email: "",
+      identifier: "",
       password: "",
     },
   });
 
   const onSubmit = async (data: SignInValues) => {
-    await signIn.email(
-      {
-        email: data.email,
-        password: data.password,
+    const isEmail = z.string().email().safeParse(data.identifier).success;
+
+    const callbacks = {
+      onRequest: () => {
+        setLoading(true);
+        setError(null);
       },
-      {
-        onRequest: () => {
-          setLoading(true);
-          setError(null);
-        },
-        onSuccess: () => {
-          toast.success("Login successful");
-          router.push("/exams");
-        },
-        onError: (ctx) => {
-          setLoading(false);
-          setError(ctx.error.message);
-          toast.error(ctx.error.message);
-        },
+      onSuccess: () => {
+        toast.success("Login successful");
+        router.push("/exams");
       },
-    );
+      onError: (ctx: { error: { message: string } }) => {
+        setLoading(false);
+        setError(ctx.error.message);
+        toast.error(ctx.error.message);
+      },
+    };
+
+    if (isEmail) {
+      await signIn.email(
+        {
+          email: data.identifier,
+          password: data.password,
+        },
+        callbacks,
+      );
+    } else {
+      await signIn.username(
+        {
+          username: data.identifier,
+          password: data.password,
+        },
+        callbacks,
+      );
+    }
   };
 
   return (
@@ -76,7 +91,7 @@ export default function SignIn() {
           Sign In
         </CardTitle>
         <CardDescription>
-          Enter your email below to login to your account
+          Enter your email or username below to login to your account
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -87,26 +102,48 @@ export default function SignIn() {
         )}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="identifier">Email or Username</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="m@example.com"
-              {...register("email")}
+              id="identifier"
+              type="text"
+              placeholder="23951a052x@iare.ac.in"
+              {...register("identifier")}
             />
-            {errors.email && (
-              <p className="text-sm text-red-500">{errors.email.message}</p>
+            {errors.identifier && (
+              <p className="text-sm text-red-500">
+                {errors.identifier.message}
+              </p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              {...register("password")}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                {...register("password")}
+                className="pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowPassword((prev) => !prev)}
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="sr-only">
+                  {showPassword ? "Hide password" : "Show password"}
+                </span>
+              </Button>
+            </div>
             {errors.password && (
               <p className="text-sm text-red-500">{errors.password.message}</p>
             )}

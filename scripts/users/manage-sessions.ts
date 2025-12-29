@@ -144,7 +144,9 @@ async function manageUserSessions(userId: string) {
       if (sessionsToDelete.length > 0) {
         await db
           .delete(session)
-          .where(or(...sessionsToDelete.map((id: string) => eq(session.id, id))));
+          .where(
+            or(...sessionsToDelete.map((id: string) => eq(session.id, id))),
+          );
         console.log(`✅ Deleted ${sessionsToDelete.length} session(s).`);
       }
     }

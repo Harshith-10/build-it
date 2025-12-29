@@ -35,7 +35,7 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
     try {
       // 1. Request Fullscreen
       await document.documentElement.requestFullscreen();
-    } catch (error) {
+    } catch (_error) {
       toast.error(
         "Fullscreen is required to take this exam. Please grant permission.",
       );

@@ -90,7 +90,7 @@ async function assignExam() {
         message: "Start Time (YYYY-MM-DD HH:mm):",
         default: format(new Date(), "yyyy-MM-dd HH:mm"),
         validate: (input) =>
-          !isNaN(Date.parse(input)) ? true : "Invalid date format",
+          !Number.isNaN(Date.parse(input)) ? true : "Invalid date format",
       },
       {
         type: "input",
@@ -98,7 +98,7 @@ async function assignExam() {
         message: "End Time (YYYY-MM-DD HH:mm):",
         default: format(addHours(new Date(), 24), "yyyy-MM-dd HH:mm"),
         validate: (input) =>
-          !isNaN(Date.parse(input)) ? true : "Invalid date format",
+          !Number.isNaN(Date.parse(input)) ? true : "Invalid date format",
       },
     ]);
     startTimeVal = new Date(startTime);

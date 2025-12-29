@@ -1,5 +1,5 @@
-import fs from "fs/promises";
-import path from "path";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 // Define the path to the problem data file
 const PROBLEM_DATA_PATH = path.join(
@@ -29,7 +29,7 @@ async function removeDuplicateProblems() {
     let problems: Problem[];
     try {
       problems = JSON.parse(fileContent);
-    } catch (parseError) {
+    } catch (_parseError) {
       console.error("Error: Invalid JSON format in the file.");
       return;
     }

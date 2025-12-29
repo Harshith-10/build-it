@@ -100,7 +100,7 @@ async function createUser() {
     if (res) {
       console.log("✅ User created successfully!");
     }
-  // biome-ignore lint/suspicious/noExplicitAny: Catch all errors
+    // biome-ignore lint/suspicious/noExplicitAny: Catch all errors
   } catch (error: any) {
     console.error("❌ Failed to create user:");
     if (error?.body?.message) {

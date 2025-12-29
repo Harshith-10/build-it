@@ -31,7 +31,7 @@ export function ExamCardAction({
     const targetTime = new Date(effectiveStart).getTime();
 
     const updateTimer = () => {
-      const now = new Date().getTime();
+      const now = Date.now();
       const diff = targetTime - now;
 
       if (diff <= 0) {

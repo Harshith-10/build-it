@@ -1,8 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Presets, SingleBar } from "cli-progress";
 import { parse } from "csv-parse/sync";
-import fs from "fs";
 import pLimit from "p-limit";
-import path from "path";
 import { auth } from "../../src/lib/auth";
 
 const USERS_DIR = path.join(process.cwd(), "data/users");

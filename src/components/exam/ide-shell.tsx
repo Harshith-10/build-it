@@ -52,7 +52,7 @@ export function IDEShell({
     defaultValue: questions[0]?.id || "",
   });
 
-  const [isMounted, setIsMounted] = useState(false);
+  const [_isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
 
   const activeQuestion =

@@ -46,7 +46,7 @@ async function updateUser() {
         name: "selectedIndex",
         message: "Select a user to update (Enter number):",
         validate: (input) => {
-          const num = Number.parseInt(input);
+          const num = Number.parseInt(input, 10);
           if (Number.isNaN(num) || num < 0 || num > users.length) {
             return "Please enter a valid number.";
           }
@@ -55,7 +55,7 @@ async function updateUser() {
       },
     ]);
 
-    const index = Number.parseInt(selectedIndex);
+    const index = Number.parseInt(selectedIndex, 10);
     if (index === 0) continue;
 
     const selectedUser = users[index - 1];

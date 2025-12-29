@@ -2,7 +2,6 @@ import { and, eq } from "drizzle-orm";
 import { CheckCircle2 } from "lucide-react";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
