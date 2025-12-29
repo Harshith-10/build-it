@@ -116,6 +116,7 @@ async function seedUsers() {
                     : "other",
               dob: dobDate,
               regulation: record.Regulation,
+              semester: "6",
             },
           });
           userId = res?.user?.id;
