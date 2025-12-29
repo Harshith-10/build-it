@@ -52,6 +52,7 @@ async function main() {
           { name: "Assign Exam", value: "scripts/exams/assign-exam.ts" },
           { name: "Delete Exam", value: "scripts/exams/delete-exam.ts" },
           { name: "List Exams (Simple)", value: "scripts/exams/list-exams.ts" },
+          { name: "View Exam Timings", value: "scripts/exams/view-timings.ts" },
           { name: "Reset Session", value: "scripts/exams/reset-session.ts" },
           { name: "Back", value: "back" },
         ],
