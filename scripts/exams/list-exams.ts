@@ -18,6 +18,12 @@ async function listExams() {
       Status: e.status,
       Start: e.startTime?.toISOString(),
       Duration: `${e.durationMinutes}m`,
+      Strategy: e.strategyType,
+      "Strategy Config": e.strategyConfig
+        ? JSON.stringify(e.strategyConfig)
+        : "",
+      Grading: e.gradingStrategy,
+      "Grading Config": e.gradingConfig ? JSON.stringify(e.gradingConfig) : "",
     })),
   );
 }

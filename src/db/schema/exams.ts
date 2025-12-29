@@ -17,13 +17,15 @@ export const examStatusEnum = pgEnum("exam_status", [
   "ended",
 ]);
 export const strategyTypeEnum = pgEnum("strategy_type", [
-  "random_3",
+  "random_n",
   "fixed_set",
   "difficulty_mix",
 ]);
 export const gradingStrategyEnum = pgEnum("grading_strategy", [
   "standard_20_40_50",
   "linear",
+  "difficulty_based",
+  "count_based",
 ]);
 
 export const exams = pgTable("exams", {
@@ -34,11 +36,12 @@ export const exams = pgTable("exams", {
   endTime: timestamp("end_time").notNull(),
   durationMinutes: integer("duration_minutes").notNull(),
   status: examStatusEnum("status").default("upcoming").notNull(),
-  strategyType: strategyTypeEnum("strategy_type").default("random_3").notNull(),
+  strategyType: strategyTypeEnum("strategy_type").default("random_n").notNull(),
   gradingStrategy: gradingStrategyEnum("grading_strategy")
     .default("standard_20_40_50")
     .notNull(),
   strategyConfig: json("strategy_config"),
+  gradingConfig: json("grading_config"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
