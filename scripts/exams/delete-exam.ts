@@ -1,42 +1,23 @@
+import confirm from "@inquirer/confirm";
 import { count, eq } from "drizzle-orm";
-import inquirer from "inquirer";
-import { db } from "@/db";
+import { db } from "../../src/db";
 import {
   examAssignments,
   examGroups,
   exams,
   malpracticeEvents,
   submissions,
-} from "@/db/schema";
+} from "../../src/db/schema";
+import { clearScreen, selectExam } from "../lib/ui";
 
 async function main() {
-  console.log("🗑️  Exam Deletion Tool");
+  clearScreen("Exam Deletion Tool");
 
-  // 1. List Exams
-  const allExams = await db.query.exams.findMany({
-    orderBy: (exams, { desc }) => [desc(exams.createdAt)],
-  });
-
-  if (allExams.length === 0) {
-    console.log("No exams found.");
-    return;
-  }
-
-  const { examId } = await inquirer.prompt([
-    {
-      type: "list",
-      name: "examId",
-      message: "Select an exam to delete:",
-      choices: allExams.map((e) => ({
-        name: `${e.title} (ID: ${e.id}) - ${e.startTime.toLocaleString()}`,
-        value: e.id,
-      })),
-    },
-  ]);
-
-  const selectedExam = allExams.find((e) => e.id === examId);
+  // 1. Select Exam
+  const selectedExam = await selectExam();
   if (!selectedExam) return;
 
+  const examId = selectedExam.id;
   console.log(`\nAnalyzing data for: ${selectedExam.title}...`);
 
   // 2. Count Related Data
@@ -47,10 +28,6 @@ async function main() {
     .where(eq(examAssignments.examId, examId));
 
   // Submissions (join via assignments)
-  // Actually, we can just count submissions where assignment.examId is correct, or just count all submissions if we query assignments first.
-  // Let's do a join or easier: get assignment IDs first?
-  // If many assignments, IDs list might be large.
-  // Join is better.
   const submissionCount = await db
     .select({ count: count() })
     .from(submissions)
@@ -85,16 +62,12 @@ async function main() {
   console.log("\nThis action cannot be undone.");
 
   // 3. Confirm
-  const { confirm } = await inquirer.prompt([
-    {
-      type: "confirm",
-      name: "confirm",
-      message: "Are you absolutely sure you want to proceed?",
-      default: false,
-    },
-  ]);
+  const isConfirmed = await confirm({
+    message: "Are you absolutely sure you want to proceed?",
+    default: false,
+  });
 
-  if (confirm) {
+  if (isConfirmed) {
     // 4. Delete
     // Cascade should handle the rest
     await db.delete(exams).where(eq(exams.id, examId));

@@ -1,49 +1,15 @@
-import { eq, ilike } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import inquirer from "inquirer";
-import { db } from "@/db";
-import { questions } from "@/db/schema/questions";
+import { db } from "../../src/db";
+import { questions } from "../../src/db/schema/questions";
+import { clearScreen, selectProblem } from "../lib/ui";
 
 async function updateProblem() {
-  console.log("✏️  Update Problem");
+  clearScreen("Update Problem");
 
   // 1. Search Problem
-  const { searchTerm } = await inquirer.prompt([
-    {
-      type: "input",
-      name: "searchTerm",
-      message: "Search problem by title (leave empty for recent 10):",
-    },
-  ]);
-
-  let foundProblems;
-  if (!searchTerm) {
-    foundProblems = await db.select().from(questions).limit(10);
-  } else {
-    foundProblems = await db
-      .select()
-      .from(questions)
-      .where(ilike(questions.title, `%${searchTerm}%`))
-      .limit(10);
-  }
-
-  if (foundProblems.length === 0) {
-    console.log("No problems found.");
-    return;
-  }
-
-  const { problemId } = await inquirer.prompt([
-    {
-      type: "list",
-      name: "problemId",
-      message: "Select Problem:",
-      choices: foundProblems.map((p) => ({
-        name: `${p.title} (${p.difficulty})`,
-        value: p.id,
-      })),
-    },
-  ]);
-
-  const problem = foundProblems.find((p) => p.id === problemId)!;
+  const problem = await selectProblem();
+  if (!problem) return;
 
   // 2. Select Field to Update
   const { field } = await inquirer.prompt([
@@ -92,7 +58,10 @@ async function updateProblem() {
     updateData = { difficulty: newDifficulty };
   }
 
-  await db.update(questions).set(updateData).where(eq(questions.id, problemId));
+  await db
+    .update(questions)
+    .set(updateData)
+    .where(eq(questions.id, problem.id));
   console.log("✅ Problem updated successfully.");
 }
 

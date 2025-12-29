@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import {
   examAssignments,
+  examCollections,
   examGroups,
   questions,
   userGroupMembers,
@@ -99,11 +100,50 @@ export async function initializeExamSession(examId: string) {
     }
 
     // 3. Randomization
-    const randomQuestions = await db
-      .select({ id: questions.id })
-      .from(questions)
-      .orderBy(sql`RANDOM()`)
-      .limit(3);
+    // 3. Question Selection
+    // Check if exam has specific collections assigned
+    const linkedCollections = await db.query.examCollections.findMany({
+      where: eq(examCollections.examId, examId),
+      with: {
+        collection: {
+          with: {
+            questions: true,
+          },
+        },
+      },
+    });
+
+    let randomQuestions: { id: string }[];
+
+    if (linkedCollections.length > 0) {
+      // Use questions from collections
+      const allowedIds = linkedCollections.flatMap((ec) =>
+        ec.collection.questions.map((cq) => cq.questionId),
+      );
+
+      // Remove duplicates
+      const uniqueAllowedIds = Array.from(new Set(allowedIds));
+
+      if (uniqueAllowedIds.length < 3) {
+        throw new Error(
+          "Configuration Error: Assigned collections do not have enough questions (min 3 required).",
+        );
+      }
+
+      randomQuestions = await db
+        .select({ id: questions.id })
+        .from(questions)
+        .where(inArray(questions.id, uniqueAllowedIds))
+        .orderBy(sql`RANDOM()`)
+        .limit(3);
+    } else {
+      // Fallback: Global Pool
+      randomQuestions = await db
+        .select({ id: questions.id })
+        .from(questions)
+        .orderBy(sql`RANDOM()`)
+        .limit(3);
+    }
 
     if (randomQuestions.length < 3) {
       throw new Error(

@@ -9,6 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { userGroups } from "./groups";
+import { examCollections } from "./question-collections";
 
 export const examStatusEnum = pgEnum("exam_status", [
   "upcoming",
@@ -60,6 +61,7 @@ export const examGroups = pgTable("exam_groups", {
 
 export const examsRelations = relations(exams, ({ many }) => ({
   groups: many(examGroups),
+  collections: many(examCollections),
 }));
 
 export const examGroupsRelations = relations(examGroups, ({ one }) => ({
