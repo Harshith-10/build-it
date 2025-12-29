@@ -88,12 +88,8 @@
           "name": "exam_assignments_user_id_user_id_fk",
           "tableFrom": "exam_assignments",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -101,12 +97,8 @@
           "name": "exam_assignments_exam_id_exams_id_fk",
           "tableFrom": "exam_assignments",
           "tableTo": "exams",
-          "columnsFrom": [
-            "exam_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["exam_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -160,12 +152,8 @@
           "name": "malpractice_events_assignment_id_exam_assignments_id_fk",
           "tableFrom": "malpractice_events",
           "tableTo": "exam_assignments",
-          "columnsFrom": [
-            "assignment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["assignment_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -240,12 +228,8 @@
           "name": "submissions_assignment_id_exam_assignments_id_fk",
           "tableFrom": "submissions",
           "tableTo": "exam_assignments",
-          "columnsFrom": [
-            "assignment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["assignment_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -253,12 +237,8 @@
           "name": "submissions_question_id_questions_id_fk",
           "tableFrom": "submissions",
           "tableTo": "questions",
-          "columnsFrom": [
-            "question_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["question_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -375,12 +355,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -467,12 +443,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -482,9 +454,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -603,16 +573,12 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         },
         "user_username_unique": {
           "name": "user_username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+          "columns": ["username"]
         }
       },
       "policies": {},
@@ -735,12 +701,8 @@
           "name": "exam_groups_exam_id_exams_id_fk",
           "tableFrom": "exam_groups",
           "tableTo": "exams",
-          "columnsFrom": [
-            "exam_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["exam_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -748,12 +710,8 @@
           "name": "exam_groups_group_id_user_group_id_fk",
           "tableFrom": "exam_groups",
           "tableTo": "user_group",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -895,12 +853,8 @@
           "name": "user_group_member_group_id_user_group_id_fk",
           "tableFrom": "user_group_member",
           "tableTo": "user_group",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -908,12 +862,8 @@
           "name": "user_group_member_user_id_user_id_fk",
           "tableFrom": "user_group_member",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1000,12 +950,8 @@
           "name": "collection_questions_collection_id_question_collections_id_fk",
           "tableFrom": "collection_questions",
           "tableTo": "question_collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1013,12 +959,8 @@
           "name": "collection_questions_question_id_questions_id_fk",
           "tableFrom": "collection_questions",
           "tableTo": "questions",
-          "columnsFrom": [
-            "question_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["question_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1026,10 +968,7 @@
       "compositePrimaryKeys": {
         "collection_questions_collection_id_question_id_pk": {
           "name": "collection_questions_collection_id_question_id_pk",
-          "columns": [
-            "collection_id",
-            "question_id"
-          ]
+          "columns": ["collection_id", "question_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1067,12 +1006,8 @@
           "name": "exam_collections_exam_id_exams_id_fk",
           "tableFrom": "exam_collections",
           "tableTo": "exams",
-          "columnsFrom": [
-            "exam_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["exam_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1080,12 +1015,8 @@
           "name": "exam_collections_collection_id_question_collections_id_fk",
           "tableFrom": "exam_collections",
           "tableTo": "question_collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1093,10 +1024,7 @@
       "compositePrimaryKeys": {
         "exam_collections_exam_id_collection_id_pk": {
           "name": "exam_collections_exam_id_collection_id_pk",
-          "columns": [
-            "exam_id",
-            "collection_id"
-          ]
+          "columns": ["exam_id", "collection_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1253,12 +1181,8 @@
           "name": "test_cases_question_id_questions_id_fk",
           "tableFrom": "test_cases",
           "tableTo": "questions",
-          "columnsFrom": [
-            "question_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["question_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1274,57 +1198,32 @@
     "public.assignment_status": {
       "name": "assignment_status",
       "schema": "public",
-      "values": [
-        "not_started",
-        "in_progress",
-        "completed"
-      ]
+      "values": ["not_started", "in_progress", "completed"]
     },
     "public.submission_verdict": {
       "name": "submission_verdict",
       "schema": "public",
-      "values": [
-        "passed",
-        "failed",
-        "compile_error",
-        "runtime_error"
-      ]
+      "values": ["passed", "failed", "compile_error", "runtime_error"]
     },
     "public.exam_status": {
       "name": "exam_status",
       "schema": "public",
-      "values": [
-        "upcoming",
-        "active",
-        "ended"
-      ]
+      "values": ["upcoming", "active", "ended"]
     },
     "public.grading_strategy": {
       "name": "grading_strategy",
       "schema": "public",
-      "values": [
-        "standard_20_40_50",
-        "linear"
-      ]
+      "values": ["standard_20_40_50", "linear"]
     },
     "public.strategy_type": {
       "name": "strategy_type",
       "schema": "public",
-      "values": [
-        "random_3",
-        "random_n",
-        "fixed_set",
-        "difficulty_mix"
-      ]
+      "values": ["random_3", "random_n", "fixed_set", "difficulty_mix"]
     },
     "public.difficulty": {
       "name": "difficulty",
       "schema": "public",
-      "values": [
-        "easy",
-        "medium",
-        "hard"
-      ]
+      "values": ["easy", "medium", "hard"]
     }
   },
   "schemas": {},

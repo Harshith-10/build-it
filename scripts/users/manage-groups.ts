@@ -3,7 +3,6 @@ import input from "@inquirer/input";
 import select from "@inquirer/select";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../src/db";
-import { user } from "../../src/db/schema/auth";
 import { userGroupMembers, userGroups } from "../../src/db/schema/groups";
 import { clearScreen, selectGroup, selectUser } from "../lib/ui";
 

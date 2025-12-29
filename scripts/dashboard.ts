@@ -1,5 +1,5 @@
+import { spawn } from "node:child_process";
 import select from "@inquirer/select";
-import { spawn } from "child_process";
 
 async function main() {
   while (true) {
@@ -113,10 +113,10 @@ async function main() {
 }
 
 async function runScript(relativePath: string) {
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<void>((resolve, _reject) => {
     console.log(`\nStarting: ${relativePath}...\n`);
     const p = spawn("pnpm", ["tsx", relativePath], { stdio: "inherit" });
-    p.on("close", (code) => {
+    p.on("close", (_code) => {
       console.log(`\nScript finished. Press Enter to return to menu.`);
       process.stdin.resume(); // Ensure stdin is readable
       process.stdin.once("data", () => {

@@ -67,7 +67,7 @@ async function handleUserUpdate(existingUser: typeof user.$inferSelect) {
       .where(eq(user.id, existingUser.id));
     console.log("✅ Role updated.");
   } else if (action === "Password") {
-    const newPassword = await password({
+    const _newPassword = await password({
       message: "Enter new password:",
       mask: "*",
     });
@@ -79,7 +79,7 @@ async function handleUserUpdate(existingUser: typeof user.$inferSelect) {
       console.log(
         "For now, this feature is disabled to prevent hashing issues.",
       );
-    } catch (e: any) {
+    } catch (_e: any) {
       console.error("❌ Failed to update password.");
     }
   }

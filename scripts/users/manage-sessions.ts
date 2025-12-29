@@ -55,7 +55,7 @@ async function manageUserSessions(userId: string) {
     if (sessions.length > 0) {
       console.table(
         sessions.map((s) => ({
-          ID: s.id.substring(0, 8) + "...",
+          ID: `${s.id.substring(0, 8)}...`,
           "IP Info": s.ipAddress || "Unknown",
           "User Agent": s.userAgent
             ? `${s.userAgent.substring(0, 30)}...`

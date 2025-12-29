@@ -11,9 +11,9 @@ import { questions } from "../../src/db/schema/questions";
 export function clearScreen(title?: string) {
   console.clear();
   if (title) {
-    console.log("\n" + "=".repeat(50));
+    console.log(`\n${"=".repeat(50)}`);
     console.log(`  ${title}`);
-    console.log("=".repeat(50) + "\n");
+    console.log(`${"=".repeat(50)}\n`);
   }
 }
 

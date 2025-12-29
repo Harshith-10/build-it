@@ -3,8 +3,7 @@ import input from "@inquirer/input";
 import { addHours, format } from "date-fns";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../src/db";
-import { examGroups, exams } from "../../src/db/schema/exams";
-import { userGroups } from "../../src/db/schema/groups";
+import { examGroups } from "../../src/db/schema/exams";
 import { clearScreen, selectExam, selectGroup } from "../lib/ui";
 
 async function assignExam() {

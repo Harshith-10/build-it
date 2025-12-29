@@ -153,7 +153,7 @@ async function seedUsers() {
             });
           }
         }
-      } catch (err) {
+      } catch (_err) {
         // Global error handler for this record
       } finally {
         progressBar.increment();

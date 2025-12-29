@@ -1,14 +1,11 @@
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   collectionQuestions,
-  examAssignments,
   examCollections,
   exams,
   questionCollections,
   questions,
 } from "@/db/schema";
-import { initializeExamSession } from "@/lib/actions/exam-actions";
 
 // Mock user session logic by skipping auth check or simulating it?
 // Since initializeExamSession uses proper `auth` which requires headers,
@@ -36,7 +33,7 @@ async function main() {
   const [collection] = await db
     .insert(questionCollections)
     .values({
-      title: "Verification Collection " + Date.now(),
+      title: `Verification Collection ${Date.now()}`,
       description: "Temporary collection for verification",
       tags: ["test"],
     })
@@ -63,7 +60,7 @@ async function main() {
   const [exam] = await db
     .insert(exams)
     .values({
-      title: "Collection Verification Exam " + Date.now(),
+      title: `Collection Verification Exam ${Date.now()}`,
       startTime: new Date(),
       endTime: new Date(Date.now() + 3600000), // 1 hour
       durationMinutes: 60,

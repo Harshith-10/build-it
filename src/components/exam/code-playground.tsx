@@ -3,7 +3,7 @@
 import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { foldEffect } from "@codemirror/language";
-import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import CodeMirror from "@uiw/react-codemirror";
 import { ChevronDown, Loader2, Play, Send } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -93,7 +93,7 @@ export function CodePlayground({
 
     const doc = view.state.doc;
     const text = doc.toString();
-    const lines = text.split("\n");
+    const _lines = text.split("\n");
     const effects = [];
 
     const javaStartMarker = "// region boilerplate";

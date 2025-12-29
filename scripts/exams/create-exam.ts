@@ -4,10 +4,7 @@ import select from "@inquirer/select";
 import { addHours, format } from "date-fns";
 import { db } from "@/db";
 import { exams } from "@/db/schema/exams";
-import {
-  examCollections,
-  questionCollections,
-} from "@/db/schema/question-collections";
+import { examCollections } from "@/db/schema/question-collections";
 
 async function createExam() {
   console.log("📝 Create New Exam");
@@ -39,9 +36,9 @@ async function createExam() {
     message: "Duration (minutes):",
     default: "60",
     validate: (input) =>
-      !Number.isNaN(parseInt(input)) ? true : "Must be a number",
+      !Number.isNaN(parseInt(input, 10)) ? true : "Must be a number",
   });
-  const durationMinutes = parseInt(durationStr);
+  const durationMinutes = parseInt(durationStr, 10);
 
   const strategyType = await select({
     message: "Strategy Type:",
@@ -62,31 +59,34 @@ async function createExam() {
     const countStr = await input({
       message: "Number of questions:",
       validate: (input) =>
-        !Number.isNaN(parseInt(input)) && parseInt(input) > 0
+        !Number.isNaN(parseInt(input, 10)) && parseInt(input, 10) > 0
           ? true
           : "Must be a positive number",
     });
-    strategyConfig = { count: parseInt(countStr) };
+    strategyConfig = { count: parseInt(countStr, 10) };
   } else if (strategyType === "difficulty_mix") {
     const easyStr = await input({
       message: "Number of EASY questions:",
       default: "0",
-      validate: (v) => (!Number.isNaN(parseInt(v)) ? true : "Must be a number"),
+      validate: (v) =>
+        !Number.isNaN(parseInt(v, 10)) ? true : "Must be a number",
     });
     const mediumStr = await input({
       message: "Number of MEDIUM questions:",
       default: "0",
-      validate: (v) => (!Number.isNaN(parseInt(v)) ? true : "Must be a number"),
+      validate: (v) =>
+        !Number.isNaN(parseInt(v, 10)) ? true : "Must be a number",
     });
     const hardStr = await input({
       message: "Number of HARD questions:",
       default: "0",
-      validate: (v) => (!Number.isNaN(parseInt(v)) ? true : "Must be a number"),
+      validate: (v) =>
+        !Number.isNaN(parseInt(v, 10)) ? true : "Must be a number",
     });
     strategyConfig = {
-      easy: parseInt(easyStr),
-      medium: parseInt(mediumStr),
-      hard: parseInt(hardStr),
+      easy: parseInt(easyStr, 10),
+      medium: parseInt(mediumStr, 10),
+      hard: parseInt(hardStr, 10),
     };
   }
 
@@ -106,9 +106,10 @@ async function createExam() {
     const marksStr = await input({
       message: "Marks per question:",
       default: "10",
-      validate: (v) => (!Number.isNaN(parseInt(v)) ? true : "Must be a number"),
+      validate: (v) =>
+        !Number.isNaN(parseInt(v, 10)) ? true : "Must be a number",
     });
-    gradingConfig = { marks: parseInt(marksStr) };
+    gradingConfig = { marks: parseInt(marksStr, 10) };
   } else if (gradingStrategy === "difficulty_based") {
     const easy = await input({
       message: "Marks for Easy questions:",
@@ -123,23 +124,24 @@ async function createExam() {
       default: "20",
     });
     gradingConfig = {
-      easy: parseInt(easy),
-      medium: parseInt(medium),
-      hard: parseInt(hard),
+      easy: parseInt(easy, 10),
+      medium: parseInt(medium, 10),
+      hard: parseInt(hard, 10),
     };
   } else if (gradingStrategy === "count_based") {
     const tiersCountStr = await input({
       message: "How many tiers?",
       default: "3",
-      validate: (v) => (!Number.isNaN(parseInt(v)) ? true : "Must be a number"),
+      validate: (v) =>
+        !Number.isNaN(parseInt(v, 10)) ? true : "Must be a number",
     });
-    const tiersCount = parseInt(tiersCountStr);
+    const tiersCount = parseInt(tiersCountStr, 10);
     const rules: { count: number; marks: number }[] = [];
     console.log("Enter rules (e.g. 2 questions -> 10 marks):");
     for (let i = 0; i < tiersCount; i++) {
       const qs = await input({ message: `[Rule ${i + 1}] Questions count:` });
       const ms = await input({ message: `[Rule ${i + 1}] Marks awarded:` });
-      rules.push({ count: parseInt(qs), marks: parseInt(ms) });
+      rules.push({ count: parseInt(qs, 10), marks: parseInt(ms, 10) });
     }
     gradingConfig = { rules };
   }

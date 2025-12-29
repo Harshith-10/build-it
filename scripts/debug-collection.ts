@@ -4,7 +4,6 @@ import {
   collectionQuestions,
   questionCollections,
 } from "@/db/schema/question-collections";
-import { questions } from "@/db/schema/questions";
 
 async function checkCollection() {
   const collections = await db.select().from(questionCollections);
