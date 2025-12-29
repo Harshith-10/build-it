@@ -46,6 +46,7 @@ export default async function SessionPage({
       id: true,
       title: true,
       problemStatement: true,
+      driverCode: true,
     },
     with: {
       testCases: {

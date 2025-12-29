@@ -90,15 +90,15 @@ async function main() {
         message: "System Utils:",
         choices: [
           {
-            name: "Seed Users (Dummy Data)",
-            value: "scripts/db/seed-users.ts",
+            name: "Seed 3rd Sem Users",
+            value: "scripts/db/seed-3rd-sem-users.ts",
           },
           { name: "Clear Database", value: "scripts/db/clear-db.ts" },
           {
             name: "Verify Collections",
             value: "scripts/verify-collections.ts",
           },
-          { name: "Setup DS Lab Exam", value: "scripts/setup-ds-lab-exam.ts" },
+          // { name: "Setup DSA Exam", value: "scripts/setup-ds-lab-exam.ts" },
           { name: "Back", value: "back" },
         ],
       });

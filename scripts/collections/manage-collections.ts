@@ -1,7 +1,8 @@
+import checkbox from "@inquirer/checkbox";
 import confirm from "@inquirer/confirm";
 import input from "@inquirer/input";
 import select from "@inquirer/select";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../src/db";
 import {
   collectionQuestions,
@@ -36,6 +37,14 @@ async function main() {
           name: "Link Collection to Exam",
           value: "Link Collection to Exam",
         },
+        {
+          name: "Remove Questions from Collection",
+          value: "Remove Questions from Collection",
+        },
+        {
+          name: "Delete Collection",
+          value: "Delete Collection",
+        },
         { name: "Exit", value: "Exit" },
       ],
     });
@@ -51,6 +60,10 @@ async function main() {
         await addQuestions();
       } else if (action.includes("Link Collection to Exam")) {
         await linkCollection();
+      } else if (action.includes("Remove Questions from Collection")) {
+        await removeQuestions();
+      } else if (action.includes("Delete Collection")) {
+        await deleteCollection();
       }
     } catch (error) {
       console.error("An error occurred:", error);
@@ -185,6 +198,74 @@ async function linkCollection() {
   console.log(
     `✅ Collection "${collection.title}" linked to exam "${exam.title}".`,
   );
+}
+
+async function removeQuestions() {
+  // 1. Select Collection
+  const collection = await selectCollection();
+  if (!collection) return;
+
+  // 2. Fetch existing questions in collection
+  const existingQuestions = await db.query.collectionQuestions.findMany({
+    where: (cq, { eq }) => eq(cq.collectionId, collection.id),
+    with: {
+      question: true,
+    },
+  });
+
+  if (existingQuestions.length === 0) {
+    console.log("No questions in this collection.");
+    return;
+  }
+
+  // 3. Select questions to remove
+  const selectedQuestionIds = await checkbox({
+    message: "Select questions to remove (Space to select, Enter to confirm):",
+    choices: existingQuestions.map((eq) => ({
+      name: `${eq.question.title} [${eq.question.difficulty}]`,
+      value: eq.questionId,
+    })),
+    pageSize: 20,
+  });
+
+  if (selectedQuestionIds.length === 0) {
+    console.log("No questions selected.");
+    return;
+  }
+
+  const confirmDelete = await confirm({
+    message: `Are you sure you want to remove ${selectedQuestionIds.length} questions from "${collection.title}"?`,
+    default: false,
+  });
+
+  if (confirmDelete) {
+    await db
+      .delete(collectionQuestions)
+      .where(
+        and(
+          eq(collectionQuestions.collectionId, collection.id),
+          inArray(collectionQuestions.questionId, selectedQuestionIds),
+        ),
+      );
+    console.log("✅ Questions removed successfully.");
+  }
+}
+
+async function deleteCollection() {
+  const collection = await selectCollection();
+  if (!collection) return;
+
+  const confirmDelete = await confirm({
+    message: `Are you sure you want to DELETE collection "${collection.title}"? This will unlink it from all exams and remove all question associations.`,
+    default: false,
+  });
+
+  if (confirmDelete) {
+    await db
+      .delete(questionCollections)
+      .where(eq(questionCollections.id, collection.id));
+    console.log(`✅ Collection "${collection.title}" deleted.`);
+  }
 }
 
 main().catch(console.error);

@@ -52,7 +52,12 @@ async function createExam() {
     ],
   });
 
-  let strategyConfig: { count?: number } | null = null;
+  let strategyConfig: {
+    count?: number;
+    easy?: number;
+    medium?: number;
+    hard?: number;
+  } | null = null;
   if (strategyType === "random_n") {
     const countStr = await input({
       message: "Number of questions:",
@@ -62,6 +67,27 @@ async function createExam() {
           : "Must be a positive number",
     });
     strategyConfig = { count: parseInt(countStr) };
+  } else if (strategyType === "difficulty_mix") {
+    const easyStr = await input({
+      message: "Number of EASY questions:",
+      default: "0",
+      validate: (v) => (!Number.isNaN(parseInt(v)) ? true : "Must be a number"),
+    });
+    const mediumStr = await input({
+      message: "Number of MEDIUM questions:",
+      default: "0",
+      validate: (v) => (!Number.isNaN(parseInt(v)) ? true : "Must be a number"),
+    });
+    const hardStr = await input({
+      message: "Number of HARD questions:",
+      default: "0",
+      validate: (v) => (!Number.isNaN(parseInt(v)) ? true : "Must be a number"),
+    });
+    strategyConfig = {
+      easy: parseInt(easyStr),
+      medium: parseInt(mediumStr),
+      hard: parseInt(hardStr),
+    };
   }
 
   const gradingStrategy = await select({
@@ -144,9 +170,16 @@ async function createExam() {
         startTime: new Date(startTimeStr),
         endTime: new Date(endTimeStr),
         durationMinutes,
-        strategyType,
+        strategyType: strategyType as
+          | "random_n"
+          | "fixed_set"
+          | "difficulty_mix",
         strategyConfig,
-        gradingStrategy,
+        gradingStrategy: gradingStrategy as
+          | "standard_20_40_50"
+          | "linear"
+          | "difficulty_based"
+          | "count_based",
         gradingConfig,
         status: "upcoming",
       })

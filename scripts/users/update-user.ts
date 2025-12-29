@@ -58,7 +58,7 @@ async function handleUserUpdate(existingUser: typeof user.$inferSelect) {
         { name: "student", value: "student" },
         { name: "admin", value: "admin" },
       ],
-      default: existingUser.role,
+      default: existingUser.role ?? undefined,
     });
 
     await db

@@ -34,6 +34,11 @@ export function MalpracticeMonitor({
       setWarningOpen(true);
     };
 
+    // Initial check
+    if (!document.fullscreenElement) {
+      showWarning("You are not in fullscreen mode.");
+    }
+
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
         showWarning("You exited fullscreen mode.");

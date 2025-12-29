@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 
 export interface SubmissionHistoryItem {
   id: string;
+  language: string;
   code: string;
   verdict: "passed" | "failed" | "compile_error" | "runtime_error";
   testCasesPassed: number | null;
@@ -40,6 +41,7 @@ export async function getSubmissions(
       columns: {
         id: true,
         code: true,
+        language: true,
         verdict: true,
         testCasesPassed: true,
         createdAt: true,

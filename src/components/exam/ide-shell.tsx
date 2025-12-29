@@ -25,6 +25,7 @@ export interface Question {
   id: string;
   title: string;
   problemStatement: string;
+  driverCode: Record<string, string> | null;
   testCases: TestCase[];
 }
 

@@ -101,57 +101,21 @@ export async function initializeExamSession(examId: string) {
 
     // 3. Randomization
     // 3. Question Selection
-    // Check if exam has specific collections assigned
-    const linkedCollections = await db.query.examCollections.findMany({
-      where: eq(examCollections.examId, examId),
-      with: {
-        collection: {
-          with: {
-            questions: true,
-          },
-        },
-      },
-    });
+    const examData = relevantSlots[0].exam;
+    const { strategyType } = examData;
+    const strategyConfig = examData.strategyConfig as any;
 
-    let randomQuestions: { id: string }[];
+    const questionIds = await generateExamQuestions(
+      examId,
+      strategyType,
+      strategyConfig,
+    );
 
-    if (linkedCollections.length > 0) {
-      // Use questions from collections
-      const allowedIds = linkedCollections.flatMap((ec) =>
-        ec.collection.questions.map((cq) => cq.questionId),
-      );
-
-      // Remove duplicates
-      const uniqueAllowedIds = Array.from(new Set(allowedIds));
-
-      if (uniqueAllowedIds.length < 3) {
-        throw new Error(
-          "Configuration Error: Assigned collections do not have enough questions (min 3 required).",
-        );
-      }
-
-      randomQuestions = await db
-        .select({ id: questions.id })
-        .from(questions)
-        .where(inArray(questions.id, uniqueAllowedIds))
-        .orderBy(sql`RANDOM()`)
-        .limit(3);
-    } else {
-      // Fallback: Global Pool
-      randomQuestions = await db
-        .select({ id: questions.id })
-        .from(questions)
-        .orderBy(sql`RANDOM()`)
-        .limit(3);
-    }
-
-    if (randomQuestions.length < 3) {
+    if (questionIds.length < 3) {
       throw new Error(
         "System Error: Not enough questions in the bank to generate an exam.",
       );
     }
-
-    const questionIds = randomQuestions.map((q) => q.id);
 
     // 4. Create Assignment
     const [newAssignment] = await db
@@ -177,4 +141,98 @@ export async function initializeExamSession(examId: string) {
       error: error instanceof Error ? error.message : "Failed to start exam",
     };
   }
+}
+
+export async function generateExamQuestions(
+  examId: string,
+  strategyType: string,
+  strategyConfig: any,
+) {
+  // Check if exam has specific collections assigned
+  const linkedCollections = await db.query.examCollections.findMany({
+    where: eq(examCollections.examId, examId),
+    with: {
+      collection: {
+        with: {
+          questions: true,
+        },
+      },
+    },
+  });
+
+  let allowedQuestionIds: string[] = [];
+  if (linkedCollections.length > 0) {
+    // Use questions from collections
+    const allowedIds = linkedCollections.flatMap((ec) =>
+      ec.collection.questions.map((cq) => cq.questionId),
+    );
+    allowedQuestionIds = Array.from(new Set(allowedIds));
+
+    if (allowedQuestionIds.length === 0) {
+      throw new Error("Configuration Error: Assigned collections are empty.");
+    }
+  }
+
+  let randomQuestions: { id: string }[] = [];
+
+  if (strategyType === "fixed_set") {
+    // Select ALL allowed questions
+    const base = db.select({ id: questions.id }).from(questions);
+    if (allowedQuestionIds.length > 0) {
+      randomQuestions = await base.where(
+        inArray(questions.id, allowedQuestionIds),
+      );
+    } else {
+      randomQuestions = await base;
+    }
+  } else if (strategyType === "difficulty_mix") {
+    const { easy = 0, medium = 0, hard = 0 } = strategyConfig || {};
+
+    const fetchByDifficulty = async (
+      diff: "easy" | "medium" | "hard",
+      count: number,
+    ) => {
+      if (count <= 0) return [];
+      const conditions: any[] = [eq(questions.difficulty, diff)];
+      if (allowedQuestionIds.length > 0) {
+        conditions.push(inArray(questions.id, allowedQuestionIds));
+      }
+
+      return db
+        .select({ id: questions.id })
+        .from(questions)
+        .where(and(...conditions))
+        .orderBy(sql`RANDOM()`)
+        .limit(count);
+    };
+
+    const [easyQs, mediumQs, hardQs] = await Promise.all([
+      fetchByDifficulty("easy", easy),
+      fetchByDifficulty("medium", medium),
+      fetchByDifficulty("hard", hard),
+    ]);
+
+    randomQuestions = [...easyQs, ...mediumQs, ...hardQs];
+  } else {
+    // "random_n" or default fallback
+    const count = strategyConfig?.count || 3;
+    const conditions: any[] = [];
+    if (allowedQuestionIds.length > 0) {
+      conditions.push(inArray(questions.id, allowedQuestionIds));
+    }
+
+    const query = db
+      .select({ id: questions.id })
+      .from(questions)
+      .orderBy(sql`RANDOM()`)
+      .limit(count);
+
+    if (conditions.length > 0) {
+      randomQuestions = await query.where(and(...conditions));
+    } else {
+      randomQuestions = await query;
+    }
+  }
+
+  return randomQuestions.map((q) => q.id);
 }

@@ -1,12 +1,13 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { examAssignments, submissions } from "@/db/schema/assignments";
-import { testCases } from "@/db/schema/questions";
+import { questions, testCases } from "@/db/schema/questions";
 import { auth } from "@/lib/auth";
+import { calculateGradingScore } from "@/lib/grading";
 import {
   executeCode,
   type JobResult,
@@ -60,6 +61,9 @@ export async function submitQuestion(
         eq(examAssignments.id, input.assignmentId),
         eq(examAssignments.userId, session.user.id),
       ),
+      with: {
+        exam: true, // Fetch exam details for grading config
+      },
     });
 
     if (!assignment) {
@@ -78,9 +82,7 @@ export async function submitQuestion(
       ),
     });
 
-    // Fallback: If no hidden cases, use ALL cases (or maybe fail depending on policy)
-    // For now, if no hidden cases, we assume we should test against whatever we have or it's an error.
-    // Let's grab non-hidden if hidden is empty, to ensure we have *something* to grade on.
+    // Fallback: If no hidden cases, use ALL cases
     let gradingTestCases = hiddenTestCases;
     if (gradingTestCases.length === 0) {
       gradingTestCases = await db.query.testCases.findMany({
@@ -97,7 +99,7 @@ export async function submitQuestion(
       gradingTestCases.map((tc) => ({
         id: tc.id,
         input: tc.input,
-        expectedOutput: tc.expectedOutput, // We need this for the mapTestCases helper, though helper expects camelCase
+        expectedOutput: tc.expectedOutput,
       })),
     );
 
@@ -125,8 +127,6 @@ export async function submitQuestion(
       executionResult.run &&
       executionResult.run.status !== "SUCCESS"
     ) {
-      // It could be runtime error, timeout, etc.
-      // Map Turbo status to our simple verdict enum
       verdict = "runtime_error";
       details =
         executionResult.run.stderr ||
@@ -143,60 +143,81 @@ export async function submitQuestion(
       }
     }
 
-    // 6. Insert Submission (with totalTestCases for ratio calculation)
+    // 6. Insert Submission
     await db.insert(submissions).values({
       assignmentId: input.assignmentId,
       questionId: input.questionId,
+      language: input.language,
       code: input.code,
       verdict: verdict,
       testCasesPassed: passedCount,
       totalTestCases: gradingTestCases.length,
     });
 
-    // 7. Calculate New Score (Granular 20-40-50 Rule with partial marks)
-    // For each assigned question, find the best submission (highest pass ratio)
-    // Marks distribution: Q1=20, Q2=20, Q3=10 (total 50)
-    const MARKS_PER_QUESTION = [20, 20, 10];
+    // 7. Calculate New Score based on Grading Strategy
+    const assignedQuestionIds = assignment.assignedQuestionIds as string[];
 
-    // Get all submissions for this assignment grouped by question
+    // Fetch all submissions for these questions to calculate best status
     const allSubmissions = await db.query.submissions.findMany({
       where: eq(submissions.assignmentId, input.assignmentId),
       columns: {
         questionId: true,
         testCasesPassed: true,
         totalTestCases: true,
+        verdict: true,
       },
     });
 
-    // For each assigned question, calculate the best score (highest ratio)
-    const assignedQuestionIds = assignment.assignedQuestionIds as string[];
-    let newScore = 0;
-
-    for (let i = 0; i < assignedQuestionIds.length; i++) {
-      const questionId = assignedQuestionIds[i];
-      const questionSubmissions = allSubmissions.filter(
-        (s) => s.questionId === questionId,
-      );
-
-      if (questionSubmissions.length === 0) continue;
-
-      // Find the best ratio for this question
-      let bestRatio = 0;
-      for (const sub of questionSubmissions) {
-        const passed = sub.testCasesPassed ?? 0;
-        const total = sub.totalTestCases ?? 0;
-        if (total > 0) {
-          const ratio = passed / total;
-          if (ratio > bestRatio) {
-            bestRatio = ratio;
-          }
-        }
+    // Determine which questions are "passed" (fully solved)
+    const passedQuestionIds = new Set<string>();
+    for (const qId of assignedQuestionIds) {
+      const qSubmissions = allSubmissions.filter((s) => s.questionId === qId);
+      const hasPassed = qSubmissions.some((s) => s.verdict === "passed");
+      if (hasPassed) {
+        passedQuestionIds.add(qId);
       }
-
-      // Calculate marks for this question: ratio × marksPerQuestion
-      const marksForQuestion = Math.round(bestRatio * MARKS_PER_QUESTION[i]);
-      newScore += marksForQuestion;
     }
+
+    const gradingStrategy = assignment.exam.gradingStrategy;
+    const gradingConfig = assignment.exam.gradingConfig as any;
+    const questionDifficulties: Record<string, "easy" | "medium" | "hard"> = {};
+
+    if (gradingStrategy === "difficulty_based") {
+      const questionDetails = await db.query.questions.findMany({
+        where: inArray(questions.id, assignedQuestionIds),
+        columns: {
+          id: true,
+          difficulty: true,
+        },
+      });
+      questionDetails.forEach((q) => {
+        questionDifficulties[q.id] = q.difficulty;
+      });
+    }
+
+    // Use extracted helper
+    // Import will be improved in next step if needed, but for now assuming auto-import or manual add
+    // Since I can't auto-import, I will rely on replacing logic and adding import.
+    // Wait, replace_file_content replaces a block. I need to make sure I import the function.
+    // I will add the import in a separate call or same call if possible.
+    // I'll assume I do it in two steps or manual logic duplication? No, I want to use the helper.
+
+    // I will define the logic here to use the helper but I must add the import first.
+    // Actually, I can replace the whole file content or a large chunk to include import.
+    // Or I can just write the logic here to MATCH the helper for now to save tool calls
+    // AND verify with the script separately?
+    // User wants me to verify.
+    // Best practice: Use the shared code.
+
+    // I'll update imports first in this thought block? no, separate tool call.
+    // I will replace this block to use the function, and then add the import.
+
+    const newScore = calculateGradingScore({
+      strategy: gradingStrategy,
+      config: gradingConfig,
+      passedQuestionIds: Array.from(passedQuestionIds),
+      questionDifficulties,
+    });
 
     // Score is monotonically increasing - only update if new score is higher
     if (newScore > (assignment.score || 0)) {

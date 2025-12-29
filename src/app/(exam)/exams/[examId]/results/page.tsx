@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { CheckCircle2 } from "lucide-react";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { db } from "@/db";
-import { examAssignments } from "@/db/schema";
+import { examAssignments, questions } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { ReturnToDashboardButton } from "./return-to-dashboard-button";
 
@@ -58,6 +58,47 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
   ).size;
   const totalQuestions = (assignment.assignedQuestionIds as string[]).length;
 
+  // Calculate Total Possible Score
+  let totalPossibleScore = 0;
+  const gradingStrategy = assignment.exam.gradingStrategy;
+  const gradingConfig = assignment.exam.gradingConfig as any;
+
+  if (gradingStrategy === "linear") {
+    totalPossibleScore = totalQuestions * (gradingConfig?.marks || 0);
+  } else if (gradingStrategy === "difficulty_based") {
+    const assignedQuestionIds = assignment.assignedQuestionIds as string[];
+    if (assignedQuestionIds.length > 0) {
+      const questionDetails = await db.query.questions.findMany({
+        where: inArray(questions.id, assignedQuestionIds),
+        columns: {
+          difficulty: true,
+        },
+      });
+
+      const difficultyMarks = {
+        easy: gradingConfig?.easy || 0,
+        medium: gradingConfig?.medium || 0,
+        hard: gradingConfig?.hard || 0,
+      };
+
+      for (const q of questionDetails) {
+        totalPossibleScore += difficultyMarks[q.difficulty] || 0;
+      }
+    }
+  } else if (gradingStrategy === "count_based") {
+    const rules = (gradingConfig?.rules || []) as {
+      count: number;
+      marks: number;
+    }[];
+    // Max possible score is the max marks defined in rules
+    if (rules.length > 0) {
+      totalPossibleScore = Math.max(...rules.map((r) => r.marks));
+    }
+  } else {
+    // Default fallback (legacy behavior was 50)
+    totalPossibleScore = 50;
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md text-center">
@@ -77,7 +118,9 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
             </div>
             <div className="text-5xl font-bold tracking-tighter">
               {score}
-              <span className="text-2xl text-muted-foreground/50">/50</span>
+              <span className="text-2xl text-muted-foreground/50">
+                /{totalPossibleScore}
+              </span>
             </div>
           </div>
 

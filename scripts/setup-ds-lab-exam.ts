@@ -33,8 +33,16 @@ const EXAM_DETAILS = {
   startTime: new Date(`${EXAM_DATE}T09:30:00+05:30`),
   endTime: new Date(`${EXAM_DATE}T17:00:00+05:30`),
   durationMinutes: 90,
-  strategyType: "random_3" as const,
-  gradingStrategy: "standard_20_40_50" as const,
+  strategyType: "random_n" as const,
+  strategyConfig: { count: 3 },
+  gradingStrategy: "count_based" as const,
+  gradingConfig: {
+    rules: [
+      { count: 1, marks: 20 },
+      { count: 2, marks: 40 },
+      { count: 3, marks: 50 },
+    ],
+  },
 };
 
 // User Groups Configuration

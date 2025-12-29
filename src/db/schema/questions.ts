@@ -16,7 +16,9 @@ export const questions = pgTable("questions", {
   problemStatement: text("problem_statement").notNull(),
   difficulty: difficultyEnum("difficulty").notNull(),
   allowedLanguages: json("allowed_languages").default(["java"]),
-  driverCode: json("driver_code").default({ java: "" }),
+  driverCode: json("driver_code")
+    .$type<Record<string, string>>()
+    .default({ java: "" }),
 });
 
 export const testCases = pgTable("test_cases", {

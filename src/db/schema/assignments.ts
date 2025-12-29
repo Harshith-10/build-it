@@ -63,6 +63,7 @@ export const submissions = pgTable("submissions", {
   questionId: uuid("question_id")
     .notNull()
     .references(() => questions.id, { onDelete: "cascade" }),
+  language: text("language").default("java").notNull(),
   code: text("code").notNull(),
   verdict: submissionVerdictEnum("verdict").notNull(),
   testCasesPassed: integer("test_cases_passed").default(0),

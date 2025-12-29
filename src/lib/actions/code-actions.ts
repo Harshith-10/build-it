@@ -188,27 +188,35 @@ export async function runWithCustomInput(
 }
 
 /**
- * Fetch available Java runtimes from the Turbo Engine.
+/**
+ * Fetch available Language runtimes from the Turbo Engine.
  * Uses the /packages endpoint to get installed language runtimes.
+ * Returns both Java and Python runtimes.
  */
-export async function getJavaRuntimes(): Promise<{
+export async function getRuntimes(): Promise<{
   success: boolean;
-  runtimes?: Array<{ name: string; version: string }>;
+  runtimes?: Array<{ language: string; version: string }>;
   error?: string;
 }> {
   try {
     const allPackages = await getPackages();
-    // Filter for installed Java packages only
-    const javaPackages = allPackages.filter(
-      (pkg) => pkg.name.toLowerCase() === "java" && pkg.installed,
-    );
+    // Filter for installed Java and Python packages
+    const runtimes: Array<{ language: string; version: string }> = [];
+
+    allPackages.forEach((pkg) => {
+      if (!pkg.installed) return;
+      const name = pkg.name.toLowerCase();
+      if (name === "java" || name === "python") {
+        runtimes.push({
+          language: name,
+          version: pkg.version,
+        });
+      }
+    });
 
     return {
       success: true,
-      runtimes: javaPackages.map((pkg) => ({
-        name: pkg.name,
-        version: pkg.version,
-      })),
+      runtimes,
     };
   } catch (error) {
     console.error("Failed to fetch runtimes:", error);
@@ -216,7 +224,7 @@ export async function getJavaRuntimes(): Promise<{
     if (error instanceof TurboError) {
       return {
         success: false,
-        error: `Failed to connect to execution service: ${error.message}`,
+        error: `Failed to connect to this execution service: ${error.message}`,
       };
     }
 

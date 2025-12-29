@@ -6,7 +6,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getSubmissions,
@@ -33,12 +33,12 @@ export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col bg-background min-w-0">
       <Tabs
         defaultValue="description"
         value={activeTab}
         onValueChange={setActiveTab}
-        className="flex h-full flex-col"
+        className="flex h-full flex-col min-w-0"
       >
         <div className="border-b px-4 py-2">
           <TabsList className="grid w-full grid-cols-2">
@@ -49,12 +49,12 @@ export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
 
         <TabsContent
           value="description"
-          className="flex-1 min-h-0 overflow-hidden p-0 m-0"
+          className="flex-1 min-h-0 overflow-hidden p-0 m-0 min-w-0"
         >
           <ScrollArea className="h-full">
             <div className="p-6">
-              <h1 className="mb-6 text-2xl font-bold">{question.title}</h1>
-              <div className="max-w-none">
+              {/* <h1 className="mb-6 text-2xl font-bold">{question.title}</h1> */}
+              <div className="max-w-none min-w-0 grid grid-cols-[minmax(0,1fr)]">
                 <Markdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -202,13 +202,16 @@ export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
                       />
                     ),
                     pre: ({ className, ...props }) => (
-                      <pre
-                        className={cn(
-                          "mb-4 mt-6 overflow-x-auto rounded-lg border px-4 py-4 [&_code]:border-none [&_code]:bg-transparent [&_code]:p-0 max-w-full",
-                          className,
-                        )}
-                        {...props}
-                      />
+                      <ScrollArea className="mb-4 mt-6 rounded-lg border max-w-full">
+                        <pre
+                          className={cn(
+                            "px-4 py-4 [&_code]:border-none [&_code]:bg-transparent [&_code]:p-0",
+                            className,
+                          )}
+                          {...props}
+                        />
+                        <ScrollBar orientation="horizontal" />
+                      </ScrollArea>
                     ),
                     code: ({ className, ...props }) => (
                       <code
@@ -273,10 +276,10 @@ function SubmissionsList({
     };
   }, [assignmentId, questionId]);
 
-  const handleRestore = (code: string) => {
+  const handleRestore = (code: string, language: string) => {
     // Confirm restore? Maybe too annoying. Just restore.
-    setCode(questionId, code);
-    toast.success("Code restored to editor");
+    setCode(questionId, language, code);
+    toast.success(`Restored ${language} code to editor`);
   };
 
   if (loading) {
@@ -325,6 +328,9 @@ function SubmissionsList({
                 <span className="text-xs text-muted-foreground">
                   {new Date(sub.createdAt).toLocaleString()}
                 </span>
+                <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
+                  {sub.language}
+                </span>
                 {sub.verdict === "failed" && sub.testCasesPassed !== null && (
                   <span className="text-xs text-muted-foreground">
                     {sub.testCasesPassed} passed
@@ -335,7 +341,7 @@ function SubmissionsList({
                 variant="secondary"
                 size="sm"
                 className="h-8 gap-1.5"
-                onClick={() => handleRestore(sub.code)}
+                onClick={() => handleRestore(sub.code, sub.language)}
               >
                 <RefreshCcw className="size-3.5" />
                 Restore

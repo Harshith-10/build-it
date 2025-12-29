@@ -149,7 +149,7 @@ export default function TestCaseConsole({
                       className={cn(
                         "text-xs text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between",
                         selectedCaseId === res.id.toString()
-                          ? "bg-secondary font-medium text-foreground"
+                          ? "bg-secondary font-medium text-secondary-foreground"
                           : "text-muted-foreground hover:bg-muted",
                       )}
                     >

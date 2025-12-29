@@ -1,10 +1,12 @@
 "use client";
 
 import { java } from "@codemirror/lang-java";
-import CodeMirror from "@uiw/react-codemirror";
+import { python } from "@codemirror/lang-python";
+import { foldEffect } from "@codemirror/language";
+import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { ChevronDown, Loader2, Play, Send } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +21,15 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import {
-  getJavaRuntimes,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
+  getRuntimes,
   runCode,
   runWithCustomInput,
 } from "@/lib/actions/code-actions";
@@ -30,8 +40,8 @@ import { ButtonGroup } from "../ui/button-group";
 import type { Question } from "./ide-shell";
 import TestCaseConsole from "./test-case-console";
 
-interface JavaRuntime {
-  name: string;
+interface Runtime {
+  language: string;
   version: string;
 }
 
@@ -49,7 +59,8 @@ export function CodePlayground({
   const { theme } = useTheme();
 
   // Runtime State
-  const [runtimes, setRuntimes] = useState<JavaRuntime[]>([]);
+  const [runtimes, setRuntimes] = useState<Runtime[]>([]);
+  const [selectedLanguage, setSelectedLanguage] = useState("java");
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [runtimeLoading, setRuntimeLoading] = useState(true);
 
@@ -74,29 +85,107 @@ export function CodePlayground({
     }
   }, [cooldown]);
 
-  useEffect(() => {
-    setMounted(true);
+  // Editor State
+  const viewRef = useRef<any>(null); // Using any to avoid importing EditorView type directly
+
+  const foldBoilerplate = useCallback((view: any) => {
+    if (!view) return;
+
+    const doc = view.state.doc;
+    const text = doc.toString();
+    const lines = text.split("\n");
+    const effects = [];
+
+    const javaStartMarker = "// region boilerplate";
+    const javaEndMarker = "// endregion";
+    const pythonStartMarker = "# region boilerplate";
+    const pythonEndMarker = "# endregion";
+
+    let startLine = -1;
+
+    // Iterate through lines to find regions
+    // We use line iteration from the doc to get accurate positions
+    for (let i = 1; i <= doc.lines; i++) {
+      const line = doc.line(i);
+      const lineText = line.text.trim();
+
+      if (lineText === javaStartMarker || lineText === pythonStartMarker) {
+        startLine = i;
+      } else if (
+        (lineText === javaEndMarker || lineText === pythonEndMarker) &&
+        startLine !== -1
+      ) {
+        // Found a region
+        // We want to fold from the end of the start line to the end of the end line
+        const startPos = doc.line(startLine).to;
+        const endPos = line.to;
+
+        try {
+          effects.push(foldEffect.of({ from: startPos, to: endPos }));
+        } catch (e) {
+          console.error("Failed to create fold effect", e);
+        }
+
+        startLine = -1;
+      }
+    }
+
+    if (effects.length > 0) {
+      view.dispatch({ effects });
+    }
   }, []);
 
-  // Fetch Java runtimes on mount
+  const onCreateEditor = useCallback(
+    (view: any) => {
+      viewRef.current = view;
+      foldBoilerplate(view);
+    },
+    [foldBoilerplate],
+  );
+
+  // Refold when question changes
+
+  // Fetch runtimes on mount
   useEffect(() => {
     async function fetchRuntimes() {
-      const result = await getJavaRuntimes();
+      const result = await getRuntimes();
       setRuntimeLoading(false);
 
       if (result.success && result.runtimes) {
         setRuntimes(result.runtimes);
-        // Auto-select the first runtime
-        if (result.runtimes.length > 0) {
-          setSelectedVersion(result.runtimes[0].version);
+
+        // Auto-select version for default language (java)
+        const javaRuntime = result.runtimes.find((r) => r.language === "java");
+        if (javaRuntime) {
+          setSelectedVersion(javaRuntime.version);
         }
       } else {
-        toast.error(result.error || "Failed to load Java runtimes");
+        toast.error(result.error || "Failed to load runtimes");
       }
     }
 
     fetchRuntimes();
   }, []);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Update version when language changes
+  useEffect(() => {
+    const languageRuntimes = runtimes.filter(
+      (r) => r.language === selectedLanguage,
+    );
+    if (languageRuntimes.length > 0) {
+      // Keep current version if valid for new language (unlikely but possible if versions match)
+      // Or just default to first available
+      if (!languageRuntimes.find((r) => r.version === selectedVersion)) {
+        setSelectedVersion(languageRuntimes[0].version);
+      }
+    } else {
+      setSelectedVersion(undefined);
+    }
+  }, [selectedLanguage, selectedVersion, runtimes]);
 
   if (!mounted) {
     return (
@@ -106,12 +195,20 @@ export function CodePlayground({
     );
   }
 
-  const defaultCode = `// Write your Java code for ${question.title} here\n\nclass Main {\n  public static void main(String[] args) {\n    // Your code here\n  }\n}`;
-  const currentCode = question.id in code ? code[question.id] : defaultCode;
+  const defaultCode =
+    (question.driverCode as Record<string, string> | null)?.[
+      selectedLanguage
+    ] || "";
+
+  // Access code for specific language
+  const currentCode =
+    question.id in code && code[question.id]?.[selectedLanguage]
+      ? code[question.id][selectedLanguage]
+      : defaultCode;
 
   const handleRun = async () => {
     if (!selectedVersion) {
-      toast.error("No Java runtime available. Check Turbo server.");
+      toast.error(`No ${selectedLanguage} runtime available.`);
       return;
     }
 
@@ -129,10 +226,12 @@ export function CodePlayground({
       // Run with custom input
       const result = await runWithCustomInput({
         code: currentCode,
-        language: "java",
+        language: selectedLanguage,
         version: selectedVersion,
         stdin: customInput,
       });
+
+      // ... (rest of handleRun same logic, just confirm variable usage)
 
       setIsRunning(false);
 
@@ -170,7 +269,7 @@ export function CodePlayground({
 
       const result = await runCode({
         code: currentCode,
-        language: "java",
+        language: selectedLanguage,
         version: selectedVersion,
         testCases: question.testCases,
       });
@@ -215,7 +314,7 @@ export function CodePlayground({
 
   const handleSubmit = async () => {
     if (!selectedVersion) {
-      toast.error("No Java runtime available.");
+      toast.error(`No ${selectedLanguage} runtime available.`);
       return;
     }
 
@@ -229,9 +328,11 @@ export function CodePlayground({
         assignmentId,
         questionId: question.id,
         code: currentCode,
-        language: "java",
+        language: selectedLanguage,
         version: selectedVersion,
       });
+
+      // ... (rest of handleSubmit logic)
 
       if (!result.success) {
         toast.error(result.error || "Submission failed");
@@ -288,7 +389,19 @@ export function CodePlayground({
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b bg-muted/20 px-4 py-1">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">Main.java</span>
+              <Select
+                value={selectedLanguage}
+                onValueChange={setSelectedLanguage}
+              >
+                <SelectTrigger className="w-[100px] h-7 text-xs">
+                  <SelectValue placeholder="Language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="java">Java</SelectItem>
+                  <SelectItem value="python">Python</SelectItem>
+                </SelectContent>
+              </Select>
+
               {/* Runtime Version Selector */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -301,30 +414,34 @@ export function CodePlayground({
                     {runtimeLoading
                       ? "Loading..."
                       : selectedVersion
-                        ? `Java ${selectedVersion}`
-                        : "No Java Runtime"}
+                        ? `${selectedLanguage} ${selectedVersion}`
+                        : `No ${selectedLanguage} Runtime`}
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  {runtimes.map((runtime) => (
-                    <DropdownMenuItem
-                      key={runtime.version}
-                      onClick={() => setSelectedVersion(runtime.version)}
-                      className={
-                        selectedVersion === runtime.version
-                          ? "bg-accent"
-                          : undefined
-                      }
-                    >
-                      Java {runtime.version}
-                    </DropdownMenuItem>
-                  ))}
-                  {runtimes.length === 0 && !runtimeLoading && (
-                    <DropdownMenuItem disabled>
-                      No runtimes available
-                    </DropdownMenuItem>
-                  )}
+                  {runtimes
+                    .filter((r) => r.language === selectedLanguage)
+                    .map((runtime) => (
+                      <DropdownMenuItem
+                        key={`${runtime.language}-${runtime.version}`}
+                        onClick={() => setSelectedVersion(runtime.version)}
+                        className={
+                          selectedVersion === runtime.version
+                            ? "bg-accent"
+                            : undefined
+                        }
+                      >
+                        {runtime.language} {runtime.version}
+                      </DropdownMenuItem>
+                    ))}
+                  {runtimes.filter((r) => r.language === selectedLanguage)
+                    .length === 0 &&
+                    !runtimeLoading && (
+                      <DropdownMenuItem disabled>
+                        No runtimes available
+                      </DropdownMenuItem>
+                    )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -367,16 +484,22 @@ export function CodePlayground({
           </div>
           <div className="flex-1 overflow-hidden text-[14px]">
             <CodeMirror
+              key={question.id}
               value={currentCode}
               height="100%"
-              extensions={[java()]}
-              onChange={(val) => setCode(question.id, val)}
+              extensions={[
+                selectedLanguage === "java" ? java() : python(),
+                // Add folding logic here or just rely on onCreateEditor?
+                // foldBoilerplate already uses dispatch which works on view.
+              ]}
+              onChange={(val) => setCode(question.id, selectedLanguage, val)}
               theme={theme === "dark" ? "dark" : "light"}
               className="h-full"
               basicSetup={{
                 lineNumbers: true,
                 foldGutter: true,
               }}
+              onCreateEditor={onCreateEditor}
             />
           </div>
         </div>

@@ -48,6 +48,14 @@ export function AntiCheatGuard({ assignmentId }: AntiCheatGuardProps) {
       }
     };
 
+    // 0. Initial Check
+    if (!document.fullscreenElement) {
+      handleViolation(
+        "fullscreen_exit",
+        "Exited fullscreen mode (detected on load)",
+      );
+    }
+
     // 1. Context Menu
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
