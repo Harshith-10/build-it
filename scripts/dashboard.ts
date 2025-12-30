@@ -52,7 +52,7 @@ async function main() {
           { name: "Assign Exam", value: "scripts/exams/assign-exam.ts" },
           { name: "Delete Exam", value: "scripts/exams/delete-exam.ts" },
           { name: "List Exams (Simple)", value: "scripts/exams/list-exams.ts" },
-          { name: "View Exam Timings", value: "scripts/exams/view-timings.ts" },
+          { name: "Export Exam Data (Excel)", value: "scripts/exams/export-exam.ts" },
           { name: "Reset Session", value: "scripts/exams/reset-session.ts" },
           { name: "Back", value: "back" },
         ],
@@ -116,8 +116,8 @@ async function main() {
 async function runScript(relativePath: string) {
   return new Promise<void>((resolve, _reject) => {
     console.log(`\nStarting: ${relativePath}...\n`);
-    const p = spawn("pnpm", ["tsx", relativePath], { stdio: "inherit" });
-    p.on("close", (_code) => {
+    const p = spawn("pnpm", ["tsx", relativePath], { stdio: "inherit", shell: true });
+    p.on("close", (code) => {
       console.log(`\nScript finished. Press Enter to return to menu.`);
       process.stdin.resume(); // Ensure stdin is readable
       process.stdin.once("data", () => {
