@@ -51,23 +51,23 @@ export function MalpracticeMonitor({
       }
     };
 
-    const handleBlur = () => {
-      // Blur can be triggered by interacting with browser chrome, etc.
-      // Often redundant with visibilityChange but catches window focus loss specifically.
-      showWarning("You lost focus on the exam window.");
-    };
+    // const handleBlur = () => {
+    //   // Blur can be triggered by interacting with browser chrome, etc.
+    //   // Often redundant with visibilityChange but catches window focus loss specifically.
+    //   showWarning("You lost focus on the exam window.");
+    // };
 
     // Fullscreen enforcement
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     // Tab switching detection
     document.addEventListener("visibilitychange", handleVisibilityChange);
     // Window focus detection
-    window.addEventListener("blur", handleBlur);
+    // window.addEventListener("blur", handleBlur);
 
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleBlur);
+      // window.removeEventListener("blur", handleBlur);
     };
   }, []);
 
