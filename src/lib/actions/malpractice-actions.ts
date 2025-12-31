@@ -21,6 +21,7 @@ export async function recordMalpractice(
   assignmentId: string,
   type: string,
   details?: string,
+  isSevere: boolean = true,
 ): Promise<MalpracticeResult> {
   try {
     const session = await auth.api.getSession({
@@ -70,6 +71,15 @@ export async function recordMalpractice(
       type,
       details,
     });
+
+    // If not severe, we just log and return success without incrementing count
+    if (!isSevere) {
+      return {
+        success: true,
+        terminated: false,
+        warningsLeft: MAX_MALPRACTICE_LIMIT - assignment.malpracticeCount,
+      };
+    }
 
     // 3. Increment Count
     const newCount = assignment.malpracticeCount + 1;

@@ -9,7 +9,7 @@ import { userGroupMembers, userGroups } from "../src/db/schema/groups";
 import { auth } from "../src/lib/auth";
 
 const CSV_FILE = path.join(process.cwd(), "data/pat_users/users.csv");
-const CONCURRENCY_LIMIT = 5;
+const CONCURRENCY_LIMIT = 64;
 
 interface UserRecord {
   Sno: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,95 +10,73 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useExamSecurity, ViolationType } from "@/hooks/use-exam-security";
 
-const DEBOUNCE_MS = 300;
-
+// This component now primarily handles the visual Blocking/Warning interface
+// and ensures Fullscreen is active.
 export function MalpracticeMonitor({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [warningOpen, setWarningOpen] = useState(false);
-  const [violationType, setViolationType] = useState("");
-  const lastAlertTime = useRef<number>(0);
+  const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(false);
+
+  // We actually don't need to listen to violations here unless we want to show
+  // the "Malpractice Alert" dialog for things other than Fullscreen exit.
+  // The AntiCheatGuard will handle the generic Toasts and recording.
+  // But MalpracticeMonitor is the wrapper, so it's a good place to enforce visual blocking.
+
+  const {} = useExamSecurity(() => {
+    // We let AntiCheatGuard handle the side-effects (logging/toasts)
+    // Here we just react to state changes if needed.
+  });
 
   useEffect(() => {
-    const showWarning = (message: string) => {
-      // Debounce: skip if an alert was shown within the last DEBOUNCE_MS
-      const now = Date.now();
-      if (now - lastAlertTime.current < DEBOUNCE_MS) {
-        return;
-      }
-      lastAlertTime.current = now;
-      setViolationType(message);
-      setWarningOpen(true);
-    };
-
-    // Initial check
-    if (!document.fullscreenElement) {
-      showWarning("You are not in fullscreen mode.");
-    }
-
-    const handleFullscreenChange = () => {
+    // Initial check and subsequent checks for fullscreen
+    const checkFullscreen = () => {
       if (!document.fullscreenElement) {
-        showWarning("You exited fullscreen mode.");
+        setShowFullscreenPrompt(true);
+      } else {
+        setShowFullscreenPrompt(false);
       }
     };
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        showWarning("You switched tabs/windows.");
-      }
-    };
-
-    // const handleBlur = () => {
-    //   // Blur can be triggered by interacting with browser chrome, etc.
-    //   // Often redundant with visibilityChange but catches window focus loss specifically.
-    //   showWarning("You lost focus on the exam window.");
-    // };
-
-    // Fullscreen enforcement
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    // Tab switching detection
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    // Window focus detection
-    // window.addEventListener("blur", handleBlur);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      // window.removeEventListener("blur", handleBlur);
-    };
+    checkFullscreen();
+    document.addEventListener("fullscreenchange", checkFullscreen);
+    return () =>
+      document.removeEventListener("fullscreenchange", checkFullscreen);
   }, []);
 
-  const handleAcknowledge = () => {
-    setWarningOpen(false);
-    // Attempt to restore fullscreen
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.error("Could not restore fullscreen:", err);
-      });
-    }
+  const handleEnterFullscreen = () => {
+    document.documentElement.requestFullscreen().catch((err) => {
+      console.error("Could not enter fullscreen:", err);
+    });
   };
 
   return (
     <>
-      {children}
-      <AlertDialog open={warningOpen}>
+      <div
+        className={
+          showFullscreenPrompt ? "blur-sm pointer-events-none select-none" : ""
+        }
+      >
+        {children}
+      </div>
+
+      <AlertDialog open={showFullscreenPrompt}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              Malpractice Alert
-            </AlertDialogTitle>
+            <AlertDialogTitle>Enter Fullscreen Mode</AlertDialogTitle>
             <AlertDialogDescription>
-              {violationType} This action has been recorded by the system.
+              Please enter fullscreen mode to continue your exam.
               <br />
-              Please remain in fullscreen and do not switch tabs.
+              Exiting fullscreen mode during the exam is recorded as a
+              violation.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={handleAcknowledge}>
-              I Understand
+            <AlertDialogAction onClick={handleEnterFullscreen}>
+              Enter Fullscreen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

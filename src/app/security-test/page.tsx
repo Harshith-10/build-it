@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useExamSecurity, type ViolationType } from "@/hooks/use-exam-security";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,7 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  useExamSecurity,
+  type ViolationEvent,
+  type ViolationType,
+} from "@/hooks/use-exam-security";
 
 export default function ExamPage() {
   const [isBlocked, setIsBlocked] = useState(true);
@@ -17,8 +21,9 @@ export default function ExamPage() {
     null,
   );
 
-  const handleViolation = (type: ViolationType) => {
-    console.warn(`User violation detected: ${type}`);
+  const handleViolation = (event: ViolationEvent) => {
+    const { type, isSevere } = event;
+    console.warn(`User violation detected: ${type} (Severe: ${isSevere})`);
     setLastViolation(type);
 
     // Example: Block the screen immediately on tab switch
