@@ -28,7 +28,9 @@ export async function searchSelect<T>(
     message,
     source: async (term) => {
       const items = await fetcher(term || "");
-      return items.map(mapper);
+      const mappedItems = items.map(mapper);
+      // Always prepend Back option
+      return [{ name: "↩  Back", value: null }, ...mappedItems];
     },
   });
 }

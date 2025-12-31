@@ -1,29 +1,21 @@
-import { select } from "@inquirer/prompts";
 import { eq } from "drizzle-orm";
 import { db } from "../../src/db";
 import { exams } from "../../src/db/schema/exams";
+import { selectExam } from "../lib/ui";
 
 async function main() {
   console.clear();
   console.log("🔍 View Exam Timings\n");
 
   // 1. Select Exam
-  const allExams = await db.query.exams.findMany({
-    orderBy: (exams, { desc }) => [desc(exams.createdAt)],
-  });
+  const selectedExam = await selectExam();
 
-  if (allExams.length === 0) {
-    console.log("❌ No exams found.");
+  if (!selectedExam) {
+    console.log("❌ No exam selected.");
     process.exit(0);
   }
 
-  const examId = await select({
-    message: "Select an exam:",
-    choices: allExams.map((e) => ({
-      name: `${e.title} (${new Date(e.startTime).toLocaleString()})`,
-      value: e.id,
-    })),
-  });
+  const examId = selectedExam.id;
 
   // 2. Fetch Group Timings
   const examWithGroups = await db.query.exams.findFirst({

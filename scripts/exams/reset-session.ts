@@ -1,141 +1,66 @@
-import { and, eq, ilike } from "drizzle-orm";
-import inquirer from "inquirer";
+import checkbox from "@inquirer/checkbox";
+import confirm from "@inquirer/confirm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { examAssignments, exams, user } from "@/db/schema";
+import { examAssignments } from "@/db/schema";
+import { clearScreen, selectExam } from "../lib/ui";
 
 async function main() {
-  console.log("--- Reset Exam Session ---");
+  clearScreen("Reset Exam Session");
 
-  // ==========================================
   // 1. SELECT EXAM
-  // ==========================================
-  const { examSearch } = await inquirer.prompt([
-    {
-      type: "input",
-      name: "examSearch",
-      message: "Search for Exam (enter 'all' for recent 10):",
-      default: "Phase 4",
-    },
-  ]);
-
-  let foundExams;
-  if (examSearch === "all") {
-    foundExams = await db
-      .select()
-      .from(exams)
-      .limit(10)
-      .orderBy(exams.createdAt);
-  } else {
-    foundExams = await db
-      .select()
-      .from(exams)
-      .where(ilike(exams.title, `%${examSearch}%`))
-      .limit(10);
-  }
-
-  if (foundExams.length === 0) {
-    console.log("No exams found. Exiting.");
+  const selectedExam = await selectExam();
+  if (!selectedExam) {
+    console.log("No exam selected. Exiting.");
     process.exit(0);
   }
 
-  console.log("\nFound Exams:");
-  foundExams.forEach((e, idx) => {
-    console.log(`${idx + 1}. ${e.title} (ID: ${e.id})`);
+  console.log(`\nSelected Exam: ${selectedExam.title}`);
+  console.log("Fetching active sessions...\n");
+
+  // 2. FETCH ACTIVE SESSIONS
+  const activeSessions = await db.query.examAssignments.findMany({
+    where: eq(examAssignments.examId, selectedExam.id),
+    with: {
+      user: true,
+    },
   });
 
-  const { examIndex } = await inquirer.prompt([
-    {
-      type: "number",
-      name: "examIndex",
-      message: `Select Exam (1-${foundExams.length}):`,
-      validate: (val) =>
-        val !== undefined && val >= 1 && val <= foundExams.length
-          ? true
-          : "Invalid index",
-    },
-  ]);
-
-  const selectedExam = foundExams[examIndex - 1];
-  console.log(`Selected: ${selectedExam.title}\n`);
-
-  // ==========================================
-  // 2. SELECT USER
-  // ==========================================
-  const { userSearch } = await inquirer.prompt([
-    {
-      type: "input",
-      name: "userSearch",
-      message: "Search for User (by email):",
-    },
-  ]);
-
-  const foundUsers = await db
-    .select()
-    .from(user)
-    .where(ilike(user.email, `%${userSearch}%`))
-    .limit(10);
-
-  if (foundUsers.length === 0) {
-    console.log("No users found. Exiting.");
+  if (activeSessions.length === 0) {
+    console.log("✅ No active sessions found for this exam.");
     process.exit(0);
   }
 
-  console.log("\nFound Users:");
-  foundUsers.forEach((u, idx) => {
-    console.log(`${idx + 1}. ${u.name} - ${u.email} (ID: ${u.id})`);
+  // 3. SELECT USERS (Checkbox)
+  const selectedSessionIds = await checkbox({
+    message: "Select users to reset session for:",
+    choices: activeSessions.map((session) => ({
+      name: `${session.user.name} (${session.user.email}) - Score: ${session.score}`,
+      value: session.id,
+    })),
+    pageSize: 15,
   });
 
-  const { userIndex } = await inquirer.prompt([
-    {
-      type: "number",
-      name: "userIndex",
-      message: `Select User (1-${foundUsers.length}):`,
-      validate: (val) =>
-        val !== undefined && val >= 1 && val <= foundUsers.length
-          ? true
-          : "Invalid index",
-    },
-  ]);
-
-  const selectedUser = foundUsers[userIndex - 1];
-  console.log(`Selected: ${selectedUser.email}\n`);
-
-  // ==========================================
-  // 3. DELETE SESSION
-  // ==========================================
-  const assignment = await db.query.examAssignments.findFirst({
-    where: and(
-      eq(examAssignments.examId, selectedExam.id),
-      eq(examAssignments.userId, selectedUser.id),
-    ),
-  });
-
-  if (!assignment) {
-    console.log("No active session found for this user in this exam.");
+  if (selectedSessionIds.length === 0) {
+    console.log("No users selected. Exiting.");
     process.exit(0);
   }
 
-  console.log(`\n!!! FOUND SESSION !!!`);
-  console.log(`ID: ${assignment.id}`);
-  console.log(`Status: ${assignment.status}`);
-  console.log(`Score: ${assignment.score}`);
+  // 4. CONFIRM DELETION
+  const isConfirmed = await confirm({
+    message: `Are you sure you want to DELETE ${selectedSessionIds.length} session(s)? This cannot be undone.`,
+    default: false,
+  });
 
-  const { confirm } = await inquirer.prompt([
-    {
-      type: "confirm",
-      name: "confirm",
-      message: "Are you sure you want to DELETE this session?",
-      default: false,
-    },
-  ]);
-
-  if (confirm) {
+  if (isConfirmed) {
     await db
       .delete(examAssignments)
-      .where(eq(examAssignments.id, assignment.id));
-    console.log("✔ Session deleted successfully.");
+      .where(inArray(examAssignments.id, selectedSessionIds));
+    console.log(
+      `\n✅ Successfully deleted ${selectedSessionIds.length} session(s).`,
+    );
   } else {
-    console.log("Cancelled.");
+    console.log("\nCancelled.");
   }
 
   process.exit(0);

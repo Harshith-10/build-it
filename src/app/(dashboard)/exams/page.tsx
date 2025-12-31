@@ -16,6 +16,7 @@ import { db } from "@/db";
 import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { ExamCardAction } from "./exam-card-action";
+import { Button } from "@/components/ui/button";
 
 function getStatusColor(status: "upcoming" | "active" | "ended") {
   switch (status) {
@@ -127,7 +128,7 @@ export default async function ExamsPage() {
     });
 
   return (
-    <div className="space-y-6 mx-auto max-w-screen-2xlqqq">
+    <div className="space-y-6 mx-auto max-w-screen-2xl">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Exams</h2>

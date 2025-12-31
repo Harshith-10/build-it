@@ -1,22 +1,17 @@
 import confirm from "@inquirer/confirm";
-import input from "@inquirer/input";
 import { eq } from "drizzle-orm";
 import { db } from "../../src/db";
 import { user } from "../../src/db/schema/auth";
+import { selectUser } from "../lib/ui";
 
 async function deleteUser() {
   console.log("🗑️  User Delete Tool");
 
-  const email = await input({
-    message: "Enter the email of the user to delete:",
-  });
-
-  const existingUser = await db.query.user.findFirst({
-    where: eq(user.email, email),
-  });
+  // 1. Select User
+  const existingUser = await selectUser();
 
   if (!existingUser) {
-    console.error("❌ User not found!");
+    console.log("No user selected.");
     return;
   }
 

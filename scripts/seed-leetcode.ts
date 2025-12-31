@@ -72,6 +72,22 @@ async function seed() {
         if (existingQuestion) {
           // console.log(`  Question "${problem.title}" already exists.`);
           questionId = existingQuestion.id;
+
+          // Check and update driverCode if needed
+          const currentDriverCode = existingQuestion.driverCode as any;
+          const newDriverCode = problem.driverCode as any;
+
+          if (
+            JSON.stringify(currentDriverCode) !== JSON.stringify(newDriverCode)
+          ) {
+            console.log(`  Updating driverCode for "${problem.title}"...`);
+            await db
+              .update(questions)
+              .set({
+                driverCode: problem.driverCode,
+              })
+              .where(eq(questions.id, questionId));
+          }
         } else {
           // Insert Question
           const [newQuestion] = await db

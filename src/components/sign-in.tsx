@@ -102,11 +102,11 @@ export default function SignIn() {
         )}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="identifier">Email or Username</Label>
+            <Label htmlFor="identifier">Email or Roll No.</Label>
             <Input
               id="identifier"
               type="text"
-              placeholder="23951a052x@iare.ac.in"
+              placeholder="example@iare.ac.in"
               {...register("identifier")}
             />
             {errors.identifier && (

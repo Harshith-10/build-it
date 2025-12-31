@@ -11,11 +11,17 @@ async function assignExam() {
 
   // 1. Select Exam
   const selectedExam = await selectExam();
-  if (!selectedExam) return;
+  if (!selectedExam) {
+    console.log("No exam selected. Exiting.");
+    process.exit(0);
+  }
 
   // 2. Select Group
   const selectedGroup = await selectGroup();
-  if (!selectedGroup) return;
+  if (!selectedGroup) {
+    console.log("No group selected. Exiting.");
+    process.exit(0);
+  }
 
   console.log(
     `\nAssigning Exam: "${selectedExam.title}" to Group: "${selectedGroup.name}"`,

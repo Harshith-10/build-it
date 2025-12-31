@@ -15,7 +15,10 @@ async function main() {
 
   // 1. Select Exam
   const selectedExam = await selectExam();
-  if (!selectedExam) return;
+  if (!selectedExam) {
+    console.log("No exam selected. Exiting.");
+    process.exit(0);
+  }
 
   const examId = selectedExam.id;
   console.log(`\nAnalyzing data for: ${selectedExam.title}...`);
