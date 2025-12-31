@@ -7,8 +7,8 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { exams } from "./exams.ts";
-import { questions } from "./questions.ts";
+import { exams } from "./exams";
+import { questions } from "./questions";
 
 export const questionCollections = pgTable("question_collections", {
   id: uuid("id").primaryKey().defaultRandom(),

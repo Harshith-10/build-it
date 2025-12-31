@@ -1,7 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
-import { db } from "../src/db/index.ts";
-import { userGroupMembers } from "../src/db/schema/groups.ts";
-import { auth } from "../src/lib/auth.ts";
+import { db } from "@/db";
+import { userGroupMembers } from "@/db/schema/groups";
+import { auth } from "@/lib/auth";
 
 // We need to define the type here since we can't easily import it from the script without circular deps or sharing complex types
 interface UserRecord {

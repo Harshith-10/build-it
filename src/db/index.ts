@@ -6,7 +6,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL as string,
 });
 
-import * as schema from "./schema/index.ts";
+import * as schema from "./schema/index";
 
 const db = drizzle({ client: pool, schema });
 
