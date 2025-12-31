@@ -9,6 +9,8 @@ export const auth = betterAuth({
   }),
   trustedOrigins: [
     process.env.BETTER_AUTH_URL as string,
+    "http://172.16.7.253",
+    "http://172.16.7.253:3000",
     "https://20e4519e8a5a.ngrok-free.app",
   ],
 

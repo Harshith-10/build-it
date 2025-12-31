@@ -1,15 +1,15 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { Worker } from "node:worker_threads";
 import { Presets, SingleBar } from "cli-progress";
 import { parse } from "csv-parse/sync";
 import { eq } from "drizzle-orm";
-import pLimit from "p-limit";
 import { db } from "../src/db";
-import { userGroupMembers, userGroups } from "../src/db/schema/groups";
-import { auth } from "../src/lib/auth";
+import { userGroups } from "../src/db/schema/groups";
 
 const CSV_FILE = path.join(process.cwd(), "data/pat_users/users.csv");
-const CONCURRENCY_LIMIT = 64;
+const WORKER_SCRIPT = path.join(__dirname, "seed-users.worker.ts");
 
 interface UserRecord {
   Sno: string;
@@ -21,6 +21,16 @@ interface UserRecord {
   "D.O.B": string;
   Regulation: string;
   UserGroup: string;
+}
+
+// Helper to chunk array
+function chunkArray<T>(array: T[], chunks: number): T[][] {
+  const result: T[][] = [];
+  const chunkSize = Math.ceil(array.length / chunks);
+  for (let i = 0; i < array.length; i += chunkSize) {
+    result.push(array.slice(i, i + chunkSize));
+  }
+  return result;
 }
 
 async function seedUsers() {
@@ -38,7 +48,7 @@ async function seedUsers() {
 
   console.log(`Found ${records.length} user records to process.`);
 
-  // 1. Manage User Groups
+  // 1. Manage User Groups (Main Thread)
   const uniqueGroups = Array.from(
     new Set(records.map((r) => r.UserGroup).filter(Boolean)),
   );
@@ -47,7 +57,6 @@ async function seedUsers() {
   console.log(`Checking ${uniqueGroups.length} user groups...`);
 
   for (const groupName of uniqueGroups) {
-    // Check if exists
     const existing = await db.query.userGroups.findFirst({
       where: eq(userGroups.name, groupName),
     });
@@ -67,8 +76,11 @@ async function seedUsers() {
     }
   }
 
-  // 2. Prepare User Data
-  const limit = pLimit(CONCURRENCY_LIMIT);
+  // 2. Spawn Workers
+  const numCPUs = os.cpus().length;
+  console.log(`🚀 Spawning ${numCPUs} workers to process users...`);
+
+  const chunks = chunkArray(records, numCPUs);
   const progressBar = new SingleBar(
     {
       format:
@@ -82,89 +94,61 @@ async function seedUsers() {
 
   progressBar.start(records.length, 0);
 
-  const tasks = records.map((record) => {
-    return limit(async () => {
-      try {
-        const rollNo = record.RollNo;
-        const dobStr = record["D.O.B"];
-        const [day, month, year] = dobStr.split("-");
-        const password = `${day}${month}${year}`; // ddMMyyyy
-        const dobDate = new Date(`${year}-${month}-${day}`);
-        const email = `${rollNo}@iare.ac.in`.toLowerCase();
-        const role = "student";
-
-        // Create User
-        let userId: string | undefined;
-
-        try {
-          // Attempt sign up
-          const res = await auth.api.signUpEmail({
-            body: {
-              name: record.FullName,
-              email: email,
-              password: password,
-              role: role,
-              username: rollNo,
-              displayUsername: record.FullName.split(" ")[0], // First name as display
-              branch: record.Branch,
-              section: record.Section,
-              gender:
-                record.Gender === "M"
-                  ? "male"
-                  : record.Gender === "F"
-                    ? "female"
-                    : "other",
-              dob: dobDate,
-              regulation: record.Regulation,
-              semester: "6",
-            },
-          });
-          userId = res?.user?.id;
-        } catch (error: any) {
-          if (error?.body?.message?.includes("already exists")) {
-            // If user exists, we need their ID to link to group.
-            // Since we can't easily get ID from auth (fail), we rely on DB query via email/username
-            // But auth.api doesn't return user on conflict.
-            // Let's fetch the user from DB directly to get ID.
-            const existingUser = await db.query.user.findFirst({
-              where: (users, { eq }) => eq(users.email, email),
-            });
-            userId = existingUser?.id;
-          } else {
-            // Real error
-            console.error(`Failed to create ${email}`, error?.body || error);
-          }
-        }
-
-        // Link to Group
-        if (userId && record.UserGroup && groupCache.has(record.UserGroup)) {
-          const groupId = groupCache.get(record.UserGroup)!;
-
-          // Check membership
-          const isMember = await db.query.userGroupMembers.findFirst({
-            where: (members, { and, eq }) =>
-              and(eq(members.userId, userId!), eq(members.groupId, groupId)),
-          });
-
-          if (!isMember) {
-            await db.insert(userGroupMembers).values({
-              userId,
-              groupId,
-            });
-          }
-        }
-      } catch (_err) {
-        // Global error handler for this record
-      } finally {
-        progressBar.increment();
+  const workers = chunks.map((chunk) => {
+    return new Promise<void>((resolve, reject) => {
+      // Skip empty chunks
+      if (chunk.length === 0) {
+        resolve();
+        return;
       }
+
+      const worker = new Worker(WORKER_SCRIPT, {
+        workerData: {
+          records: chunk,
+          groupCache: groupCache,
+        },
+        // Important for running TS worker
+        execArgv: ["--import", "tsx/esm"],
+      });
+
+      worker.on("message", (msg) => {
+        if (msg.type === "progress") {
+          progressBar.increment(msg.value);
+        } else if (msg.type === "done") {
+          if (msg.errors && msg.errors.length > 0) {
+            // Log errors if needed, maybe to a file or just console (but console might break progress bar)
+            // For now, we will just proceed.
+          }
+          resolve();
+        } else if (msg.type === "fatal") {
+          reject(msg.error);
+        }
+      });
+
+      worker.on("error", (err) => {
+        reject(err);
+      });
+
+      worker.on("exit", (code) => {
+        if (code !== 0) {
+          reject(new Error(`Worker stopped with exit code ${code}`));
+        } else {
+          resolve();
+        }
+      });
     });
   });
 
-  await Promise.all(tasks);
-  progressBar.stop();
-  console.log("✅ User seeding completed!");
-  process.exit(0);
+  try {
+    await Promise.all(workers);
+    progressBar.stop();
+    console.log("✅ User seeding completed! All workers finished.");
+    process.exit(0);
+  } catch (err) {
+    progressBar.stop();
+    console.error("❌ A worker failed:", err);
+    process.exit(1);
+  }
 }
 
 seedUsers().catch((err) => {

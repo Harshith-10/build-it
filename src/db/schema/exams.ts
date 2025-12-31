@@ -8,8 +8,8 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { userGroups } from "./groups";
-import { examCollections } from "./question-collections";
+import { userGroups } from "./groups.ts";
+import { examCollections } from "./question-collections.ts";
 
 export const examStatusEnum = pgEnum("exam_status", [
   "upcoming",

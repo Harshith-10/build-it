@@ -9,9 +9,9 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { user } from "./auth";
-import { exams } from "./exams";
-import { questions } from "./questions";
+import { user } from "./auth.ts";
+import { exams } from "./exams.ts";
+import { questions } from "./questions.ts";
 
 export const assignmentStatusEnum = pgEnum("assignment_status", [
   "not_started",
