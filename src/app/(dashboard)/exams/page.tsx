@@ -4,6 +4,7 @@ import { Calendar, Clock, Timer } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -16,7 +17,6 @@ import { db } from "@/db";
 import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { ExamCardAction } from "./exam-card-action";
-import { Button } from "@/components/ui/button";
 
 function getStatusColor(status: "upcoming" | "active" | "ended") {
   switch (status) {
