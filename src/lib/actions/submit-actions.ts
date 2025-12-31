@@ -168,13 +168,31 @@ export async function submitQuestion(
       },
     });
 
-    // Determine which questions are "passed" (fully solved)
+    // Determine which questions are "passed" (fully solved) and calculate partial scores
     const passedQuestionIds = new Set<string>();
+    const questionScores: Record<string, number> = {};
+
     for (const qId of assignedQuestionIds) {
       const qSubmissions = allSubmissions.filter((s) => s.questionId === qId);
+
+      // Determine fully passed status
       const hasPassed = qSubmissions.some((s) => s.verdict === "passed");
       if (hasPassed) {
         passedQuestionIds.add(qId);
+        questionScores[qId] = 1; // 100%
+      } else {
+        // Calculate best partial score
+        // We find the max ratio of (testCasesPassed / totalTestCases) across all submissions
+        let maxRatio = 0;
+        for (const s of qSubmissions) {
+          if (s.totalTestCases && s.totalTestCases > 0) {
+            const ratio = (s.testCasesPassed || 0) / s.totalTestCases;
+            if (ratio > maxRatio) {
+              maxRatio = ratio;
+            }
+          }
+        }
+        questionScores[qId] = maxRatio;
       }
     }
 
@@ -195,28 +213,12 @@ export async function submitQuestion(
       });
     }
 
-    // Use extracted helper
-    // Import will be improved in next step if needed, but for now assuming auto-import or manual add
-    // Since I can't auto-import, I will rely on replacing logic and adding import.
-    // Wait, replace_file_content replaces a block. I need to make sure I import the function.
-    // I will add the import in a separate call or same call if possible.
-    // I'll assume I do it in two steps or manual logic duplication? No, I want to use the helper.
-
-    // I will define the logic here to use the helper but I must add the import first.
-    // Actually, I can replace the whole file content or a large chunk to include import.
-    // Or I can just write the logic here to MATCH the helper for now to save tool calls
-    // AND verify with the script separately?
-    // User wants me to verify.
-    // Best practice: Use the shared code.
-
-    // I'll update imports first in this thought block? no, separate tool call.
-    // I will replace this block to use the function, and then add the import.
-
     const newScore = calculateGradingScore({
       strategy: gradingStrategy,
       config: gradingConfig,
       passedQuestionIds: Array.from(passedQuestionIds),
       questionDifficulties,
+      questionScores,
     });
 
     // Score is monotonically increasing - only update if new score is higher
