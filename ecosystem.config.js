@@ -13,9 +13,9 @@ export const apps = [
       DB_PASSWORD: "buildit_dev_pass",
       DB_NAME: "buildit_db",
       DB_PORT: 5432,
-      BETTER_AUTH_SECRET: "NPdkz12rmFVS3E3OIWSmLpvx4d6twGYo",
-      BETTER_AUTH_URL: "http://localhost:3000",
-      TURBO_API_BASE_URL: "http://localhost:4000/api/v1",
+      BETTER_AUTH_SECRET: "<REMOVED SECRET>",
+      BETTER_AUTH_URL: "<REMOVED SECRET>",
+      TURBO_API_BASE_URL: "<REMOVED SECRET>",
     },
   },
 ];
