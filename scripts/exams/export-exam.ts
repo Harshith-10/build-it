@@ -1,8 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import select from "@inquirer/select";
 import { eq, inArray } from "drizzle-orm";
 import ExcelJS from "exceljs";
-import fs from "fs";
-import path from "path";
 import { db } from "@/db";
 import { examAssignments, malpracticeEvents } from "@/db/schema/assignments";
 import { user } from "@/db/schema/auth";
@@ -19,11 +19,19 @@ async function exportExamData() {
     return;
   }
 
+  // Helper to determine status
+  const getStatus = (e: typeof exams.$inferSelect) => {
+    const now = new Date();
+    if (now < e.startTime) return "upcoming";
+    if (now > e.endTime) return "ended";
+    return "active";
+  };
+
   // Let user select an exam
   const selectedExamId = await select({
     message: "Select an exam to export:",
     choices: allExams.map((e) => ({
-      name: `${e.title} (${e.status}) - ${e.startTime?.toLocaleDateString()}`,
+      name: `${e.title} (${getStatus(e)}) - ${e.startTime?.toLocaleDateString()}`,
       value: e.id,
     })),
     pageSize: 15,
@@ -86,7 +94,7 @@ async function exportExamData() {
 
   // Create workbook and worksheets
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "BuildIT Dashboard";
+  workbook.creator = "BuildIT Admin";
   workbook.created = new Date();
 
   // ============ Exam Summary Sheet ============
@@ -110,7 +118,6 @@ async function exportExamData() {
     { property: "Exam ID", value: selectedExam.id },
     { property: "Title", value: selectedExam.title },
     { property: "Description", value: selectedExam.description || "N/A" },
-    { property: "Status", value: selectedExam.status },
     {
       property: "Start Time",
       value: selectedExam.startTime?.toLocaleString() || "N/A",

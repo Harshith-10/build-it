@@ -129,45 +129,52 @@ async function addQuestions() {
 
   console.log(`Selected Collection: ${collection.title}`);
 
-  while (true) {
-    // 2. Find Questions
-    const problem = await selectProblem();
-    if (!problem) break;
+  // Fetch all questions to allow multi-select
+  // In a large production app, this might need pagination or a different approach,
+  // but for a CLI tool with reasonable dataset, this provides the best UX.
+  const allQuestions = await db.query.questions.findMany({
+    orderBy: (questions, { asc }) => [asc(questions.title)],
+  });
 
-    // Confirm Add
-    const isConfirmed = await confirm({
-      message: `Add "${problem.title}" to collection "${collection.title}"?`,
-      default: true,
-    });
-
-    if (isConfirmed) {
-      // Check if exists
-      const existing = await db.query.collectionQuestions.findFirst({
-        where: (cq, { and, eq }) =>
-          and(
-            eq(cq.collectionId, collection.id),
-            eq(cq.questionId, problem.id),
-          ),
-      });
-
-      if (existing) {
-        console.log("⚠️ Question already in collection.");
-      } else {
-        await db.insert(collectionQuestions).values({
-          collectionId: collection.id,
-          questionId: problem.id,
-        });
-        console.log("✅ Added.");
-      }
-    }
-
-    const addMore = await confirm({
-      message: "Add another question?",
-      default: true,
-    });
-
-    if (!addMore) break;
+  if (allQuestions.length === 0) {
+    console.log("No questions available to add.");
+    return;
   }
+
+  // Pre-fetch existing to exclude or mark
+  const existingLinks = await db.query.collectionQuestions.findMany({
+    where: (cq, { eq }) => eq(cq.collectionId, collection.id),
+  });
+  const existingIds = new Set(existingLinks.map((l) => l.questionId));
+
+  const questionsToAdd = await checkbox({
+    message: "Select questions to add (Space to select, Enter to confirm):",
+    choices: allQuestions.map((q) => {
+      const isAdded = existingIds.has(q.id);
+      return {
+        name: `${isAdded ? "[Existing] " : ""}${q.title} [${q.difficulty}]`,
+        value: q.id,
+        disabled: isAdded ? "Already added" : false,
+      };
+    }),
+    pageSize: 20,
+  });
+
+  if (questionsToAdd.length === 0) {
+    console.log("No questions selected.");
+    return;
+  }
+
+  console.log(`Adding ${questionsToAdd.length} questions...`);
+
+  await db.insert(collectionQuestions).values(
+    questionsToAdd.map((qid) => ({
+      collectionId: collection.id,
+      questionId: qid,
+    })),
+  );
+
+  console.log("✅ Questions added successfully.");
 }
 
 async function linkCollection() {

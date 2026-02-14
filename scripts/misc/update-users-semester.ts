@@ -4,8 +4,8 @@ import { Presets, SingleBar } from "cli-progress";
 import { parse } from "csv-parse/sync";
 import { eq } from "drizzle-orm";
 import pLimit from "p-limit";
-import { db } from "../src/db";
-import { user } from "../src/db/schema/auth";
+import { db } from "../../src/db";
+import { user } from "../../src/db/schema/auth";
 
 const CSV_FILE = path.join(process.cwd(), "data/pat_users/users.csv");
 const CONCURRENCY_LIMIT = 10;

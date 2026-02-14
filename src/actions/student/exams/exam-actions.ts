@@ -13,7 +13,7 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
-export async function initializeExamSession(examId: string) {
+export async function initializeExamSession(examId: string, pin?: string) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -77,6 +77,7 @@ export async function initializeExamSession(examId: string) {
 
     const now = new Date();
     let hasValidSlot = false;
+    let activeSlot = null;
 
     for (const slot of relevantSlots) {
       // If specific slot times are null, fallback to exam global times
@@ -85,23 +86,35 @@ export async function initializeExamSession(examId: string) {
 
       if (now >= startTime && now <= endTime) {
         hasValidSlot = true;
+        activeSlot = slot;
         break;
       }
     }
 
-    // Check if the exam itself is "active" or "ongoing" in status?
-    // Usually status is derived or manually set. If manual "upcoming", maybe block?
-    // For now, rely on Time.
-
-    if (!hasValidSlot) {
+    if (!hasValidSlot || !activeSlot) {
       throw new Error(
         "Access Denied: The exam is not currently active for your group slot.",
       );
     }
 
-    // 3. Randomization
+    // PIN Validation
+    if (activeSlot.exam.requiresPin) {
+      if (!pin) {
+        return {
+          success: false,
+          error: "Exam PIN is required.",
+        };
+      }
+      if (activeSlot.pin !== pin) {
+        return {
+          success: false,
+          error: "Invalid Exam PIN. Please check with your proctor.",
+        };
+      }
+    }
+
     // 3. Question Selection
-    const examData = relevantSlots[0].exam;
+    const examData = activeSlot.exam;
     const { strategyType } = examData;
     const strategyConfig = examData.strategyConfig as any;
 

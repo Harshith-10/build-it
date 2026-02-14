@@ -1,4 +1,5 @@
 import checkbox from "@inquirer/checkbox";
+import confirm from "@inquirer/confirm";
 import input from "@inquirer/input";
 import select from "@inquirer/select";
 import { addHours, format } from "date-fns";
@@ -93,7 +94,6 @@ async function createExam() {
   const gradingStrategy = await select({
     message: "Grading Strategy:",
     choices: [
-      { name: "Standard (20-40-50)", value: "standard_20_40_50" },
       { name: "Linear (Fixed marks)", value: "linear" },
       { name: "Difficulty Based", value: "difficulty_based" },
       { name: "Count Based", value: "count_based" },
@@ -146,6 +146,11 @@ async function createExam() {
     gradingConfig = { rules };
   }
 
+  const requiresPin = await confirm({
+    message: "Require PIN to start exam?",
+    default: false,
+  });
+
   const collections = await db.query.questionCollections.findMany();
   let selectedCollectionIds: string[] = [];
 
@@ -178,12 +183,11 @@ async function createExam() {
           | "difficulty_mix",
         strategyConfig,
         gradingStrategy: gradingStrategy as
-          | "standard_20_40_50"
           | "linear"
           | "difficulty_based"
           | "count_based",
         gradingConfig,
-        status: "upcoming",
+        requiresPin,
       })
       .returning({ id: exams.id });
 

@@ -24,7 +24,7 @@ interface WorkerData {
 const { records, groupCache } = workerData as WorkerData;
 
 async function processUsers() {
-  let processed = 0;
+  let _processed = 0;
   const errors: { email: string; error: any }[] = [];
 
   for (const record of records) {
@@ -94,7 +94,7 @@ async function processUsers() {
         error: err?.message || err,
       });
     } finally {
-      processed++;
+      _processed++;
       if (parentPort) {
         parentPort.postMessage({ type: "progress", value: 1 });
       }

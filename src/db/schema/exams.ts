@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  boolean,
   integer,
   json,
   pgEnum,
@@ -22,7 +23,6 @@ export const strategyTypeEnum = pgEnum("strategy_type", [
   "difficulty_mix",
 ]);
 export const gradingStrategyEnum = pgEnum("grading_strategy", [
-  "standard_20_40_50",
   "linear",
   "difficulty_based",
   "count_based",
@@ -35,10 +35,10 @@ export const exams = pgTable("exams", {
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
   durationMinutes: integer("duration_minutes").notNull(),
-  status: examStatusEnum("status").default("upcoming").notNull(),
+  requiresPin: boolean("requires_pin").default(false).notNull(),
   strategyType: strategyTypeEnum("strategy_type").default("random_n").notNull(),
   gradingStrategy: gradingStrategyEnum("grading_strategy")
-    .default("standard_20_40_50")
+    .default("linear")
     .notNull(),
   strategyConfig: json("strategy_config"),
   gradingConfig: json("grading_config"),
@@ -59,6 +59,7 @@ export const examGroups = pgTable("exam_groups", {
     .references(() => userGroups.id, { onDelete: "cascade" }),
   startTime: timestamp("start_time"),
   endTime: timestamp("end_time"),
+  pin: text("pin"),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
 });
 

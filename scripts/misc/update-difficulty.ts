@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { db } from "../src/db";
-import { questions } from "../src/db/schema";
+import { db } from "../../src/db";
+import { questions } from "../../src/db/schema";
 
 const DATA_DIR = path.join(process.cwd(), "data/leetcode");
 

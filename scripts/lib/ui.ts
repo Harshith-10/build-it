@@ -6,6 +6,7 @@ import { exams } from "../../src/db/schema/exams";
 import { userGroups } from "../../src/db/schema/groups";
 import { questionCollections } from "../../src/db/schema/question-collections";
 import { questions } from "../../src/db/schema/questions";
+import { Exam } from "@/types/exam";
 
 // Helper to clear screen and show banner
 export function clearScreen(title?: string) {
@@ -58,6 +59,15 @@ export async function selectUser() {
   );
 }
 
+function getExamStatus(exam: Exam) {
+  if (exam.startTime && exam.endTime) {
+    if (exam.startTime > new Date()) return "upcoming";
+    if (exam.endTime < new Date()) return "ended";
+    return "active";
+  }
+  return "unknown";
+}
+
 export async function selectExam() {
   return searchSelect(
     "Select an Exam:",
@@ -71,7 +81,7 @@ export async function selectExam() {
     (e) => ({
       name: e.title,
       value: e,
-      description: `Status: ${e.status} | ID: ${e.id}`,
+      description: `Status: ${getExamStatus(e)} | ID: ${e.id}`,
     }),
   );
 }

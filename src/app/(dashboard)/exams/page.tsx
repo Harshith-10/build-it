@@ -4,7 +4,6 @@ import { Calendar, Clock, Timer } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -108,7 +107,7 @@ export default async function ExamsPage() {
       }
 
       // Determine status based on EFFECTIVE times
-      let status = exam.status; // Default to DB status first
+      let status = "active"; // Default
 
       // Override status logic based on time
       if (now < effectiveStart) status = "upcoming";

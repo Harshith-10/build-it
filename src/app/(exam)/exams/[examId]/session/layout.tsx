@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { MalpracticeMonitor } from "@/components/exam/malpractice-monitor";
+import { ExamProtection } from "@/components/exam/exam-protection";
 import { db } from "@/db";
 import { examAssignments } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -33,5 +33,10 @@ export default async function SessionLayout({
     redirect(`/exams/${examId}/onboarding`);
   }
 
-  return <MalpracticeMonitor>{children}</MalpracticeMonitor>;
+  return (
+    <>
+      <ExamProtection assignmentId={assignment.id} />
+      {children}
+    </>
+  );
 }

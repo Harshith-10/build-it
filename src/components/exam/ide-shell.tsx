@@ -8,7 +8,6 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AntiCheatGuard } from "./anti-cheat-guard";
 
 import { CodePlayground } from "./code-playground";
 import { ExamHeader } from "./exam-header";
@@ -76,7 +75,6 @@ export function IDEShell({
         completedQuestionIds={completedQuestionIds}
       />
       <SidebarInset className="h-screen overflow-hidden flex flex-col">
-        <AntiCheatGuard assignmentId={assignmentId} />
         <ExamHeader
           user={user}
           endTime={endTime}

@@ -15,7 +15,6 @@ async function listExams() {
     allExams.map((e) => ({
       ID: e.id,
       Title: e.title,
-      Status: e.status,
       Start: e.startTime?.toISOString(),
       Duration: `${e.durationMinutes}m`,
       Strategy: e.strategyType,

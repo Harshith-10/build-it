@@ -1,9 +1,6 @@
 "use client";
 
 import { AlertTriangle, BookOpen, Clock, Monitor, Shield } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { initializeExamSession } from "@/lib/actions/exam-actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useExamOnboarding } from "@/hooks/use-exam-onboarding";
 
 interface OnboardingClientProps {
   exam: {
@@ -24,46 +23,15 @@ interface OnboardingClientProps {
     durationMinutes: number;
     startTime: Date;
     endTime: Date;
+    requiresPin: boolean;
   };
 }
 
 export default function OnboardingClient({ exam }: OnboardingClientProps) {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleStartExam = async () => {
-    try {
-      // 1. Request Fullscreen
-      await document.documentElement.requestFullscreen();
-    } catch (_error) {
-      toast.error(
-        "Fullscreen is required to take this exam. Please grant permission.",
-      );
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // 2. Initialize Session
-      const result = await initializeExamSession(exam.id);
-
-      if (result.success) {
-        toast.success("Exam started successfully.");
-        router.push(`/exams/${exam.id}/session`);
-      } else {
-        // If failed, exit fullscreen (optional, but good UX)
-        await document.exitFullscreen().catch(() => {});
-        toast.error(result.error || "Failed to start exam.");
-      }
-    } catch (error) {
-      console.error(error);
-      await document.exitFullscreen().catch(() => {});
-      toast.error("An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { isLoading, pin, setPin, handleStartExam } = useExamOnboarding({
+    examId: exam.id,
+    requiresPin: exam.requiresPin,
+  });
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-zinc-950">
@@ -126,12 +94,31 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               </p>
             </div>
           )}
+
+          {exam.requiresPin && (
+            <div className="mx-auto max-w-sm space-y-2 rounded-lg border bg-card p-4 shadow-sm">
+              <Label htmlFor="exam-pin">Exam PIN Required</Label>
+              <Input
+                id="exam-pin"
+                type="text"
+                placeholder="Enter 6-digit PIN"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                className="text-center text-lg tracking-widest"
+                maxLength={6}
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground text-center">
+                This PIN was provided to your group facilitator.
+              </p>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex justify-center pb-8">
           <Button
             size="lg"
             onClick={handleStartExam}
-            disabled={isLoading}
+            disabled={isLoading || (exam.requiresPin && !pin)}
             className="w-full max-w-sm text-lg"
           >
             {isLoading ? "Initializing..." : "I Understand, Start Exam"}

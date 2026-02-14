@@ -1,7 +1,8 @@
+import checkbox from "@inquirer/checkbox";
 import confirm from "@inquirer/confirm";
 import input from "@inquirer/input";
 import select from "@inquirer/select";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../src/db";
 import { userGroupMembers, userGroups } from "../../src/db/schema/groups";
 import { clearScreen, selectGroup, selectUser } from "../lib/ui";
@@ -89,23 +90,42 @@ async function deleteGroup(groupId: string) {
 }
 
 async function addUserToGroup(groupId: string) {
-  const targetUser = await selectUser();
-  if (!targetUser) return;
-
-  // Check membership
-  const existing = await db.query.userGroupMembers.findFirst({
-    where: and(
-      eq(userGroupMembers.groupId, groupId),
-      eq(userGroupMembers.userId, targetUser.id),
-    ),
+  // Fetch all users
+  const allUsers = await db.query.user.findMany({
+    orderBy: (user, { asc }) => [asc(user.name)],
+    limit: 500, // Limit to recent/first 500 to avoid performance issues in CLI
   });
-  if (existing) return console.log("⚠️ User is already in this group.");
 
-  await db.insert(userGroupMembers).values({
+  if (allUsers.length === 0) {
+    console.log("No users found.");
+    return;
+  }
+
+  // Fetch current members to disable them
+  const currentMembers = await db.query.userGroupMembers.findMany({
+    where: eq(userGroupMembers.groupId, groupId),
+  });
+  const currentMemberIds = new Set(currentMembers.map((m) => m.userId));
+
+  const selectedUserIds = await checkbox({
+    message: "Select users to add (Space to select, Enter to confirm):",
+    choices: allUsers.map((u) => ({
+      name: `${u.name} (${u.email})`,
+      value: u.id,
+      disabled: currentMemberIds.has(u.id) ? "Already member" : false,
+    })),
+    pageSize: 15,
+  });
+
+  if (selectedUserIds.length === 0) return;
+
+  const values = selectedUserIds.map((userId) => ({
     groupId: groupId,
-    userId: targetUser.id,
-  });
-  console.log(`✅ Added ${targetUser.email} to group.`);
+    userId: userId,
+  }));
+
+  await db.insert(userGroupMembers).values(values);
+  console.log(`✅ Added ${values.length} user(s) to group.`);
 }
 
 async function removeUserFromGroup(groupId: string) {
@@ -122,23 +142,35 @@ async function removeUserFromGroup(groupId: string) {
     return;
   }
 
-  const memberId = await select({
-    message: "Select user to remove:",
+  const memberIdsToRemove = await checkbox({
+    message: "Select users to remove (Space to select, Enter to confirm):",
     choices: members.map((m) => ({
       name: `${m.user.name} (${m.user.email})`,
       value: m.userId,
     })),
+    pageSize: 15,
   });
+
+  if (memberIdsToRemove.length === 0) {
+    return; // No selection
+  }
+
+  const isConfirmed = await confirm({
+    message: `Are you sure you want to remove ${memberIdsToRemove.length} user(s) from this group?`,
+    default: false,
+  });
+
+  if (!isConfirmed) return;
 
   await db
     .delete(userGroupMembers)
     .where(
       and(
         eq(userGroupMembers.groupId, groupId),
-        eq(userGroupMembers.userId, memberId),
+        inArray(userGroupMembers.userId, memberIdsToRemove),
       ),
     );
-  console.log(`✅ Removed user from group.`);
+  console.log(`✅ Removed ${memberIdsToRemove.length} user(s) from group.`);
 }
 
 manageGroups().catch(console.error);

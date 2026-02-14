@@ -18,6 +18,7 @@ async function main() {
         { name: "Exit", value: "Exit" },
       ],
       pageSize: 10,
+      loop: false,
     });
 
     if (category === "Exit") {
@@ -41,6 +42,7 @@ async function main() {
           { name: "Delete User", value: "scripts/users/delete-user.ts" },
           { name: "Back", value: "back" },
         ],
+        loop: false,
       });
       if (action === "back") continue;
       scriptPath = action;
@@ -52,7 +54,10 @@ async function main() {
           { name: "Assign Exam", value: "scripts/exams/assign-exam.ts" },
           { name: "Delete Exam", value: "scripts/exams/delete-exam.ts" },
           { name: "List Exams (Simple)", value: "scripts/exams/list-exams.ts" },
-          { name: "View Exam Timings", value: "scripts/exams/view-timings.ts" },
+          {
+            name: "View Exam Schedules/PINs",
+            value: "scripts/exams/view-exam-schedules.ts",
+          },
           {
             name: "Export Exam Data (Excel)",
             value: "scripts/exams/export-exam.ts",
@@ -60,6 +65,7 @@ async function main() {
           { name: "Reset Session", value: "scripts/exams/reset-session.ts" },
           { name: "Back", value: "back" },
         ],
+        loop: false,
       });
       if (action === "back") continue;
       scriptPath = action;
@@ -85,6 +91,7 @@ async function main() {
           },
           { name: "Back", value: "back" },
         ],
+        loop: false,
       });
       if (action === "back") continue;
       scriptPath = action;
@@ -110,6 +117,7 @@ async function main() {
           // { name: "Setup DSA Exam", value: "scripts/setup-ds-lab-exam.ts" }, // Ignored intentionally
           { name: "Back", value: "back" },
         ],
+        loop: false,
       });
       if (action === "back") continue;
       scriptPath = action;
@@ -128,7 +136,7 @@ async function runScript(relativePath: string) {
       stdio: "inherit",
       shell: true,
     });
-    p.on("close", (code) => {
+    p.on("close", (_code) => {
       console.log(`\nScript finished. Press Enter to return to menu.`);
       process.stdin.resume(); // Ensure stdin is readable
       process.stdin.once("data", () => {

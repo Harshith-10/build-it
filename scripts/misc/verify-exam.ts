@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
+import { generateExamQuestions } from "@/actions/student/exams/exam-actions";
 import { db } from "@/db";
 import { exams } from "@/db/schema/exams";
-import { generateExamQuestions } from "@/lib/actions/exam-actions";
 
 async function verify() {
   const exam = await db.query.exams.findFirst({

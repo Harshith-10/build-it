@@ -1,6 +1,6 @@
 import checkbox from "@inquirer/checkbox";
 import confirm from "@inquirer/confirm";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { examAssignments } from "@/db/schema";
 import { clearScreen, selectExam } from "../lib/ui";

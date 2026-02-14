@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { db } from "../src/db";
-import { questionCollections } from "../src/db/schema";
+import { db } from "../../src/db";
+import { questionCollections } from "../../src/db/schema";
 
 async function verify() {
   console.log("🔍 Verifying LeetCode Import...");

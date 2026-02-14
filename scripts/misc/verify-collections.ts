@@ -64,7 +64,6 @@ async function main() {
       startTime: new Date(),
       endTime: new Date(Date.now() + 3600000), // 1 hour
       durationMinutes: 60,
-      status: "active",
     })
     .returning();
   console.log(`Created Exam: ${exam.title} (${exam.id})`);

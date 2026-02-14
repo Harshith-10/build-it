@@ -4,6 +4,7 @@ import { Clock, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { finishExam } from "@/actions/student/exams/exam-lifecycle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +18,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { finishExam } from "@/lib/actions/exam-lifecycle";
 
 interface ExamHeaderProps {
   user: {

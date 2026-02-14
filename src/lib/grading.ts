@@ -35,7 +35,7 @@ export function calculateGradingScore(input: GradingInput): number {
 
     if (allowPartial && questionScores) {
       // Iterate over all questions we have a score for
-      for (const [qId, percentage] of Object.entries(questionScores)) {
+      for (const [_qId, percentage] of Object.entries(questionScores)) {
         score += percentage * marksPerQuestion;
       }
     } else {
@@ -44,9 +44,9 @@ export function calculateGradingScore(input: GradingInput): number {
   } else if (strategy === "difficulty_based") {
     // Difficulty Based: Sum of marks of passed questions based on their difficulty
     const difficultyMarks = {
-      easy: config?.easy || 0,
-      medium: config?.medium || 0,
-      hard: config?.hard || 0,
+      easy: config?.easy || 5,
+      medium: config?.medium || 10,
+      hard: config?.hard || 20,
     };
 
     if (allowPartial && questionScores && questionDifficulties) {
@@ -87,9 +87,5 @@ export function calculateGradingScore(input: GradingInput): number {
     score = 0;
   }
 
-  // Ensure score isn't floating point weirdness if possible, but floors/ceils might be unwanted.
-  // Let's keep 2 decimal places? Or just return as is?
-  // User didn't specify, but existing was integer.
-  // Let's assume float is fine, but maybe round to 2 decimals for cleanliness.
-  return Math.round(score * 100) / 100;
+  return Math.ceil(score);
 }
