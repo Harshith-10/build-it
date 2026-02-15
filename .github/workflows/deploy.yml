@@ -20,8 +20,13 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script_stop: true
-          command_timeout: 200m
           script: |
+            # Add fnm to the PATH
+            export PATH="/home/developer/.local/share/fnm:$PATH"
+
+            # Initialize fnm environment
+            eval "$(fnm env --shell bash)"
+            
             # Navigate to the project directory
             cd ${{ secrets.TARGET_DIR }}
 
