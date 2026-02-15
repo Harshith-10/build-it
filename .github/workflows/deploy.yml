@@ -40,4 +40,4 @@ jobs:
             pnpm build
 
             # Reload PM2 with zero downtime
-            pm2 reload "build-it" --update-env
+            pnpm exec pm2 reload "build-it" --update-env
