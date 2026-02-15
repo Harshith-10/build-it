@@ -1,0 +1,38 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script_stop: true
+          command_timeout: 200m
+          script: |
+            # Navigate to the project directory
+            cd ${{ secrets.TARGET_DIR }}
+
+            # Pull latest changes
+            git pull origin main
+
+            # Install dependencies (frozen-lockfile ensures strict adherence to pnpm-lock.yaml)
+            pnpm install --frozen-lockfile
+
+            # Build the Next.js app
+            pnpm build
+
+            # Reload PM2 with zero downtime
+            pm2 reload "build-it" --update-env
