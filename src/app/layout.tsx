@@ -18,6 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BuildIT - Online Exams",
   description: "Take online exams and improve your skills.",
+  icons: "/favicon.ico",
 };
 
 export default function RootLayout({
