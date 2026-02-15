@@ -25,7 +25,7 @@ const { records, groupCache } = workerData as WorkerData;
 
 async function processUsers() {
   let _processed = 0;
-  const errors: { email: string; error: any }[] = [];
+  const errors: { email: string; error: unknown }[] = [];
 
   for (const record of records) {
     try {
@@ -62,8 +62,9 @@ async function processUsers() {
           },
         });
         userId = res?.user?.id;
-      } catch (error: any) {
-        if (error?.body?.message?.includes("already exists")) {
+      } catch (error) {
+        const apiError = error as { body?: { message?: string } };
+        if (apiError?.body?.message?.includes("already exists")) {
           // If user exists, fetch ID from DB
           const existingUser = await db.query.user.findFirst({
             where: (users, { eq }) => eq(users.email, email),
@@ -75,10 +76,14 @@ async function processUsers() {
       }
 
       if (userId && record.UserGroup && groupCache.has(record.UserGroup)) {
-        const groupId = groupCache.get(record.UserGroup)!;
+        const groupId = groupCache.get(record.UserGroup) as string;
+        const currentUserId = userId;
         const isMember = await db.query.userGroupMembers.findFirst({
           where: (members, { and, eq }) =>
-            and(eq(members.userId, userId!), eq(members.groupId, groupId)),
+            and(
+              eq(members.userId, currentUserId),
+              eq(members.groupId, groupId),
+            ),
         });
 
         if (!isMember) {
@@ -88,10 +93,11 @@ async function processUsers() {
           });
         }
       }
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as { message?: string };
       errors.push({
         email: `${record.RollNo}@iare.ac.in`,
-        error: err?.message || err,
+        error: error.message || err,
       });
     } finally {
       _processed++;

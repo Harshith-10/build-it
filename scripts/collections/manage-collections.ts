@@ -9,12 +9,7 @@ import {
   examCollections,
   questionCollections,
 } from "../../src/db/schema";
-import {
-  clearScreen,
-  selectCollection,
-  selectExam,
-  selectProblem,
-} from "../lib/ui";
+import { clearScreen, selectCollection, selectExam } from "../lib/ui";
 
 async function main() {
   clearScreen("Question Collections Management");

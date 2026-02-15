@@ -37,7 +37,10 @@ async function exportExamData() {
     pageSize: 15,
   });
 
-  const selectedExam = allExams.find((e) => e.id === selectedExamId)!;
+  const selectedExam = allExams.find((e) => e.id === selectedExamId);
+  if (!selectedExam) {
+    throw new Error("Selected exam not found in the list.");
+  }
 
   console.log(`\n📝 Fetching data for: ${selectedExam.title}...`);
 

@@ -22,6 +22,27 @@ export const strategyTypeEnum = pgEnum("strategy_type", [
   "fixed_set",
   "difficulty_mix",
 ]);
+
+export interface RandomNStrategyConfig {
+  count: number;
+}
+
+export type FixedSetStrategyConfig = Record<string, never>;
+
+export interface DifficultyMixStrategyConfig {
+  easy: number;
+  medium: number;
+  hard: number;
+}
+
+export type StrategyConfigMap = {
+  random_n: RandomNStrategyConfig;
+  fixed_set: FixedSetStrategyConfig;
+  difficulty_mix: DifficultyMixStrategyConfig;
+};
+
+export type StrategyConfig = StrategyConfigMap[keyof StrategyConfigMap];
+
 export const gradingStrategyEnum = pgEnum("grading_strategy", [
   "linear",
   "difficulty_based",
@@ -40,7 +61,7 @@ export const exams = pgTable("exams", {
   gradingStrategy: gradingStrategyEnum("grading_strategy")
     .default("linear")
     .notNull(),
-  strategyConfig: json("strategy_config"),
+  strategyConfig: json("strategy_config").$type<StrategyConfig>(),
   gradingConfig: json("grading_config"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")

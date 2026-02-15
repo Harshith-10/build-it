@@ -74,8 +74,11 @@ async function seed() {
           questionId = existingQuestion.id;
 
           // Check and update driverCode if needed
-          const currentDriverCode = existingQuestion.driverCode as any;
-          const newDriverCode = problem.driverCode as any;
+          const currentDriverCode = existingQuestion.driverCode as Record<
+            string,
+            unknown
+          >;
+          const newDriverCode = problem.driverCode as Record<string, unknown>;
 
           if (
             JSON.stringify(currentDriverCode) !== JSON.stringify(newDriverCode)
@@ -105,12 +108,18 @@ async function seed() {
 
           // Insert Test Cases
           if (problem.testCases && problem.testCases.length > 0) {
-            const testCasesToInsert = problem.testCases.map((tc: any) => ({
-              questionId: questionId,
-              input: tc.input,
-              expectedOutput: tc.expectedOutput,
-              isHidden: tc.isHidden,
-            }));
+            const testCasesToInsert = problem.testCases.map(
+              (tc: {
+                input: string;
+                expectedOutput: string;
+                isHidden: boolean;
+              }) => ({
+                questionId: questionId,
+                input: tc.input,
+                expectedOutput: tc.expectedOutput,
+                isHidden: tc.isHidden,
+              }),
+            );
             await db.insert(testCases).values(testCasesToInsert);
           }
         }

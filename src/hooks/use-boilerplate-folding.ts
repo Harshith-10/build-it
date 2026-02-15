@@ -75,7 +75,7 @@ export function useBoilerplateFolding({
     if (viewRef.current) {
       foldBoilerplate(viewRef.current);
     }
-  }, [questionId, language, foldBoilerplate]);
+  }, [foldBoilerplate]);
 
   return { onCreateEditor };
 }

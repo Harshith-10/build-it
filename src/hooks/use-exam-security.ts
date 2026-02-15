@@ -48,7 +48,7 @@ export const useExamSecurity = ({
 
   // State to track if we expect the user to be in fullscreen
   // We assume yes initially if they are in the exam session
-  const [expectFullscreen, setExpectFullscreen] = useState(true);
+  const [expectFullscreen, _setExpectFullscreen] = useState(true);
 
   const reportViolation = useCallback(
     async (type: ViolationType, isSevere: boolean, details?: string) => {

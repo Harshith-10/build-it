@@ -5,7 +5,6 @@ import { addHours, format } from "date-fns";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../src/db";
 import { examGroups } from "../../src/db/schema/exams";
-import { userGroups } from "../../src/db/schema/groups";
 import { clearScreen, selectExam } from "../lib/ui";
 
 async function selectGroupsMulti() {
@@ -56,7 +55,9 @@ async function assignExam() {
   console.log(
     `\nAssigning Exam: "${selectedExam.title}" to ${groups.length} Groups:`,
   );
-  groups.forEach((g) => console.log(` - ${g.name}`));
+  groups.forEach((g) => {
+    console.log(` - ${g.name}`);
+  });
 
   // 3. Set Times (Once for all)
   const setCustomTimes = await confirm({
@@ -110,7 +111,7 @@ async function assignExam() {
     }
 
     let pin: string | null = null;
-    if ((selectedExam as any).requiresPin) {
+    if (selectedExam.requiresPin) {
       pin = Math.floor(100000 + Math.random() * 900000).toString();
       console.log(`🔒 Generated PIN for "${group.name}": ${pin}`);
     }

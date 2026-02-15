@@ -26,7 +26,7 @@ async function verify() {
     console.log(`✅ Generated ${questions.length} questions.`);
 
     if (exam.strategyType === "random_n") {
-      const expected = (exam.strategyConfig as any).count;
+      const expected = (exam.strategyConfig as { count: number }).count;
       if (questions.length === expected) {
         console.log("✅ Count matches configuration.");
       } else {

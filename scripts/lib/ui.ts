@@ -1,12 +1,12 @@
 import search from "@inquirer/search";
 import { ilike, or } from "drizzle-orm";
+import type { Exam } from "@/types/exam";
 import { db } from "../../src/db";
 import { user } from "../../src/db/schema/auth";
 import { exams } from "../../src/db/schema/exams";
 import { userGroups } from "../../src/db/schema/groups";
 import { questionCollections } from "../../src/db/schema/question-collections";
 import { questions } from "../../src/db/schema/questions";
-import { Exam } from "@/types/exam";
 
 // Helper to clear screen and show banner
 export function clearScreen(title?: string) {
@@ -22,8 +22,8 @@ export function clearScreen(title?: string) {
 export async function searchSelect<T>(
   message: string,
   fetcher: (term: string) => Promise<T[]>,
-  mapper: (item: T) => { name: string; value: any; description?: string },
-): Promise<any> {
+  mapper: (item: T) => { name: string; value: T; description?: string },
+): Promise<T | null> {
   // Inquirer Search Prompt
   return search({
     message,

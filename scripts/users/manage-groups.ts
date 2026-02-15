@@ -5,7 +5,7 @@ import select from "@inquirer/select";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../src/db";
 import { userGroupMembers, userGroups } from "../../src/db/schema/groups";
-import { clearScreen, selectGroup, selectUser } from "../lib/ui";
+import { clearScreen, selectGroup } from "../lib/ui";
 
 async function manageGroups() {
   clearScreen("Group Management Tool");

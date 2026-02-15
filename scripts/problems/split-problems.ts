@@ -20,7 +20,7 @@ async function splitProblems() {
     // Read the input file
     const data = await fs.readFile(INPUT_FILE, "utf8");
 
-    let problems;
+    let problems: unknown;
     try {
       problems = JSON.parse(data);
     } catch (parseError) {

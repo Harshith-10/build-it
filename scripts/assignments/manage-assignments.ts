@@ -41,7 +41,7 @@ async function listAssignments(
 ) {
   const whereClause = filter.userId
     ? eq(examAssignments.userId, filter.userId)
-    : eq(examAssignments.examId, filter.examId!);
+    : eq(examAssignments.examId, filter.examId as string);
 
   const assignments = await db.query.examAssignments.findMany({
     where: whereClause,

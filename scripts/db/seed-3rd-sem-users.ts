@@ -122,6 +122,7 @@ async function seedUsers() {
             callbackURL: "http://localhost:3000", // Dummy callback
           },
         });
+        // biome-ignore lint/suspicious/noExplicitAny: Catch all errors
       } catch (error: any) {
         if (error?.body?.message?.includes("already exists")) {
           // Ignore duplicates

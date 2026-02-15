@@ -95,12 +95,13 @@ async function createUser() {
     if (res) {
       console.log("✅ User created successfully!");
     }
-  } catch (error: any) {
+  } catch (err) {
+    const error = err as { body?: { message?: string } };
     console.error("❌ Failed to create user:");
     if (error?.body?.message) {
       console.error(error.body.message);
     } else {
-      console.error(error);
+      console.error(err);
     }
   }
 }

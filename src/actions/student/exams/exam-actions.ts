@@ -10,6 +10,8 @@ import {
   examGroups,
   questions,
   userGroupMembers,
+  type StrategyConfig,
+  type StrategyConfigMap,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
@@ -116,7 +118,7 @@ export async function initializeExamSession(examId: string, pin?: string) {
     // 3. Question Selection
     const examData = activeSlot.exam;
     const { strategyType } = examData;
-    const strategyConfig = examData.strategyConfig as any;
+    const { strategyConfig } = examData;
 
     const questionIds = await generateExamQuestions(
       examId,
@@ -158,8 +160,8 @@ export async function initializeExamSession(examId: string, pin?: string) {
 
 export async function generateExamQuestions(
   examId: string,
-  strategyType: string,
-  strategyConfig: any,
+  strategyType: keyof StrategyConfigMap,
+  strategyConfig: StrategyConfig | null,
 ) {
   // Check if exam has specific collections assigned
   const linkedCollections = await db.query.examCollections.findMany({
@@ -199,7 +201,8 @@ export async function generateExamQuestions(
       randomQuestions = await base;
     }
   } else if (strategyType === "difficulty_mix") {
-    const { easy = 0, medium = 0, hard = 0 } = strategyConfig || {};
+    const config = strategyConfig as StrategyConfigMap["difficulty_mix"] | null;
+    const { easy = 0, medium = 0, hard = 0 } = config || {};
 
     const fetchByDifficulty = async (
       diff: "easy" | "medium" | "hard",
@@ -228,7 +231,8 @@ export async function generateExamQuestions(
     randomQuestions = [...easyQs, ...mediumQs, ...hardQs];
   } else {
     // "random_n" or default fallback
-    const count = strategyConfig?.count || 3;
+    const config = strategyConfig as StrategyConfigMap["random_n"] | null;
+    const count = config?.count ?? 3;
     const conditions: any[] = [];
     if (allowedQuestionIds.length > 0) {
       conditions.push(inArray(questions.id, allowedQuestionIds));

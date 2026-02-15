@@ -9,7 +9,7 @@ const PROBLEM_DATA_PATH = path.join(
 
 interface Problem {
   title: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 async function removeDuplicateProblems() {
@@ -28,7 +28,7 @@ async function removeDuplicateProblems() {
     // Parse the JSON data
     let problems: Problem[];
     try {
-      problems = JSON.parse(fileContent);
+      problems = JSON.parse(fileContent) as Problem[];
     } catch (_parseError) {
       console.error("Error: Invalid JSON format in the file.");
       return;

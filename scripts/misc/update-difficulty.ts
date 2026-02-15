@@ -101,10 +101,14 @@ async function updateDifficulty() {
   for (const file of files) {
     const filePath = path.join(DATA_DIR, file);
     const content = fs.readFileSync(filePath, "utf-8");
-    const problems = JSON.parse(content);
+    const problems = JSON.parse(content) as {
+      title: string;
+      difficulty?: string;
+      [key: string]: unknown;
+    }[];
     let fileModified = false;
 
-    problems.forEach((p: any) => {
+    problems.forEach((p) => {
       // 1. Clean Title (remove numbering if exists)
       const titleMatch = p.title.match(/^\d+\.\s+(.*)$/);
       let cleanTitle = p.title;

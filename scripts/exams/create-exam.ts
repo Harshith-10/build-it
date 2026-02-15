@@ -4,12 +4,11 @@ import input from "@inquirer/input";
 import select from "@inquirer/select";
 import { addHours, format } from "date-fns";
 import { db } from "@/db";
-import { exams } from "@/db/schema/exams";
+import { exams, type StrategyConfig } from "@/db/schema/exams";
 import { examCollections } from "@/db/schema/question-collections";
 
 async function createExam() {
   console.log("📝 Create New Exam");
-
   const title = await input({
     message: "Exam Title:",
     validate: (input) => (input ? true : "Title is required"),
@@ -40,7 +39,6 @@ async function createExam() {
       !Number.isNaN(parseInt(input, 10)) ? true : "Must be a number",
   });
   const durationMinutes = parseInt(durationStr, 10);
-
   const strategyType = await select({
     message: "Strategy Type:",
     choices: [
@@ -50,12 +48,7 @@ async function createExam() {
     ],
   });
 
-  let strategyConfig: {
-    count?: number;
-    easy?: number;
-    medium?: number;
-    hard?: number;
-  } | null = null;
+  let strategyConfig: StrategyConfig | null = null;
   if (strategyType === "random_n") {
     const countStr = await input({
       message: "Number of questions:",
@@ -100,7 +93,7 @@ async function createExam() {
     ],
   });
 
-  let gradingConfig: Record<string, any> | null = null;
+  let gradingConfig: Record<string, unknown> | null = null;
 
   if (gradingStrategy === "linear") {
     const marksStr = await input({

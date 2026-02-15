@@ -61,12 +61,18 @@ async function seed() {
 
         // Insert test cases
         if (problem.testcases && problem.testcases.length > 0) {
-          const testCasesToInsert = problem.testcases.map((tc: any) => ({
-            questionId: insertedQuestion.id,
-            input: tc.input,
-            expectedOutput: tc.expected_output,
-            isHidden: !tc.is_visible,
-          }));
+          const testCasesToInsert = problem.testcases.map(
+            (tc: {
+              input: string;
+              expected_output: string;
+              is_visible: boolean;
+            }) => ({
+              questionId: insertedQuestion.id,
+              input: tc.input,
+              expectedOutput: tc.expected_output,
+              isHidden: !tc.is_visible,
+            }),
+          );
 
           await db.insert(testCases).values(testCasesToInsert);
           totalTestCases += testCasesToInsert.length;

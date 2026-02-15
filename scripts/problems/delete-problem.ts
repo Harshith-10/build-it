@@ -15,16 +15,13 @@ async function deleteProblem() {
     },
   ]);
 
-  let foundProblems;
-  if (!searchTerm) {
-    foundProblems = await db.select().from(questions).limit(10);
-  } else {
-    foundProblems = await db
-      .select()
-      .from(questions)
-      .where(ilike(questions.title, `%${searchTerm}%`))
-      .limit(10);
-  }
+  const foundProblems = !searchTerm
+    ? await db.select().from(questions).limit(10)
+    : await db
+        .select()
+        .from(questions)
+        .where(ilike(questions.title, `%${searchTerm}%`))
+        .limit(10);
 
   if (foundProblems.length === 0) {
     console.log("No problems found.");

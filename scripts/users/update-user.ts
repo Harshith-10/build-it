@@ -72,16 +72,10 @@ async function handleUserUpdate(existingUser: typeof user.$inferSelect) {
       mask: "*",
     });
 
-    try {
-      console.log(
-        "⚠️  Password update via script is limited. Please use the platform UI if possible.",
-      );
-      console.log(
-        "For now, this feature is disabled to prevent hashing issues.",
-      );
-    } catch (_e: any) {
-      console.error("❌ Failed to update password.");
-    }
+    console.log(
+      "⚠️  Password update via script is limited. Please use the platform UI if possible.",
+    );
+    console.log("For now, this feature is disabled to prevent hashing issues.");
   }
 }
 

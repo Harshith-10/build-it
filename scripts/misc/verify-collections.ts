@@ -83,7 +83,9 @@ async function main() {
   console.log("   (You can use existing scripts/manage-groups.ts)");
   console.log(`2. Start Exam ID: ${exam.id}`);
   console.log("3. Verify that the 3 questions assigned are EXACTLY:");
-  randomQuestions.forEach((q) => console.log(`   - ${q.title} (${q.id})`));
+  randomQuestions.forEach((q) => {
+    console.log(`   - ${q.title} (${q.id})`);
+  });
   console.log("=================================\n");
 }
 
