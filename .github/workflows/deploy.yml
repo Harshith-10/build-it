@@ -39,5 +39,11 @@ jobs:
             # Build the Next.js app
             pnpm build
 
+            # Generate schema migrations
+            pnpm db:generate
+
+            # Apply schema migrations
+            pnpm db:push
+
             # Reload PM2 with zero downtime
             pnpm exec pm2 reload "build-it" --update-env
