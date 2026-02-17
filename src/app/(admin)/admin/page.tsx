@@ -106,7 +106,7 @@ export default async function AdminDashboard() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
-          Overview of your BuildIt platform
+          Overview of the BuildIT platform
         </p>
       </div>
       <Separator />

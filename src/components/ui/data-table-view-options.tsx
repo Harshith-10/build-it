@@ -14,11 +14,36 @@ import {
 
 interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;
+  /** Controlled hidden column IDs (for nuqs integration) */
+  hiddenColumns?: string[];
+  /** Callback when column visibility changes */
+  onHiddenColumnsChange?: (hiddenCols: string[]) => void;
 }
 
 export function DataTableViewOptions<TData>({
   table,
+  hiddenColumns,
+  onHiddenColumnsChange,
 }: DataTableViewOptionsProps<TData>) {
+  const isControlled =
+    hiddenColumns !== undefined && onHiddenColumnsChange !== undefined;
+
+  const handleToggle = (columnId: string, checked: boolean) => {
+    if (isControlled) {
+      // Directly update the URL state
+      if (checked) {
+        // Remove from hidden list
+        onHiddenColumnsChange(hiddenColumns.filter((id) => id !== columnId));
+      } else {
+        // Add to hidden list
+        onHiddenColumnsChange([...hiddenColumns, columnId]);
+      }
+    } else {
+      // Fall back to TanStack's built-in toggle
+      table.getColumn(columnId)?.toggleVisibility(checked);
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -41,12 +66,15 @@ export function DataTableViewOptions<TData>({
               typeof column.accessorFn !== "undefined" && column.getCanHide(),
           )
           .map((column) => {
+            const isVisible = isControlled
+              ? !hiddenColumns.includes(column.id)
+              : column.getIsVisible();
             return (
               <DropdownMenuCheckboxItem
                 key={column.id}
                 className="capitalize"
-                checked={column.getIsVisible()}
-                onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                checked={isVisible}
+                onCheckedChange={(value) => handleToggle(column.id, !!value)}
                 onSelect={(e) => e.preventDefault()}
               >
                 {column.id}

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { user } from "@/db/schema/auth";
@@ -20,7 +20,7 @@ export async function getGroups({
   const offset = (page - 1) * limit;
 
   const whereClause = search
-    ? or(like(userGroups.name, `%${search}%`))
+    ? or(ilike(userGroups.name, `%${search}%`))
     : undefined;
 
   const [data, totalCount] = await Promise.all([

@@ -1,6 +1,6 @@
 "use server";
 
-import { desc, eq, like, or, sql } from "drizzle-orm";
+import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { examGroups, exams } from "@/db/schema/exams";
@@ -18,7 +18,9 @@ export async function getExams({
   await requireAdmin();
   const offset = (page - 1) * limit;
 
-  const whereClause = search ? or(like(exams.title, `%${search}%`)) : undefined;
+  const whereClause = search
+    ? or(ilike(exams.title, `%${search}%`))
+    : undefined;
 
   const [data, totalCount] = await Promise.all([
     db

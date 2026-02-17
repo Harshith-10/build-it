@@ -1,6 +1,6 @@
 "use server";
 
-import { desc, eq, like, or, sql } from "drizzle-orm";
+import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { questions, testCases } from "@/db/schema/questions";
@@ -19,7 +19,7 @@ export async function getProblems({
   const offset = (page - 1) * limit;
 
   const whereClause = search
-    ? or(like(questions.title, `%${search}%`))
+    ? or(ilike(questions.title, `%${search}%`))
     : undefined;
 
   const [data, totalCount] = await Promise.all([

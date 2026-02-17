@@ -1,6 +1,6 @@
 "use server";
 
-import { desc, eq, like, or, sql } from "drizzle-orm";
+import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -22,7 +22,7 @@ export async function getCollections({
   const offset = (page - 1) * limit;
 
   const whereClause = search
-    ? or(like(questionCollections.title, `%${search}%`))
+    ? or(ilike(questionCollections.title, `%${search}%`))
     : undefined;
 
   const [data, totalCount] = await Promise.all([

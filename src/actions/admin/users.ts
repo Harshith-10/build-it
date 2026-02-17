@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { user } from "@/db/schema/auth";
@@ -126,9 +126,9 @@ export async function getUsers({
 
   const whereClause = search
     ? or(
-        like(user.name, `%${search}%`),
-        like(user.email, `%${search}%`),
-        like(user.branch, `%${search}%`),
+        ilike(user.name, `%${search}%`),
+        ilike(user.email, `%${search}%`),
+        ilike(user.branch, `%${search}%`),
       )
     : undefined;
 
