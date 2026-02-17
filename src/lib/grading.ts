@@ -3,7 +3,7 @@ export type Difficulty = "easy" | "medium" | "hard";
 
 export interface GradingInput {
   strategy: GradingStrategy | string;
-  config: any;
+  config: Record<string, any>;
   passedQuestionIds: string[];
   questionDifficulties?: Record<string, Difficulty>;
   questionScores?: Record<string, number>; // questionId -> percentage passed (0.0 to 1.0)

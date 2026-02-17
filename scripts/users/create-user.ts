@@ -82,7 +82,7 @@ async function createUser() {
         displayUsername: name.split(" ")[0],
         email,
         password: pass,
-        role,
+        // role,
         gender,
         branch,
         semester,

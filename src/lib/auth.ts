@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username } from "better-auth/plugins";
+import { admin } from "better-auth/plugins/admin";
 import { db } from "@/db";
 
 export const auth = betterAuth({
@@ -19,7 +20,13 @@ export const auth = betterAuth({
     requireEmailVerification: false,
   },
 
-  plugins: [username()],
+  plugins: [
+    username(),
+    admin({
+      defaultRole: "user",
+      adminRole: "admin",
+    }),
+  ],
   user: {
     additionalFields: {
       gender: { type: "string" },
@@ -28,7 +35,7 @@ export const auth = betterAuth({
       section: { type: "string" },
       dob: { type: "date" },
       regulation: { type: "string" },
-      role: { type: "string" },
+      // role: { type: "string" }, // Managed by admin plugin now
     },
   },
 });

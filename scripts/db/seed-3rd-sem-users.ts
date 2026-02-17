@@ -111,7 +111,7 @@ async function seedUsers() {
             email: student.email,
             password: student.password,
             image: student.image,
-            role: student.role,
+            // role: student.role, // Role cannot be set during signup, defaults to 'user'
 
             gender: student.gender,
             branch: student.branch,

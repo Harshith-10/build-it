@@ -9,9 +9,9 @@ import {
   examCollections,
   examGroups,
   questions,
-  userGroupMembers,
   type StrategyConfig,
   type StrategyConfigMap,
+  userGroupMembers,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 

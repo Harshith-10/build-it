@@ -45,7 +45,7 @@ async function processUsers() {
             name: record.FullName,
             email: email,
             password: password,
-            role: role,
+            // role: role, // Role cannot be set during signup, defaults to 'user'
             username: rollNo,
             displayUsername: record.FullName.split(" ")[0],
             branch: record.Branch,

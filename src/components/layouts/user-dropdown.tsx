@@ -81,7 +81,11 @@ export function UserDropdown() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} disabled={isSigningOut}>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+        >
           {isSigningOut ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (

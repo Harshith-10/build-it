@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils";
 function ResizablePanelGroup({
   className,
   ...props
-}: React.ComponentProps<typeof Group>) {
+}: React.ComponentProps<typeof Group> & {
+  direction?: "horizontal" | "vertical";
+}) {
   return (
     <Group
       data-slot="resizable-panel-group"

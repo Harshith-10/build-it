@@ -49,7 +49,7 @@ export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
 
         <TabsContent
           value="description"
-          className="flex-1 min-h-0 overflow-hidden p-0 m-0 min-w-0"
+          className="flex-1 min-h-0 google-sans overflow-hidden p-0 m-0 min-w-0"
         >
           <ScrollArea className="h-full">
             <div className="p-6">

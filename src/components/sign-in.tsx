@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn } from "@/lib/auth-client";
+import { authClient, signIn } from "@/lib/auth-client";
 
 const signInSchema = z.object({
   identifier: z.string().min(1, "Email or Username is required"),
@@ -54,9 +54,14 @@ export default function SignIn() {
         setLoading(true);
         setError(null);
       },
-      onSuccess: () => {
+      onSuccess: async () => {
+        const { data } = await authClient.getSession();
         toast.success("Login successful");
-        router.push("/exams");
+        if (data?.user?.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/exams");
+        }
       },
       onError: (ctx: { error: { message: string } }) => {
         setLoading(false);
@@ -163,14 +168,14 @@ export default function SignIn() {
       </CardContent>
       <CardFooter>
         <div className="flex justify-center w-full border-t pt-4">
-          <p className="text-center text-xs text-neutral-500">
+          <p className="text-center text-xs text-muted-foreground">
             Powered by{" "}
             <Link
               href="https://github.com/Harshith-10/turbo"
-              className="underline hover:text-neutral-800 dark:hover:text-neutral-300 transition-colors"
+              className="underline hover:text-foreground transition-colors"
               target="_blank"
             >
-              Turbo RCE
+              Turbo
             </Link>
           </p>
         </div>

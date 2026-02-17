@@ -27,7 +27,7 @@ function ButtonGroup({
 }: React.ComponentProps<"div"> & VariantProps<typeof buttonGroupVariants>) {
   return (
     <div
-      role="group"
+      role="toolbar"
       data-slot="button-group"
       data-orientation={orientation}
       className={cn(buttonGroupVariants({ orientation }), className)}

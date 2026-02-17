@@ -27,7 +27,9 @@ export interface RandomNStrategyConfig {
   count: number;
 }
 
-export type FixedSetStrategyConfig = Record<string, never>;
+export type FixedSetStrategyConfig = {
+  questionIds: string[];
+};
 
 export interface DifficultyMixStrategyConfig {
   easy: number;
@@ -57,6 +59,7 @@ export const exams = pgTable("exams", {
   endTime: timestamp("end_time").notNull(),
   durationMinutes: integer("duration_minutes").notNull(),
   requiresPin: boolean("requires_pin").default(false).notNull(),
+  status: examStatusEnum("status").default("upcoming").notNull(),
   strategyType: strategyTypeEnum("strategy_type").default("random_n").notNull(),
   gradingStrategy: gradingStrategyEnum("grading_strategy")
     .default("linear")
