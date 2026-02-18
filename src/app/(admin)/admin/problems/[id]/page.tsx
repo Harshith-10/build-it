@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getProblem } from "@/actions/admin/problems";
-import { ProblemForm } from "@/components/admin/problems/problem-form";
 import { PageHeader } from "@/components/admin/page-header";
+import { ProblemForm } from "@/components/admin/problems/problem-form";
 
 export default async function EditProblemPage({
   params,

@@ -1,10 +1,12 @@
 "use client";
 
 import { Users } from "lucide-react";
-import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
+import { useState } from "react";
 import { deleteUser, getUsers } from "@/actions/admin/users";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
-import { type User, createColumns } from "./columns";
+import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
+import { createColumns, type User } from "./columns";
+import { EditUserDialog } from "./edit-user-dialog";
 
 const usersConfig: EntityTableConfig<User> = {
   entityName: "User",
@@ -20,19 +22,35 @@ const usersConfig: EntityTableConfig<User> = {
 };
 
 export function UsersTable() {
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const handleEdit = (user: User) => {
+    setEditUser(user);
+    setEditOpen(true);
+  };
+
   return (
-    <AdminEntityTable
-      config={usersConfig}
-      createColumns={createColumns}
-      emptyState={
-        <div className="flex flex-col items-center gap-2">
-          <Users className="h-8 w-8 text-muted-foreground" />
-          <p className="text-muted-foreground">No users yet</p>
-          <p className="text-sm text-muted-foreground">
-            Import or add users to start managing your platform
-          </p>
-        </div>
-      }
-    />
+    <>
+      <AdminEntityTable
+        config={usersConfig}
+        createColumns={(onDelete) => createColumns(onDelete, handleEdit)}
+        emptyState={
+          <div className="flex flex-col items-center gap-2">
+            <Users className="h-8 w-8 text-muted-foreground" />
+            <p className="text-muted-foreground">No users yet</p>
+            <p className="text-sm text-muted-foreground">
+              Import or add users to start managing your platform
+            </p>
+          </div>
+        }
+      />
+
+      <EditUserDialog
+        user={editUser}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+    </>
   );
 }

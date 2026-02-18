@@ -1,9 +1,9 @@
 "use client";
 
 import { PageHeader } from "@/components/admin/page-header";
-import { UsersTable } from "@/components/admin/users/users-table";
-import { UserImportWizard } from "@/components/admin/users/import-wizard";
 import { CreateUserDialog } from "@/components/admin/users/create-user-dialog";
+import { UserImportWizard } from "@/components/admin/users/import-wizard";
+import { UsersTable } from "@/components/admin/users/users-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function UsersPage() {

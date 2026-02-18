@@ -2,9 +2,9 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
+import { DataTable } from "@/components/ui/data-table";
 import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
 import { useEntityTableVM } from "@/hooks/use-entity-table-vm";
-import { DataTable } from "@/components/ui/data-table";
 import { ConfirmDeleteDialog } from "./confirm-delete-dialog";
 
 interface AdminEntityTableProps<T extends { id: string }> {

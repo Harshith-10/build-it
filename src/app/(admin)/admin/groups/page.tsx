@@ -3,9 +3,10 @@
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { upsertGroup } from "@/actions/admin/groups";
-import { PageHeader } from "@/components/admin/page-header";
 import { GroupsTable } from "@/components/admin/groups/groups-table";
+import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +20,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 
 export default function GroupsPage() {
   const [open, setOpen] = useState(false);

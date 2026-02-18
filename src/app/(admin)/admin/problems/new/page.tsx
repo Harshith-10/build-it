@@ -1,7 +1,7 @@
 "use client";
 
-import { ProblemForm } from "@/components/admin/problems/problem-form";
 import { PageHeader } from "@/components/admin/page-header";
+import { ProblemForm } from "@/components/admin/problems/problem-form";
 
 export default function CreateProblemPage() {
   return (

@@ -11,7 +11,6 @@ import { getExams } from "@/actions/admin/exams";
 import { getGroups } from "@/actions/admin/groups";
 import { getProblems } from "@/actions/admin/problems";
 import { getUsers } from "@/actions/admin/users";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 

@@ -2,8 +2,8 @@
 
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/components/admin/page-header";
 import { ExamsTable } from "@/components/admin/exams/exams-table";
+import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 
 export default function ExamsPage() {

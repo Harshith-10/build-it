@@ -77,7 +77,7 @@ export function CollectionForm({
         setSelectedProblems(res.problems.filter((p) => ids.includes(p.id)));
       });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialData?.questions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced search
   const handleSearch = useCallback((query: string) => {

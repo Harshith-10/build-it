@@ -1,10 +1,10 @@
 "use client";
 
 import { GraduationCap } from "lucide-react";
-import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
 import { deleteExam, getExams } from "@/actions/admin/exams";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
-import { type Exam, createColumns } from "./columns";
+import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
+import { createColumns, type Exam } from "./columns";
 
 const examsConfig: EntityTableConfig<Exam> = {
   entityName: "Exam",

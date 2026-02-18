@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, UserPlus } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { setUserPassword, updateUser } from "@/actions/admin/users";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +16,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -36,41 +36,69 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
-const createUserSchema = z.object({
+const editUserSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .optional()
-    .or(z.literal("")),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  username: z.string().optional().or(z.literal("")),
   role: z.enum(["admin", "faculty", "student"]).default("student"),
   branch: z.string().optional().or(z.literal("")),
-  gender: z.enum(["male", "female", "other"]).optional().or(z.literal("")),
+  gender: z.enum(["male", "female", "other", ""]).optional(),
   semester: z.string().optional().or(z.literal("")),
   section: z.string().optional().or(z.literal("")),
   dob: z.string().optional().or(z.literal("")),
   regulation: z.string().optional().or(z.literal("")),
 });
 
-type CreateUserValues = z.infer<typeof createUserSchema>;
+type EditUserValues = z.infer<typeof editUserSchema>;
 
-export function CreateUserDialog() {
-  const [open, setOpen] = useState(false);
+export interface EditableUser {
+  id: string;
+  name: string;
+  email: string;
+  username?: string | null;
+  displayUsername?: string | null;
+  role: string | null;
+  branch: string | null;
+  gender: string | null;
+  semester: string | null;
+  section: string | null;
+  dob: Date | string | null;
+  regulation: string | null;
+}
+
+interface EditUserDialogProps {
+  user: EditableUser | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function formatDateForInput(dob: Date | string | null | undefined): string {
+  if (!dob) return "";
+  const d = typeof dob === "string" ? new Date(dob) : dob;
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+export function EditUserDialog({
+  user: editUser,
+  open,
+  onOpenChange,
+}: EditUserDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
   const router = useRouter();
 
-  const form = useForm<CreateUserValues>({
-    resolver: zodResolver(createUserSchema) as any,
+  const form = useForm<EditUserValues>({
+    resolver: zodResolver(editUserSchema) as any,
     defaultValues: {
       name: "",
-      email: "",
       username: "",
-      password: "",
       role: "student",
       branch: "",
-      gender: "male",
+      gender: "",
       semester: "",
       section: "",
       dob: "",
@@ -78,52 +106,96 @@ export function CreateUserDialog() {
     },
   });
 
-  const onSubmit = async (data: CreateUserValues) => {
+  // Reset form when user changes
+  useEffect(() => {
+    if (editUser && open) {
+      form.reset({
+        name: editUser.name || "",
+        username: editUser.username || editUser.displayUsername || "",
+        role: (editUser.role as "admin" | "faculty" | "student") || "student",
+        branch: editUser.branch || "",
+        gender: (editUser.gender as "male" | "female" | "other" | "") || "",
+        semester: editUser.semester || "",
+        section: editUser.section || "",
+        dob: formatDateForInput(editUser.dob),
+        regulation: editUser.regulation || "",
+      });
+      // Reset password fields
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordError("");
+      setShowPassword(false);
+    }
+  }, [editUser, open, form]);
+
+  const onSubmit = async (data: EditUserValues) => {
+    if (!editUser) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/auth/admin/create-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          name: data.name,
-          role: data.role,
-          username: data.username || undefined,
-          data: {
-            branch: data.branch || undefined,
-            gender: data.gender || undefined,
-            semester: data.semester || undefined,
-            section: data.section || undefined,
-            dob: data.dob ? new Date(data.dob).toISOString() : undefined,
-            regulation: data.regulation || undefined,
-          },
-        }),
+      const result = await updateUser(editUser.id, {
+        name: data.name,
+        role: data.role,
+        username: data.username || undefined,
+        gender: data.gender || undefined,
+        branch: data.branch || undefined,
+        semester: data.semester || undefined,
+        section: data.section || undefined,
+        dob: data.dob || undefined,
+        regulation: data.regulation || undefined,
       });
 
-      if (res.ok) {
-        toast.success("User created successfully");
-        setOpen(false);
-        form.reset();
+      if (result.success) {
+        toast.success("User updated successfully");
+        onOpenChange(false);
         router.refresh();
       } else {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.message || "Failed to create user");
+        toast.error(result.error || "Failed to update user");
       }
     } catch {
-      toast.error("An error occurred");
+      toast.error("An error occurred while updating");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!editUser) return;
+
+    // Validation
+    if (!newPassword) {
+      setPasswordError("Password is required");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError("Password must be at least 8 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    setPasswordError("");
+    setIsChangingPassword(true);
+    try {
+      const result = await setUserPassword(editUser.id, newPassword);
+      if (result.success) {
+        toast.success("Password updated successfully");
+        setNewPassword("");
+        setConfirmPassword("");
+        setShowPassword(false);
+      } else {
+        toast.error(result.error || "Failed to update password");
+      }
+    } catch {
+      toast.error("An error occurred while changing the password");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <UserPlus className="mr-2 h-4 w-4" /> Create User
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden">
         <Form {...form}>
           <form
@@ -132,10 +204,13 @@ export function CreateUserDialog() {
           >
             <DialogHeader className="p-6 pb-2">
               <DialogTitle className="text-2xl font-bold tracking-tight">
-                Create New User
+                Edit User
               </DialogTitle>
               <DialogDescription>
-                Add a new user to the platform. All fields are customizable.
+                Editing{" "}
+                <span className="font-semibold text-foreground">
+                  {editUser?.email}
+                </span>
               </DialogDescription>
             </DialogHeader>
 
@@ -146,7 +221,7 @@ export function CreateUserDialog() {
                   <div className="flex items-center gap-2">
                     <div className="h-8 w-1 bg-primary rounded-full" />
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                      Account Credentials
+                      Account Details
                     </h3>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -163,23 +238,23 @@ export function CreateUserDialog() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Address</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="email@iare.ac.in"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="edit-user-email"
+                        className="text-sm font-medium text-muted-foreground"
+                      >
+                        Email Address
+                      </label>
+                      <Input
+                        id="edit-user-email"
+                        value={editUser?.email || ""}
+                        disabled
+                        className="bg-muted/50"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Email cannot be changed
+                      </p>
+                    </div>
                     <FormField
                       control={form.control}
                       name="username"
@@ -189,23 +264,6 @@ export function CreateUserDialog() {
                           <FormControl>
                             <Input
                               placeholder="23951A052X / IARE11088"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="••••••••"
                               {...field}
                             />
                           </FormControl>
@@ -235,14 +293,14 @@ export function CreateUserDialog() {
                           <FormLabel>App Role</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select role" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent defaultValue={"student"}>
+                            <SelectContent>
                               <SelectItem value="student">Student</SelectItem>
                               <SelectItem value="faculty">Faculty</SelectItem>
                               <SelectItem value="admin">Admin</SelectItem>
@@ -260,7 +318,7 @@ export function CreateUserDialog() {
                           <FormLabel>Gender</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
@@ -346,6 +404,104 @@ export function CreateUserDialog() {
                     />
                   </div>
                 </div>
+
+                <Separator />
+
+                {/* Security / Password */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-1 bg-destructive rounded-full" />
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                      Security
+                    </h3>
+                  </div>
+                  <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                      Set a new password for this user. This will immediately
+                      replace their current password.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="new-password"
+                          className="text-sm font-medium"
+                        >
+                          New Password
+                        </label>
+                        <div className="relative">
+                          <Input
+                            id="new-password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Min. 8 characters"
+                            value={newPassword}
+                            onChange={(e) => {
+                              setNewPassword(e.target.value);
+                              setPasswordError("");
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="confirm-password"
+                          className="text-sm font-medium"
+                        >
+                          Confirm Password
+                        </label>
+                        <Input
+                          id="confirm-password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Re-enter password"
+                          value={confirmPassword}
+                          onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            setPasswordError("");
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {passwordError && (
+                      <p className="text-sm text-destructive">
+                        {passwordError}
+                      </p>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        isChangingPassword || (!newPassword && !confirmPassword)
+                      }
+                      onClick={handleChangePassword}
+                      className="w-full sm:w-auto"
+                    >
+                      {isChangingPassword ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <KeyRound className="mr-2 h-4 w-4" />
+                          Set Password
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </ScrollArea>
 
@@ -353,7 +509,7 @@ export function CreateUserDialog() {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setOpen(false)}
+                onClick={() => onOpenChange(false)}
               >
                 Cancel
               </Button>
@@ -365,12 +521,12 @@ export function CreateUserDialog() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    Saving...
                   </>
                 ) : (
                   <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create User
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
                   </>
                 )}
               </Button>

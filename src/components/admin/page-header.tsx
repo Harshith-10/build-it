@@ -46,7 +46,7 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   const pathname = usePathname();
-  const breadcrumbs = generateBreadcrumbs(pathname);
+  const _breadcrumbs = generateBreadcrumbs(pathname);
 
   return (
     <div className="space-y-1">

@@ -1,7 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, MoreHorizontal } from "lucide-react";
+import { Copy, MoreHorizontal, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -12,23 +13,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
 
 export type User = {
   id: string;
   name: string;
   email: string;
+  username?: string | null;
+  displayUsername?: string | null;
   role: string | null;
   branch: string | null;
+  gender: string | null;
+  semester: string | null;
+  section: string | null;
+  dob: Date | string | null;
+  regulation: string | null;
   createdAt: Date | string;
 };
 
 const roleVariant = (role: string | null) => {
   switch (role?.toLowerCase()) {
     case "admin":
-      return "default" as const;
+      return "outline" as const;
     case "faculty":
-      return "secondary" as const;
+      return "outline" as const;
     default:
       return "outline" as const;
   }
@@ -36,6 +43,7 @@ const roleVariant = (role: string | null) => {
 
 export const createColumns = (
   onDelete: (id: string) => void,
+  onEdit?: (user: User) => void,
 ): ColumnDef<User>[] => [
   {
     accessorKey: "name",
@@ -123,6 +131,15 @@ export const createColumns = (
               <Copy className="mr-2 h-4 w-4" />
               Copy ID
             </DropdownMenuItem>
+            {onEdit && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onEdit(user)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"

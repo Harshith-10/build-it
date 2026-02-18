@@ -2,8 +2,8 @@
 
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/components/admin/page-header";
 import { CollectionsTable } from "@/components/admin/collections/collections-table";
+import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 
 export default function CollectionsPage() {

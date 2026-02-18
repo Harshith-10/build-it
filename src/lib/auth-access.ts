@@ -20,7 +20,7 @@ export async function requireUser() {
   });
 
   if (!session) {
-    redirect("/sign-in");
+    redirect("/auth/sign-in");
   }
 
   return session;

@@ -35,7 +35,7 @@ async function processUsers() {
       const password = `${day}${month}${year}`; // ddMMyyyy
       const dobDate = new Date(`${year}-${month}-${day}`);
       const email = `${rollNo}@iare.ac.in`.toLowerCase();
-      const role = "student";
+      const _role = "student";
 
       let userId: string | undefined;
 

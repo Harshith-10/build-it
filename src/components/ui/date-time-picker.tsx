@@ -1,6 +1,6 @@
 "use client";
 
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { CalendarIcon, Clock } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export function DateTimePicker({
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
     const time = timeValue || "00:00";
-    const iso = format(date, "yyyy-MM-dd") + "T" + time;
+    const iso = `${format(date, "yyyy-MM-dd")}T${time}`;
     onChange?.(iso);
   };
 
@@ -42,7 +42,7 @@ export function DateTimePicker({
       const today = format(new Date(), "yyyy-MM-dd");
       onChange?.(`${today}T${time}`);
     } else {
-      const iso = format(dateValue, "yyyy-MM-dd") + "T" + time;
+      const iso = `${format(dateValue, "yyyy-MM-dd")}T${time}`;
       onChange?.(iso);
     }
   };

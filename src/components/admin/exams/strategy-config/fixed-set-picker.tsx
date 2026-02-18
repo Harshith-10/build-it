@@ -3,10 +3,10 @@
 import { Loader2, Plus, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getProblems } from "@/actions/admin/problems";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 
 interface FixedSetPickerProps {
   value: string[];
@@ -32,7 +32,7 @@ export function FixedSetPicker({ value = [], onChange }: FixedSetPickerProps) {
         setSelectedProblems(res.problems.filter((p) => value.includes(p.id)));
       });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced search
   const handleSearch = useCallback((query: string) => {

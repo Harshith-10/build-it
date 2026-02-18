@@ -1,10 +1,10 @@
 "use client";
 
 import { FileQuestion } from "lucide-react";
-import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
 import { deleteProblem, getProblems } from "@/actions/admin/problems";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
-import { type Problem, createColumns } from "./columns";
+import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
+import { createColumns, type Problem } from "./columns";
 
 const problemsConfig: EntityTableConfig<Problem> = {
   entityName: "Problem",

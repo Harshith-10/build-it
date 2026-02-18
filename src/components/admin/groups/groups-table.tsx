@@ -1,10 +1,10 @@
 "use client";
 
 import { Group } from "lucide-react";
-import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
 import { deleteGroup, getGroups } from "@/actions/admin/groups";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
-import { type Group as GroupType, createColumns } from "./columns";
+import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
+import { createColumns, type Group as GroupType } from "./columns";
 
 const groupsConfig: EntityTableConfig<GroupType> = {
   entityName: "Group",

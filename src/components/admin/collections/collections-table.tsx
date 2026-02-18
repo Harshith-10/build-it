@@ -1,9 +1,9 @@
 "use client";
 
 import { Library } from "lucide-react";
-import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
 import { deleteCollection, getCollections } from "@/actions/admin/collections";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
+import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
 import { type Collection, createColumns } from "./columns";
 
 const collectionsConfig: EntityTableConfig<Collection> = {

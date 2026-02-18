@@ -151,6 +151,73 @@ export async function getUsers({
   };
 }
 
+export async function updateUser(
+  userId: string,
+  data: {
+    name?: string;
+    role?: string;
+    username?: string;
+    gender?: string;
+    branch?: string;
+    semester?: string;
+    section?: string;
+    dob?: string;
+    regulation?: string;
+  },
+) {
+  await requireAdmin();
+  try {
+    const { headers: h } = await import("next/headers");
+    await auth.api.adminUpdateUser({
+      body: {
+        userId,
+        data: {
+          name: data.name,
+          role: data.role,
+          username: data.username || undefined,
+          gender: data.gender || undefined,
+          branch: data.branch || undefined,
+          semester: data.semester || undefined,
+          section: data.section || undefined,
+          dob: data.dob ? new Date(data.dob) : undefined,
+          regulation: data.regulation || undefined,
+        },
+      },
+      headers: await h(),
+    });
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update user:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update user",
+    };
+  }
+}
+
+export async function setUserPassword(userId: string, newPassword: string) {
+  await requireAdmin();
+  try {
+    const { headers: h } = await import("next/headers");
+    await auth.api.setUserPassword({
+      body: {
+        userId,
+        newPassword,
+      },
+      headers: await h(),
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to set user password:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to set user password",
+    };
+  }
+}
+
 export async function deleteUser(userId: string) {
   await requireAdmin();
   try {
