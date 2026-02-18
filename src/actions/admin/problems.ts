@@ -19,7 +19,10 @@ export async function getProblems({
   const offset = (page - 1) * limit;
 
   const whereClause = search
-    ? or(ilike(questions.title, `%${search}%`))
+    ? or(
+        ilike(questions.title, `%${search}%`),
+        ilike(sql`${questions.difficulty}::text`, `%${search}%`),
+      )
     : undefined;
 
   const [data, totalCount] = await Promise.all([

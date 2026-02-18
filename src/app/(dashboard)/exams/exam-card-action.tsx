@@ -87,7 +87,12 @@ export function ExamCardAction({
 
   if (status === "ended") {
     return (
-      <Button variant="secondary" className="w-full cursor-not-allowed" asChild disabled>
+      <Button
+        variant="secondary"
+        className="w-full cursor-not-allowed"
+        asChild
+        disabled
+      >
         <span className="text-muted-foreground">Exam Ended</span>
       </Button>
     );

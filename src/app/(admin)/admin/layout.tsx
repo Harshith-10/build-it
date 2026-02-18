@@ -11,11 +11,11 @@ export default async function AdminLayout({
   await requireAdmin();
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh">
       <AppSidebar />
       <SidebarInset>
         <AdminHeader />
-        <div className="flex flex-1 flex-col gap-6 p-6 overflow-auto">
+        <div className="flex flex-1 flex-col gap-6 p-6 overflow-hidden min-h-0">
           {children}
         </div>
       </SidebarInset>

@@ -128,7 +128,7 @@ export function CreateUserDialog() {
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col h-[85vh] sm:h-auto max-h-[90vh]"
+            className="flex flex-col max-h-[85vh]"
           >
             <DialogHeader className="p-6 pb-2">
               <DialogTitle className="text-2xl font-bold tracking-tight">
@@ -139,7 +139,7 @@ export function CreateUserDialog() {
               </DialogDescription>
             </DialogHeader>
 
-            <ScrollArea className="flex-1 px-6">
+            <ScrollArea className="flex-1 min-h-0 px-6">
               <div className="space-y-6 py-4">
                 {/* Account Information */}
                 <div className="space-y-4">

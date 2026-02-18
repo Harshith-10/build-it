@@ -5,7 +5,17 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { zodResolver } from "@hookform/resolvers/zod";
 import CodeMirror from "@uiw/react-codemirror";
-import { EyeOff, Loader2, Play, Plus, Save, Trash2 } from "lucide-react";
+import {
+  Code2,
+  EyeOff,
+  FileText,
+  FlaskConical,
+  Loader2,
+  Play,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -34,8 +44,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 // Schema
@@ -61,12 +71,14 @@ const defaultDriverCode = `// Write your driver code here
 // This code will wrap the user's solution
 `;
 
+// biome-ignore lint/suspicious/noExplicitAny: CodeMirror language extension types
 const languageExtensions: Record<string, () => any> = {
   javascript: () => javascript(),
   python: () => python(),
   java: () => java(),
 };
 
+// biome-ignore lint/suspicious/noExplicitAny: Form initialData accepts any shape
 export function ProblemForm({ initialData }: { initialData?: any }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -145,285 +157,347 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Title + Difficulty */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Title</FormLabel>
-                <FormControl>
-                  <Input placeholder="Two Sum" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="difficulty"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Difficulty</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-1 flex-col min-h-0 gap-4"
+      >
+        <Tabs defaultValue="details" className="flex flex-1 flex-col min-h-0">
+          {/* Tab triggers */}
+          <TabsList className="shrink-0 w-fit">
+            <TabsTrigger value="details" className="gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="code" className="gap-1.5">
+              <Code2 className="h-3.5 w-3.5" />
+              Driver Code
+            </TabsTrigger>
+            <TabsTrigger value="tests" className="gap-1.5">
+              <FlaskConical className="h-3.5 w-3.5" />
+              Test Cases
+              {fields.length > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="ml-1 h-5 px-1.5 text-[10px]"
                 >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="easy">Easy</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="hard">Hard</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+                  {fields.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Problem Statement + Preview */}
-        <div className="grid gap-6 lg:grid-cols-2 h-[500px]">
-          <div className="flex flex-col h-full space-y-2">
-            <FormLabel>Problem Statement (Markdown)</FormLabel>
-            <div className="flex-1 border rounded-md overflow-hidden">
+          {/* ─── Tab: Details ─── */}
+          <TabsContent
+            value="details"
+            className="flex-1 flex flex-col min-h-0 mt-4 gap-4"
+          >
+            {/* Title + Difficulty row */}
+            <div className="grid gap-4 md:grid-cols-2 shrink-0">
               <FormField
                 control={form.control}
-                name="problemStatement"
+                name="title"
                 render={({ field }) => (
-                  <Textarea
-                    className="h-full w-full resize-none border-0 focus-visible:ring-0 p-4"
-                    placeholder="# Problem Description..."
-                    {...field}
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Two Sum" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="difficulty"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Difficulty</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="easy">Easy</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="hard">Hard</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Problem Statement + Preview — fills remaining space */}
+            <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-2">
+              <div className="flex flex-col min-h-0 space-y-2">
+                <FormLabel className="shrink-0">
+                  Problem Statement (Markdown)
+                </FormLabel>
+                <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
+                  <FormField
+                    control={form.control}
+                    name="problemStatement"
+                    render={({ field }) => (
+                      <Textarea
+                        className="h-full google-sans w-full resize-none border-0 focus-visible:ring-0 p-4"
+                        placeholder="# Problem Description..."
+                        {...field}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col min-h-0 space-y-2">
+                <FormLabel className="shrink-0">Preview</FormLabel>
+                <div className="flex-1 min-h-0 google-sans border rounded-md overflow-auto p-4 prose prose-sm dark:prose-invert max-w-none bg-muted/20">
+                  <Markdown remarkPlugins={[remarkGfm]}>
+                    {form.watch("problemStatement") || "*No content*"}
+                  </Markdown>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ─── Tab: Driver Code ─── */}
+          <TabsContent
+            value="code"
+            className="flex-1 flex flex-col min-h-0 mt-4 gap-4"
+          >
+            {/* Header with language selector + run */}
+            <div className="flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-lg font-medium">Driver Code</h3>
+                <p className="text-sm text-muted-foreground">
+                  The code that wraps the user&apos;s solution and executes test
+                  cases.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={driverLang} onValueChange={setDriverLang}>
+                  <SelectTrigger className="w-[140px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="javascript">JavaScript</SelectItem>
+                    <SelectItem value="python">Python</SelectItem>
+                    <SelectItem value="java">Java</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleRunCode}
+                  disabled={isRunning}
+                >
+                  {isRunning ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Play className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Run
+                </Button>
+              </div>
+            </div>
+
+            {/* Code editor — fills remaining space */}
+            <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
+              <FormField
+                control={form.control}
+                name="driverCode"
+                render={({ field }) => (
+                  <CodeMirror
+                    value={field.value}
+                    height="100%"
+                    extensions={[
+                      (languageExtensions[driverLang] || javascript)(),
+                    ]}
+                    onChange={(value) => field.onChange(value)}
+                    theme="dark"
+                    style={{ height: "100%" }}
                   />
                 )}
               />
             </div>
-          </div>
-          <div className="flex flex-col h-full space-y-2">
-            <FormLabel>Preview</FormLabel>
-            <div className="flex-1 border rounded-md overflow-auto p-4 prose prose-sm dark:prose-invert max-w-none bg-muted/20">
-              <Markdown remarkPlugins={[remarkGfm]}>
-                {form.watch("problemStatement") || "*No content*"}
-              </Markdown>
-            </div>
-          </div>
-        </div>
 
-        <Separator />
+            {/* Run output panel */}
+            {runOutput !== null && (
+              <Card className="bg-muted/30 shrink-0 max-h-[200px] overflow-auto">
+                <CardHeader className="py-2 px-3">
+                  <CardTitle className="text-xs font-medium text-muted-foreground">
+                    Output
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 pb-3">
+                  <pre className="text-xs font-mono whitespace-pre-wrap">
+                    {runOutput}
+                  </pre>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-        {/* Driver Code with Language Selector + Run */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-medium">Driver Code</h3>
-              <p className="text-sm text-muted-foreground">
-                The code that wraps the user's solution and executes test cases.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Select value={driverLang} onValueChange={setDriverLang}>
-                <SelectTrigger className="w-[140px] h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="javascript">JavaScript</SelectItem>
-                  <SelectItem value="python">Python</SelectItem>
-                  <SelectItem value="java">Java</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* ─── Tab: Test Cases ─── */}
+          <TabsContent
+            value="tests"
+            className="flex-1 flex flex-col min-h-0 mt-4 gap-4"
+          >
+            {/* Header with add button */}
+            <div className="flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-lg font-medium">Test Cases</h3>
+                <p className="text-sm text-muted-foreground">
+                  Define inputs and expected outputs for validation.
+                </p>
+              </div>
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
-                variant="secondary"
-                onClick={handleRunCode}
-                disabled={isRunning}
+                onClick={() => {
+                  append({ input: "", expectedOutput: "", isHidden: false });
+                  setSelectedTestCase(fields.length);
+                }}
               >
-                {isRunning ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Play className="mr-1 h-3.5 w-3.5" />
-                )}
-                Run
+                <Plus className="mr-2 h-4 w-4" /> Add Test Case
               </Button>
             </div>
-          </div>
-          <div className="border rounded-md overflow-hidden h-[300px]">
-            <FormField
-              control={form.control}
-              name="driverCode"
-              render={({ field }) => (
-                <CodeMirror
-                  value={field.value}
-                  height="300px"
-                  extensions={[
-                    (languageExtensions[driverLang] || javascript)(),
-                  ]}
-                  onChange={(value) => field.onChange(value)}
-                  theme="dark"
-                />
-              )}
-            />
-          </div>
-          {runOutput !== null && (
-            <Card className="bg-muted/30">
-              <CardHeader className="py-2 px-3">
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                  Output
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <pre className="text-xs font-mono whitespace-pre-wrap max-h-[150px] overflow-auto">
-                  {runOutput}
-                </pre>
-              </CardContent>
-            </Card>
-          )}
-        </div>
 
-        <Separator />
-
-        {/* Test Cases — Compact List + Editor */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Test Cases</h3>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                append({ input: "", expectedOutput: "", isHidden: false });
-                setSelectedTestCase(fields.length);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" /> Add Test Case
-            </Button>
-          </div>
-
-          {fields.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground border rounded-md">
-              No test cases yet. Click "Add Test Case" to create one.
-            </div>
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-              {/* Test Case List */}
-              <div className="flex flex-col gap-1 border rounded-md p-2 max-h-[400px] overflow-auto">
-                {fields.map((field, index) => {
-                  const isHidden = form.watch(`testCases.${index}.isHidden`);
-                  return (
-                    <button
-                      key={field.id}
-                      type="button"
-                      onClick={() => setSelectedTestCase(index)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-md text-sm text-left transition-colors ${
-                        safeIndex === index
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>Test {index + 1}</span>
-                        {isHidden && <EyeOff className="h-3 w-3 opacity-60" />}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          remove(index);
-                          if (safeIndex >= fields.length - 1) {
-                            setSelectedTestCase(Math.max(0, fields.length - 2));
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </button>
-                  );
-                })}
+            {/* Test case list + editor */}
+            {fields.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground border rounded-md">
+                No test cases yet. Click &quot;Add Test Case&quot; to create
+                one.
               </div>
-
-              {/* Active Test Case Editor */}
-              {fields[safeIndex] && (
-                <div className="space-y-4 border rounded-md p-4">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline">Test Case #{safeIndex + 1}</Badge>
-                    <FormField
-                      control={form.control}
-                      name={`testCases.${safeIndex}.isHidden`}
-                      render={({ field }) => (
-                        <FormItem className="flex items-center gap-2 space-y-0">
-                          <FormLabel className="text-xs text-muted-foreground">
-                            Hidden
-                          </FormLabel>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name={`testCases.${safeIndex}.input`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Input</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              className="min-h-[120px] font-mono text-xs"
-                              placeholder="Enter input..."
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`testCases.${safeIndex}.expectedOutput`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">
-                            Expected Output
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              className="min-h-[120px] font-mono text-xs"
-                              placeholder="Expected output..."
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+            ) : (
+              <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[220px_1fr]">
+                {/* Test Case List */}
+                <div className="flex flex-col gap-1 border rounded-md p-2 overflow-y-auto min-h-0">
+                  {fields.map((field, index) => {
+                    const isHidden = form.watch(`testCases.${index}.isHidden`);
+                    return (
+                      <button
+                        key={field.id}
+                        type="button"
+                        onClick={() => setSelectedTestCase(index)}
+                        className={`flex items-center justify-between px-3 py-2 rounded-md text-sm text-left transition-colors ${
+                          safeIndex === index
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>Test {index + 1}</span>
+                          {isHidden && (
+                            <EyeOff className="h-3 w-3 opacity-60" />
+                          )}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            remove(index);
+                            if (safeIndex >= fields.length - 1) {
+                              setSelectedTestCase(
+                                Math.max(0, fields.length - 2),
+                              );
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          )}
-        </div>
 
-        {/* Sticky Footer */}
-        <div className="sticky bottom-0 bg-background/95 backdrop-blur p-4 border-t flex justify-end gap-3">
+                {/* Active Test Case Editor */}
+                {fields[safeIndex] && (
+                  <div className="flex flex-col gap-4 border rounded-md p-4 overflow-y-auto min-h-0">
+                    <div className="flex items-center justify-between shrink-0">
+                      <Badge variant="outline">
+                        Test Case #{safeIndex + 1}
+                      </Badge>
+                      <FormField
+                        control={form.control}
+                        name={`testCases.${safeIndex}.isHidden`}
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-2 space-y-0">
+                            <FormLabel className="text-xs text-muted-foreground">
+                              Hidden
+                            </FormLabel>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 flex-1 min-h-0">
+                      <FormField
+                        control={form.control}
+                        name={`testCases.${safeIndex}.input`}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col min-h-0">
+                            <FormLabel className="text-xs shrink-0">
+                              Input
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                className="flex-1 min-h-[120px] font-mono text-xs resize-none"
+                                placeholder="Enter input..."
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`testCases.${safeIndex}.expectedOutput`}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col min-h-0">
+                            <FormLabel className="text-xs shrink-0">
+                              Expected Output
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                className="flex-1 min-h-[120px] font-mono text-xs resize-none"
+                                placeholder="Expected output..."
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Footer actions — always at bottom */}
+        <div className="shrink-0 flex justify-end gap-3 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button type="submit" size="lg" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...

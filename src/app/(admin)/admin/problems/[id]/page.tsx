@@ -13,13 +13,13 @@ export default async function EditProblemPage({
   if (!problem) return notFound();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-4 min-h-0 overflow-hidden">
       <PageHeader
         title="Edit Problem"
         description={problem.title}
         backHref="/admin/problems"
       />
-      <ProblemForm initialData={problem as any} />
+      <ProblemForm initialData={problem} />
     </div>
   );
 }

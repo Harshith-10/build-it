@@ -8,18 +8,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function UsersPage() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden">
       <PageHeader
         title="Users"
         description="Manage platform users and bulk import"
         actions={<CreateUserDialog />}
       />
-      <Tabs defaultValue="manage" className="w-full">
+      <Tabs
+        defaultValue="manage"
+        className="flex flex-1 flex-col min-h-0 w-full"
+      >
         <TabsList>
           <TabsTrigger value="manage">Manage Users</TabsTrigger>
           <TabsTrigger value="import">Bulk Import</TabsTrigger>
         </TabsList>
-        <TabsContent value="manage" className="mt-4">
+        <TabsContent
+          value="manage"
+          className="mt-4 flex flex-1 flex-col min-h-0 overflow-hidden"
+        >
           <UsersTable />
         </TabsContent>
         <TabsContent value="import" className="mt-4">

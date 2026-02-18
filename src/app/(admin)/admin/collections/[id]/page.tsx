@@ -13,7 +13,7 @@ export default async function EditCollectionPage({
   if (!collection) return notFound();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-4 min-h-0 overflow-hidden">
       <PageHeader
         title="Edit Collection"
         description={collection.title}
@@ -24,7 +24,9 @@ export default async function EditCollectionPage({
           id: collection.id,
           title: collection.title,
           description: collection.description || "",
-          questionIds: collection.questions.map((q: any) => q.question.id),
+          questions: collection.questions.map((q: any) => ({
+            questionId: q.question.id,
+          })),
         }}
       />
     </div>

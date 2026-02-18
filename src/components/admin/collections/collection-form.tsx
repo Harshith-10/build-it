@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { InferSelectModel } from "drizzle-orm";
-import { Loader2, Save, Search, X } from "lucide-react";
+import { Loader2, Plus, Save, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -25,7 +25,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const collectionSchema = z.object({
   id: z.string().optional(),
@@ -35,6 +34,12 @@ const collectionSchema = z.object({
 });
 
 type CollectionFormValues = z.infer<typeof collectionSchema>;
+
+const difficultyColors: Record<string, string> = {
+  easy: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10",
+  medium: "text-amber-400 border-amber-400/30 bg-amber-400/10",
+  hard: "text-rose-400 border-rose-400/30 bg-rose-400/10",
+};
 
 export function CollectionForm({
   initialData,
@@ -66,11 +71,9 @@ export function CollectionForm({
 
   // Initial load: fetch selected problems and first batch of available
   useEffect(() => {
-    // Load first 20 problems for initial display
-    getProblems({ limit: 20 }).then((res) =>
+    getProblems({ limit: 50 }).then((res) =>
       setAvailableProblems(res.problems),
     );
-    // If editing, also load the selected problems' data
     const ids = initialData?.questions?.map((q) => q.questionId) || [];
     if (ids.length > 0) {
       getProblems({ limit: 100 }).then((res) => {
@@ -87,7 +90,7 @@ export function CollectionForm({
       setIsSearching(true);
       try {
         const res = await getProblems({
-          limit: 20,
+          limit: 50,
           search: query,
         });
         setAvailableProblems(res.problems);
@@ -137,13 +140,19 @@ export function CollectionForm({
     setSelectedProblems((prev) => prev.filter((p) => p.id !== id));
   };
 
+  // Filter available to exclude already-selected
+  const filteredAvailable = availableProblems.filter(
+    (p) => !selectedIds.includes(p.id),
+  );
+
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-8 h-full flex flex-col"
+        className="flex flex-1 flex-col min-h-0 gap-4"
       >
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Title & Description fields */}
+        <div className="grid gap-4 md:grid-cols-2 shrink-0">
           <FormField
             control={form.control}
             name="title"
@@ -174,13 +183,14 @@ export function CollectionForm({
           />
         </div>
 
-        <div className="flex-1 min-h-[400px] border rounded-md flex flex-col overflow-hidden">
-          <div className="p-4 border-b bg-muted/10">
-            <h3 className="font-semibold mb-2">Manage Questions</h3>
+        {/* Problems picker - fills remaining space */}
+        <div className="flex-1 min-h-0 border rounded-lg flex flex-col overflow-hidden">
+          {/* Search bar */}
+          <div className="px-4 py-3 border-b bg-muted/10 shrink-0">
             <div className="relative max-w-md">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search problems..."
+                placeholder="Search by title or difficulty..."
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-8"
@@ -190,74 +200,102 @@ export function CollectionForm({
               )}
             </div>
           </div>
-          <div className="flex-1 flex overflow-hidden">
-            <div className="flex-1 border-r flex flex-col">
-              <div className="p-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider">
-                Available ({availableProblems.length})
+
+          {/* Two-column layout: Available | Selected */}
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            {/* Available column */}
+            <div className="flex-1 flex flex-col min-h-0 border-r">
+              <div className="px-3 py-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider shrink-0 border-b">
+                Available ({filteredAvailable.length})
               </div>
-              <ScrollArea className="flex-1">
-                <div className="p-2 space-y-1">
-                  {availableProblems.map((problem) => {
-                    const isSelected = selectedIds.includes(problem.id);
-                    return (
-                      <button
-                        key={problem.id}
-                        type="button"
-                        className={`flex w-full items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted ${isSelected ? "opacity-50" : ""}`}
-                        onClick={() => !isSelected && toggleProblem(problem)}
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="p-2 space-y-0.5">
+                  {filteredAvailable.map((problem) => (
+                    <button
+                      key={problem.id}
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-muted transition-colors group"
+                      onClick={() => toggleProblem(problem)}
+                    >
+                      <Plus className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <div className="flex-1 text-sm font-medium text-left truncate">
+                        {problem.title}
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] shrink-0 ${difficultyColors[problem.difficulty] || ""}`}
                       >
-                        <div className="flex-1 text-sm font-medium text-left">
-                          {problem.title}
-                        </div>
-                        <Badge variant="outline" className="text-[10px]">
-                          {problem.difficulty}
-                        </Badge>
-                      </button>
-                    );
-                  })}
-                  {availableProblems.length === 0 && !isSearching && (
-                    <div className="text-center py-4 text-sm text-muted-foreground">
+                        {problem.difficulty}
+                      </Badge>
+                    </button>
+                  ))}
+                  {filteredAvailable.length === 0 && !isSearching && (
+                    <div className="text-center py-8 text-sm text-muted-foreground">
                       {search
                         ? "No problems match your search"
                         : "No problems available"}
                     </div>
                   )}
+                  {isSearching && filteredAvailable.length === 0 && (
+                    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Searching...
+                    </div>
+                  )}
                 </div>
-              </ScrollArea>
-            </div>
-            <div className="flex-1 flex flex-col">
-              <div className="p-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider flex justify-between">
-                <span>Selected ({selectedIds.length})</span>
-                <span className="text-xs text-muted-foreground">
-                  Click to remove
-                </span>
               </div>
-              <ScrollArea className="flex-1">
-                <div className="p-2 space-y-1">
-                  {selectedIds.map((id) => {
-                    const problem = selectedProblems.find((p) => p.id === id);
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        className="flex w-full items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-destructive/10 text-primary hover:text-destructive group"
-                        onClick={() => removeProblem(id)}
-                      >
-                        <div className="flex-1 text-sm font-medium text-left">
-                          {problem?.title || "Unknown Problem"}
-                        </div>
-                        <X className="h-4 w-4 opacity-0 group-hover:opacity-100" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
+            </div>
+
+            {/* Selected column */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="px-3 py-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider shrink-0 border-b flex justify-between">
+                <span>Selected ({selectedIds.length})</span>
+                {selectedIds.length > 0 && (
+                  <span className="text-muted-foreground normal-case font-normal tracking-normal">
+                    Click to remove
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {selectedIds.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                    Click problems on the left to add them
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-0.5">
+                    {selectedIds.map((id) => {
+                      const problem = selectedProblems.find((p) => p.id === id);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
+                          onClick={() => removeProblem(id)}
+                        >
+                          <div className="flex-1 text-sm font-medium text-left truncate">
+                            {problem?.title || "Unknown Problem"}
+                          </div>
+                          {problem && (
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] shrink-0 group-hover:hidden ${difficultyColors[problem.difficulty] || ""}`}
+                            >
+                              {problem.difficulty}
+                            </Badge>
+                          )}
+                          <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Sticky Footer */}
-        <div className="sticky bottom-0 bg-background/95 backdrop-blur p-4 border-t flex justify-end gap-3">
+        {/* Footer actions — always at bottom, never pushed off */}
+        <div className="shrink-0 flex justify-end gap-3 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>

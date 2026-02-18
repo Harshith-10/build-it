@@ -193,7 +193,7 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4 min-h-0">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 flex-1">
@@ -236,7 +236,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Table with sticky header and scrollable body */}
-      <div className="overflow-auto rounded-lg border max-h-[calc(100vh-280px)]">
+      <div className="overflow-auto rounded-lg border flex-1 min-h-0 relative">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -257,19 +257,8 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-32 text-center"
-                >
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : table.getRowModel().rows?.length ? (
+            {!isLoading &&
+              table.getRowModel().rows?.length > 0 &&
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -284,23 +273,26 @@ export function DataTable<TData, TValue>({
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-32 text-center"
-                >
-                  {emptyState || (
-                    <div className="text-muted-foreground">
-                      No results found.
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            )}
+              ))}
           </TableBody>
         </Table>
+
+        {/* Centered overlay for loading / empty states */}
+        {isLoading && (
+          <div className="absolute inset-0 top-10 flex items-center justify-center">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Loading...</span>
+            </div>
+          </div>
+        )}
+        {!isLoading && !table.getRowModel().rows?.length && (
+          <div className="absolute inset-0 top-10 flex items-center justify-center">
+            {emptyState || (
+              <div className="text-muted-foreground">No results found.</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Pagination */}

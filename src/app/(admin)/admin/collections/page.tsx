@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 export default function CollectionsPage() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden">
       <PageHeader
         title="Collections"
         description="Organize problems into reusable collections"

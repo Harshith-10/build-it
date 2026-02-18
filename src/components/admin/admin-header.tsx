@@ -10,7 +10,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const labelMap: Record<string, string> = {
@@ -37,8 +36,7 @@ export function AdminHeader() {
 
   return (
     <header className="sticky top-0 z-50 flex shrink-0 items-center border-b bg-background">
-      <SidebarTrigger className="m-2" />
-      <Separator orientation="vertical" className="mr-4 h-full" />
+      <SidebarTrigger className="m-2 mr-4" />
       <Breadcrumb>
         <BreadcrumbList>
           {crumbs.map((crumb, idx) => (
