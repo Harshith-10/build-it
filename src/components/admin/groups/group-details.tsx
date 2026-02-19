@@ -69,7 +69,7 @@ export function GroupDetails({ group }: { group: any }) {
   // Initial load of users
   useEffect(() => {
     getUsers({ limit: 50 }).then((res) => {
-      // @ts-ignore
+      // @ts-expect-error
       setAvailableUsers(res.users);
     });
   }, []);
@@ -85,7 +85,7 @@ export function GroupDetails({ group }: { group: any }) {
           limit: 50,
           search: query,
         });
-        // @ts-ignore
+        // @ts-expect-error
         setAvailableUsers(res.users);
       } finally {
         setIsSearching(false);
@@ -260,39 +260,48 @@ export function GroupDetails({ group }: { group: any }) {
                   </div>
                 ) : (
                   <div className="p-2 space-y-0.5">
-                    {selectedMembers.map((user) => {
-                      const isNew = !initialMembers.some(
-                        (m) => m.id === user.id,
-                      );
-                      return (
-                        <button
-                          key={user.id}
-                          type="button"
-                          className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
-                          onClick={() => removeMember(user.id)}
-                        >
-                          <div className="flex-1 text-left min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium truncate">
-                                {user.name || "Unnamed User"}
-                              </span>
-                              {isNew && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] text-green-600 border-green-200 bg-green-50"
-                                >
-                                  New
-                                </Badge>
-                              )}
+                    {selectedMembers
+                      .filter(
+                        (m) =>
+                          !search ||
+                          m.name
+                            ?.toLowerCase()
+                            .includes(search.toLowerCase()) ||
+                          m.email.toLowerCase().includes(search.toLowerCase()),
+                      )
+                      .map((user) => {
+                        const isNew = !initialMembers.some(
+                          (m) => m.id === user.id,
+                        );
+                        return (
+                          <button
+                            key={user.id}
+                            type="button"
+                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
+                            onClick={() => removeMember(user.id)}
+                          >
+                            <div className="flex-1 text-left min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium truncate">
+                                  {user.name || "Unnamed User"}
+                                </span>
+                                {isNew && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-green-600 border-green-200 bg-green-50"
+                                  >
+                                    New
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate group-hover:text-destructive/70">
+                                {user.email}
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground truncate group-hover:text-destructive/70">
-                              {user.email}
-                            </div>
-                          </div>
-                          <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
-                        </button>
-                      );
-                    })}
+                            <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
+                          </button>
+                        );
+                      })}
                   </div>
                 )}
               </div>

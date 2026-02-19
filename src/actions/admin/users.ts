@@ -138,7 +138,7 @@ export async function getUsers({
 
   let orderBy = desc(user.createdAt);
   if (sort) {
-    const sortOrder =
+    const _sortOrder =
       order === "asc"
         ? sql`${user[sort as keyof typeof user]} asc`
         : sql`${user[sort as keyof typeof user]} desc`;

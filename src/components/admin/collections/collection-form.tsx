@@ -263,30 +263,42 @@ export function CollectionForm({
                   </div>
                 ) : (
                   <div className="p-2 space-y-0.5">
-                    {selectedIds.map((id) => {
-                      const problem = selectedProblems.find((p) => p.id === id);
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
-                          onClick={() => removeProblem(id)}
-                        >
-                          <div className="flex-1 text-sm font-medium text-left truncate">
-                            {problem?.title || "Unknown Problem"}
-                          </div>
-                          {problem && (
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] shrink-0 group-hover:hidden ${difficultyColors[problem.difficulty] || ""}`}
-                            >
-                              {problem.difficulty}
-                            </Badge>
-                          )}
-                          <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
-                        </button>
-                      );
-                    })}
+                    {selectedIds
+                      .filter((id) => {
+                        if (!search) return true;
+                        const problem = selectedProblems.find(
+                          (p) => p.id === id,
+                        );
+                        return problem?.title
+                          .toLowerCase()
+                          .includes(search.toLowerCase());
+                      })
+                      .map((id) => {
+                        const problem = selectedProblems.find(
+                          (p) => p.id === id,
+                        );
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
+                            onClick={() => removeProblem(id)}
+                          >
+                            <div className="flex-1 text-sm font-medium text-left truncate">
+                              {problem?.title || "Unknown Problem"}
+                            </div>
+                            {problem && (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] shrink-0 group-hover:hidden ${difficultyColors[problem.difficulty] || ""}`}
+                              >
+                                {problem.difficulty}
+                              </Badge>
+                            )}
+                            <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
+                          </button>
+                        );
+                      })}
                   </div>
                 )}
               </div>

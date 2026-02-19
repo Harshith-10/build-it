@@ -3,12 +3,12 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
-  type OnChangeFn,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type OnChangeFn,
   type SortingState,
   useReactTable,
   type VisibilityState,
