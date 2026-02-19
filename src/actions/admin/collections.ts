@@ -13,10 +13,14 @@ export async function getCollections({
   page = 1,
   limit = 10,
   search = "",
+  sort = "",
+  order = "desc",
 }: {
   page?: number;
   limit?: number;
   search?: string;
+  sort?: string;
+  order?: "asc" | "desc";
 }) {
   await requireAdmin();
   const offset = (page - 1) * limit;
@@ -25,6 +29,24 @@ export async function getCollections({
     ? or(ilike(questionCollections.title, `%${search}%`))
     : undefined;
 
+  let orderBy = desc(questionCollections.createdAt);
+  if (sort) {
+    switch (sort) {
+      case "title":
+        orderBy =
+          order === "asc"
+            ? sql`${questionCollections.title} asc`
+            : sql`${questionCollections.title} desc`;
+        break;
+      case "createdAt":
+        orderBy =
+          order === "asc"
+            ? sql`${questionCollections.createdAt} asc`
+            : sql`${questionCollections.createdAt} desc`;
+        break;
+    }
+  }
+
   const [data, totalCount] = await Promise.all([
     db
       .select()
@@ -32,7 +54,7 @@ export async function getCollections({
       .where(whereClause)
       .limit(limit)
       .offset(offset)
-      .orderBy(desc(questionCollections.createdAt)),
+      .orderBy(orderBy),
     db
       .select({ count: sql<number>`count(*)` })
       .from(questionCollections)

@@ -93,7 +93,7 @@
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.3588 0.1436 278.8119);
   --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0 0 0);
+  --sidebar-border: oklch(0.3 0 0);
   --sidebar-ring: oklch(0.5834 0.2305 277.0676);
   --shadow-x: 0;
   --shadow-y: 1px;

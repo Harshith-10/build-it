@@ -13,7 +13,7 @@ export default async function GroupDetailPage({
   if (!group) return notFound();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden">
       <PageHeader
         title={group.name}
         description="Manage group details and members"

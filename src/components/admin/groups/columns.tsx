@@ -21,7 +21,17 @@ export type Group = {
 
 export const createColumns = (
   onDelete: (id: string) => void,
+  pageIndex: number,
+  pageSize: number,
 ): ColumnDef<Group>[] => [
+  {
+    id: "serialNumber",
+    header: "#",
+    cell: ({ row }) => (pageIndex - 1) * pageSize + row.index + 1,
+    enableSorting: false,
+    enableHiding: false,
+    size: 50,
+  },
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -30,6 +40,7 @@ export const createColumns = (
     cell: ({ row }) => (
       <div className="font-medium">{row.getValue("name")}</div>
     ),
+    enableSorting: true,
   },
   {
     accessorKey: "description",
@@ -58,6 +69,7 @@ export const createColumns = (
         </span>
       );
     },
+    enableSorting: true,
   },
   {
     id: "actions",

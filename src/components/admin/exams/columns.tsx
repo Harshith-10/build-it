@@ -37,7 +37,17 @@ const statusVariant = (status: string) => {
 
 export const createColumns = (
   onDelete: (id: string) => void,
+  pageIndex: number,
+  pageSize: number,
 ): ColumnDef<Exam>[] => [
+  {
+    id: "serialNumber",
+    header: "#",
+    cell: ({ row }) => (pageIndex - 1) * pageSize + row.index + 1,
+    enableSorting: false,
+    enableHiding: false,
+    size: 50,
+  },
   {
     accessorKey: "title",
     header: ({ column }) => (
@@ -46,6 +56,7 @@ export const createColumns = (
     cell: ({ row }) => (
       <div className="font-medium">{row.getValue("title")}</div>
     ),
+    enableSorting: true,
   },
   {
     accessorKey: "startTime",
@@ -59,23 +70,28 @@ export const createColumns = (
           {date.toLocaleString("en-US", {
             month: "short",
             day: "numeric",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
+            hour: "numeric",
+            minute: "numeric",
           })}
         </span>
       );
     },
+    enableSorting: true,
   },
   {
     accessorKey: "strategyType",
-    header: "Strategy",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="capitalize">
-        {(row.getValue("strategyType") as string)?.replace(/_/g, " ")}
-      </Badge>
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Strategy" />
     ),
-    enableSorting: false,
+    cell: ({ row }) => {
+      const strategy = row.getValue("strategyType") as string;
+      return (
+        <Badge variant="outline" className="capitalize">
+          {strategy.replace("_", " ")}
+        </Badge>
+      );
+    },
+    enableSorting: true,
   },
   {
     accessorKey: "status",
@@ -93,6 +109,26 @@ export const createColumns = (
     filterFn: (row, id, value) => {
       return value.includes(row.getValue(id));
     },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "createdAt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Created" />
+    ),
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("createdAt") as string);
+      return (
+        <span className="text-muted-foreground">
+          {date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
+      );
+    },
+    enableSorting: true,
   },
   {
     id: "actions",

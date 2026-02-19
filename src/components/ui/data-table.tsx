@@ -3,6 +3,7 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type OnChangeFn,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -61,6 +62,12 @@ interface DataTableProps<TData, TValue> {
   /** Callback when column visibility changes */
   onHiddenColumnsChange?: (hiddenCols: string[]) => void;
 
+  // ── Sorting (server-side) ──
+  /** Controlled sorting state */
+  sorting?: SortingState;
+  /** Callback when sorting changes */
+  onSortingChange?: OnChangeFn<SortingState>;
+
   // ── Other ──
   isLoading?: boolean;
   toolbar?: React.ReactNode;
@@ -86,8 +93,14 @@ export function DataTable<TData, TValue>({
   isLoading = false,
   toolbar,
   emptyState,
+  sorting: controlledSorting,
+  onSortingChange: controlledOnSortingChange,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [localSorting, setLocalSorting] = React.useState<SortingState>([]);
+
+  const sorting = controlledSorting ?? localSorting;
+  const onSortingChange = controlledOnSortingChange ?? setLocalSorting;
+
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
@@ -151,7 +164,7 @@ export function DataTable<TData, TValue>({
     pageCount: manualPagination ? (pageCount ?? -1) : undefined,
     rowCount: manualPagination ? (totalRows ?? 0) : undefined,
     autoResetPageIndex: false,
-    onSortingChange: setSorting,
+    onSortingChange: onSortingChange,
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),

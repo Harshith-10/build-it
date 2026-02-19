@@ -23,7 +23,9 @@ export function ProblemsTable() {
   return (
     <AdminEntityTable
       config={problemsConfig}
-      createColumns={createColumns}
+      createColumns={(onDelete, page, pageSize) =>
+        createColumns(onDelete, page, pageSize)
+      }
       emptyState={
         <div className="flex flex-col items-center gap-2">
           <FileQuestion className="h-8 w-8 text-muted-foreground" />

@@ -68,6 +68,18 @@ export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
   // biome-ignore lint/suspicious/noExplicitAny: complex form type
   const selectedGroupIds = fields.map((f: any) => f.groupId);
 
+  const handleClick = () => {
+    setOpenDialog(true);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    // Trigger the action on 'Enter' or 'Space'
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault(); // Prevent scrolling when pressing Space
+      handleClick();
+    }
+  };
+
   return (
     <>
       <Card className="flex flex-col min-h-0">
@@ -188,12 +200,15 @@ export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
               </Card>
             ))}
             <Card
-              className="min-h-70 flex items-center justify-center hover:bg-accent transition-all group cursor-pointer"
-              onClick={() => setOpenDialog(true)}
+              className="min-h-70 outline-none border-3 hover:border-ring border-dashed focus:border-ring flex selectable items-center justify-center focus:bg-accent hover:bg-accent transition-all group cursor-pointer"
+              onClick={handleClick}
+              onKeyDown={handleKeyDown}
+              role="button"
+              tabIndex={0}
             >
-              <div className="flex flex-col items-center gap-2 transition-all group-hover:scale-110 group-active:scale-100">
-                <PlusCircle className="h-10 w-10 text-muted-foreground" />
-                <span className="text-muted-foreground font-medium">
+              <div className="flex flex-col items-center gap-2 transition-all group-focus:scale-110 group-hover:scale-110 group-active:scale-100">
+                <PlusCircle className="h-10 w-10 group-focus:text-foreground group-hover:text-foreground text-muted-foreground" />
+                <span className="group-focus:text-foreground group-hover:text-foreground text-muted-foreground font-medium">
                   Add Group
                 </span>
               </div>

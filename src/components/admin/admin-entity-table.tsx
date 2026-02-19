@@ -14,8 +14,13 @@ interface AdminEntityTableProps<T extends { id: string }> {
   /**
    * Column factory — receives `onDelete` callback so action columns
    * can trigger the delete workflow managed by the ViewModel.
+   * Also receives `pageIndex` and `pageSize` for proper serial numbering.
    */
-  createColumns: (onDelete: (id: string) => void) => ColumnDef<T, unknown>[];
+  createColumns: (
+    onDelete: (id: string) => void,
+    pageIndex: number,
+    pageSize: number,
+  ) => ColumnDef<T, unknown>[];
 
   /** Rendered when the table has no data */
   emptyState: React.ReactNode;
@@ -44,8 +49,18 @@ export function AdminEntityTable<T extends { id: string }>({
   const vm = useEntityTableVM(config);
 
   const columns = useMemo(
-    () => createColumns(vm.setDeleteId),
-    [createColumns, vm.setDeleteId],
+    () =>
+      createColumns(
+        vm.setDeleteId,
+        vm.searchParams.page,
+        vm.searchParams.pageSize,
+      ),
+    [
+      createColumns,
+      vm.setDeleteId,
+      vm.searchParams.page,
+      vm.searchParams.pageSize,
+    ],
   );
 
   const deleteDescription =
@@ -73,6 +88,9 @@ export function AdminEntityTable<T extends { id: string }>({
         // Column visibility (nuqs)
         hiddenColumns={vm.searchParams.hiddenCols}
         onHiddenColumnsChange={vm.searchParams.setHiddenCols}
+        // Sorting (server-side)
+        sorting={vm.sorting}
+        onSortingChange={vm.onSortingChange}
       />
 
       <ConfirmDeleteDialog

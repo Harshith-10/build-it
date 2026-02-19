@@ -11,10 +11,14 @@ export async function getGroups({
   page = 1,
   limit = 10,
   search = "",
+  sort = "",
+  order = "desc",
 }: {
   page?: number;
   limit?: number;
   search?: string;
+  sort?: string;
+  order?: "asc" | "desc";
 }) {
   await requireAdmin();
   const offset = (page - 1) * limit;
@@ -23,6 +27,24 @@ export async function getGroups({
     ? or(ilike(userGroups.name, `%${search}%`))
     : undefined;
 
+  let orderBy = desc(userGroups.createdAt);
+  if (sort) {
+    switch (sort) {
+      case "name":
+        orderBy =
+          order === "asc"
+            ? sql`${userGroups.name} asc`
+            : sql`${userGroups.name} desc`;
+        break;
+      case "createdAt":
+        orderBy =
+          order === "asc"
+            ? sql`${userGroups.createdAt} asc`
+            : sql`${userGroups.createdAt} desc`;
+        break;
+    }
+  }
+
   const [data, totalCount] = await Promise.all([
     db
       .select()
@@ -30,7 +52,7 @@ export async function getGroups({
       .where(whereClause)
       .limit(limit)
       .offset(offset)
-      .orderBy(desc(userGroups.createdAt)),
+      .orderBy(orderBy),
     db
       .select({ count: sql<number>`count(*)` })
       .from(userGroups)

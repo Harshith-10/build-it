@@ -13,10 +13,13 @@ export interface FetchResult<T> {
 }
 
 /** Params forwarded to the entity's fetch function */
+/** Params forwarded to the entity's fetch function */
 export interface FetchParams {
   page: number;
   limit: number;
   search: string;
+  sort: string;
+  order: "asc" | "desc";
 }
 
 /** Configuration object — one per entity type */
@@ -41,6 +44,8 @@ export interface EntityTableConfig<T extends { id: string }> {
 }
 
 // ─── ViewModel Hook ──────────────────────────────────────────────────────────
+
+import type { SortingState } from "@tanstack/react-table";
 
 /**
  * Generic ViewModel hook for admin data tables.
@@ -67,6 +72,8 @@ export function useEntityTableVM<T extends { id: string }>(
         page: searchParams.page,
         limit: searchParams.pageSize,
         search: searchParams.search,
+        sort: searchParams.sort,
+        order: searchParams.order as "asc" | "desc", // Type assertion for safety
       });
       setData(result.data);
       setTotal(result.total);
@@ -76,7 +83,14 @@ export function useEntityTableVM<T extends { id: string }>(
     } finally {
       setIsLoading(false);
     }
-  }, [config, searchParams.page, searchParams.pageSize, searchParams.search]);
+  }, [
+    config,
+    searchParams.page,
+    searchParams.pageSize,
+    searchParams.search,
+    searchParams.sort,
+    searchParams.order,
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -97,6 +111,31 @@ export function useEntityTableVM<T extends { id: string }>(
     setDeleteId(null);
   }, [deleteId, config, fetchData]);
 
+  // Handle sorting change from DataTable
+  const handleSortingChange = useCallback(
+    (updaterOrValue: SortingState | ((prev: SortingState) => SortingState)) => {
+      // We only support single column sorting for now
+      const currentSort =
+        searchParams.sort && searchParams.order
+          ? [{ id: searchParams.sort, desc: searchParams.order === "desc" }]
+          : [];
+
+      const newSort =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(currentSort)
+          : updaterOrValue;
+
+      const firstSort = newSort[0];
+      if (firstSort) {
+        searchParams.setSort(firstSort.id, firstSort.desc ? "desc" : "asc");
+      } else {
+        // Reset sort
+        searchParams.setSort("", "desc"); // Default or clear
+      }
+    },
+    [searchParams],
+  );
+
   return useMemo(
     () => ({
       // Data
@@ -107,6 +146,15 @@ export function useEntityTableVM<T extends { id: string }>(
       // Search params (forwarded for the view to bind)
       searchParams,
 
+      // Sorting
+      sorting:
+        searchParams.sort && searchParams.order
+          ? ([
+              { id: searchParams.sort, desc: searchParams.order === "desc" },
+            ] as SortingState)
+          : [],
+      onSortingChange: handleSortingChange,
+
       // Delete workflow
       deleteId,
       setDeleteId,
@@ -115,7 +163,16 @@ export function useEntityTableVM<T extends { id: string }>(
       // Manual refresh
       refetch: fetchData,
     }),
-    [data, total, isLoading, searchParams, deleteId, handleDelete, fetchData],
+    [
+      data,
+      total,
+      isLoading,
+      searchParams,
+      handleSortingChange,
+      deleteId,
+      handleDelete,
+      fetchData,
+    ],
   );
 }
 

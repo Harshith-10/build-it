@@ -127,6 +127,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </span>
           </div>
         </div>
+        <div className="h-px bg-sidebar-border" />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -154,7 +155,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <div className="h-px bg-border" />
+        <div className="mx-2 h-px bg-sidebar-border" />
         <SidebarGroup>
           <SidebarGroupLabel>Account</SidebarGroupLabel>
           <SidebarGroupContent>

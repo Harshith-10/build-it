@@ -34,7 +34,9 @@ export function UsersTable() {
     <>
       <AdminEntityTable
         config={usersConfig}
-        createColumns={(onDelete) => createColumns(onDelete, handleEdit)}
+        createColumns={(onDelete, page, pageSize) =>
+          createColumns(onDelete, handleEdit, page, pageSize)
+        }
         emptyState={
           <div className="flex flex-col items-center gap-2">
             <Users className="h-8 w-8 text-muted-foreground" />

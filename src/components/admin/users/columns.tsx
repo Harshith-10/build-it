@@ -43,8 +43,18 @@ const roleVariant = (role: string | null) => {
 
 export const createColumns = (
   onDelete: (id: string) => void,
-  onEdit?: (user: User) => void,
+  onEdit: ((user: User) => void) | undefined,
+  pageIndex: number,
+  pageSize: number,
 ): ColumnDef<User>[] => [
+  {
+    id: "serialNumber",
+    header: "#",
+    cell: ({ row }) => (pageIndex - 1) * pageSize + row.index + 1,
+    enableSorting: false,
+    enableHiding: false,
+    size: 50,
+  },
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -53,6 +63,7 @@ export const createColumns = (
     cell: ({ row }) => (
       <div className="font-medium">{row.getValue("name")}</div>
     ),
+    enableSorting: true,
   },
   {
     accessorKey: "email",
@@ -62,6 +73,7 @@ export const createColumns = (
     cell: ({ row }) => (
       <span className="text-muted-foreground">{row.getValue("email")}</span>
     ),
+    enableSorting: true,
   },
   {
     accessorKey: "role",
@@ -79,6 +91,7 @@ export const createColumns = (
     filterFn: (row, id, value) => {
       return value.includes(row.getValue(id));
     },
+    enableSorting: true,
   },
   {
     accessorKey: "branch",
@@ -107,6 +120,7 @@ export const createColumns = (
         </span>
       );
     },
+    enableSorting: true,
   },
   {
     id: "actions",

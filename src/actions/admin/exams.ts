@@ -11,10 +11,14 @@ export async function getExams({
   page = 1,
   limit = 10,
   search = "",
+  sort = "",
+  order = "desc",
 }: {
   page?: number;
   limit?: number;
   search?: string;
+  sort?: string;
+  order?: "asc" | "desc";
 }) {
   await requireAdmin();
   const offset = (page - 1) * limit;
@@ -23,6 +27,40 @@ export async function getExams({
     ? or(ilike(exams.title, `%${search}%`))
     : undefined;
 
+  let orderBy = desc(exams.createdAt);
+  if (sort) {
+    switch (sort) {
+      case "title":
+        orderBy =
+          order === "asc" ? sql`${exams.title} asc` : sql`${exams.title} desc`;
+        break;
+      case "startTime":
+        orderBy =
+          order === "asc"
+            ? sql`${exams.startTime} asc`
+            : sql`${exams.startTime} desc`;
+        break;
+      case "strategyType":
+        orderBy =
+          order === "asc"
+            ? sql`${exams.strategyType} asc`
+            : sql`${exams.strategyType} desc`;
+        break;
+      case "status":
+        orderBy =
+          order === "asc"
+            ? sql`${exams.status} asc`
+            : sql`${exams.status} desc`;
+        break;
+      case "createdAt":
+        orderBy =
+          order === "asc"
+            ? sql`${exams.createdAt} asc`
+            : sql`${exams.createdAt} desc`;
+        break;
+    }
+  }
+
   const [data, totalCount] = await Promise.all([
     db
       .select()
@@ -30,7 +68,7 @@ export async function getExams({
       .where(whereClause)
       .limit(limit)
       .offset(offset)
-      .orderBy(desc(exams.createdAt)),
+      .orderBy(orderBy),
     db.select({ count: sql<number>`count(*)` }).from(exams).where(whereClause),
   ]);
 
@@ -66,6 +104,7 @@ export async function upsertExam(data: any) {
 
     const commonFields = {
       title: data.title,
+      description: data.description,
       startTime: data.startTime ? new Date(data.startTime) : new Date(),
       endTime: data.endTime
         ? new Date(data.endTime)

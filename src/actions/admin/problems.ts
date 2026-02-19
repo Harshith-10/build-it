@@ -10,10 +10,14 @@ export async function getProblems({
   page = 1,
   limit = 10,
   search = "",
+  sort = "",
+  order = "desc",
 }: {
   page?: number;
   limit?: number;
   search?: string;
+  sort?: string;
+  order?: "asc" | "desc";
 }) {
   await requireAdmin();
   const offset = (page - 1) * limit;
@@ -25,6 +29,30 @@ export async function getProblems({
       )
     : undefined;
 
+  let orderBy = desc(questions.createdAt);
+  if (sort) {
+    switch (sort) {
+      case "title":
+        orderBy =
+          order === "asc"
+            ? sql`${questions.title} asc`
+            : sql`${questions.title} desc`;
+        break;
+      case "difficulty":
+        orderBy =
+          order === "asc"
+            ? sql`${questions.difficulty} asc`
+            : sql`${questions.difficulty} desc`;
+        break;
+      case "createdAt":
+        orderBy =
+          order === "asc"
+            ? sql`${questions.createdAt} asc`
+            : sql`${questions.createdAt} desc`;
+        break;
+    }
+  }
+
   const [data, totalCount] = await Promise.all([
     db
       .select()
@@ -32,7 +60,7 @@ export async function getProblems({
       .where(whereClause)
       .limit(limit)
       .offset(offset)
-      .orderBy(desc(questions.createdAt)),
+      .orderBy(orderBy),
     db
       .select({ count: sql<number>`count(*)` })
       .from(questions)

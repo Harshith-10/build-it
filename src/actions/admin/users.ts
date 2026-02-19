@@ -116,10 +116,14 @@ export async function getUsers({
   page = 1,
   limit = 10,
   search = "",
+  sort = "",
+  order = "desc",
 }: {
   page?: number;
   limit?: number;
   search?: string;
+  sort?: string;
+  order?: "asc" | "desc";
 }) {
   await requireAdmin();
   const offset = (page - 1) * limit;
@@ -132,6 +136,36 @@ export async function getUsers({
       )
     : undefined;
 
+  let orderBy = desc(user.createdAt);
+  if (sort) {
+    const sortOrder =
+      order === "asc"
+        ? sql`${user[sort as keyof typeof user]} asc`
+        : sql`${user[sort as keyof typeof user]} desc`;
+    // Safer way: map sort keys to schema columns explicitly
+    switch (sort) {
+      case "name":
+        orderBy =
+          order === "asc" ? sql`${user.name} asc` : sql`${user.name} desc`;
+        break;
+      case "email":
+        orderBy =
+          order === "asc" ? sql`${user.email} asc` : sql`${user.email} desc`;
+        break;
+      case "role":
+        orderBy =
+          order === "asc" ? sql`${user.role} asc` : sql`${user.role} desc`;
+        break;
+      case "createdAt":
+        orderBy =
+          order === "asc"
+            ? sql`${user.createdAt} asc`
+            : sql`${user.createdAt} desc`;
+        break;
+      // Add other sortable columns here if needed
+    }
+  }
+
   const [users, totalCount] = await Promise.all([
     db
       .select()
@@ -139,7 +173,7 @@ export async function getUsers({
       .where(whereClause)
       .limit(limit)
       .offset(offset)
-      .orderBy(desc(user.createdAt)),
+      .orderBy(orderBy),
     db.select({ count: sql<number>`count(*)` }).from(user).where(whereClause),
   ]);
 

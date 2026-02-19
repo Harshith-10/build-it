@@ -37,7 +37,7 @@ export function DashboardHeader() {
   });
 
   return (
-    <header className="sticky top-0 z-50 flex shrink-0 items-center border-b bg-background">
+    <header className="sticky top-0 pt-2 z-50 flex shrink-0 items-center border-b bg-background">
       <SidebarTrigger className="m-2 mr-4" />
       <Breadcrumb>
         <BreadcrumbList>

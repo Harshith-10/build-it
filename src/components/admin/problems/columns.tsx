@@ -35,7 +35,17 @@ const difficultyVariant = (d: string) => {
 
 export const createColumns = (
   onDelete: (id: string) => void,
+  pageIndex: number,
+  pageSize: number,
 ): ColumnDef<Problem>[] => [
+  {
+    id: "serialNumber",
+    header: "#",
+    cell: ({ row }) => (pageIndex - 1) * pageSize + row.index + 1,
+    enableSorting: false,
+    enableHiding: false,
+    size: 50,
+  },
   {
     accessorKey: "title",
     header: ({ column }) => (
@@ -44,6 +54,7 @@ export const createColumns = (
     cell: ({ row }) => (
       <div className="font-medium">{row.getValue("title")}</div>
     ),
+    enableSorting: true,
   },
   {
     accessorKey: "difficulty",
@@ -61,6 +72,7 @@ export const createColumns = (
     filterFn: (row, id, value) => {
       return value.includes(row.getValue(id));
     },
+    enableSorting: true,
   },
   {
     accessorKey: "createdAt",
@@ -79,6 +91,7 @@ export const createColumns = (
         </span>
       );
     },
+    enableSorting: true,
   },
   {
     id: "actions",

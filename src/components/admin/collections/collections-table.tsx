@@ -23,7 +23,9 @@ export function CollectionsTable() {
   return (
     <AdminEntityTable
       config={collectionsConfig}
-      createColumns={createColumns}
+      createColumns={(onDelete, page, pageSize) =>
+        createColumns(onDelete, page, pageSize)
+      }
       emptyState={
         <div className="flex flex-col items-center gap-2">
           <Library className="h-8 w-8 text-muted-foreground" />

@@ -35,7 +35,7 @@ export function AdminHeader() {
   });
 
   return (
-    <header className="sticky top-0 z-50 flex shrink-0 items-center border-b bg-background">
+    <header className="sticky top-0 z-50 flex shrink-0 items-center pt-2 border-b bg-background">
       <SidebarTrigger className="m-2 mr-4" />
       <Breadcrumb>
         <BreadcrumbList>
