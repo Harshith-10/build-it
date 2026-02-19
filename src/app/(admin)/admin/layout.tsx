@@ -1,5 +1,5 @@
 import { AdminHeader } from "@/components/admin/admin-header";
-import { AppSidebar } from "@/components/admin/app-sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireAdmin } from "@/lib/auth-access";
 

@@ -4,6 +4,7 @@ import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { examGroups, exams } from "@/db/schema/exams";
+import { examCollections } from "@/db/schema/question-collections";
 import { requireAdmin } from "@/lib/auth-access";
 
 export async function getExams({
@@ -77,6 +78,17 @@ export async function upsertExam(data: any) {
       status: data.status || "upcoming",
     };
 
+    // Validate grading config
+    if (commonFields.gradingStrategy === "count_based") {
+      const config = commonFields.gradingConfig as any;
+      if (!config.thresholds || !Array.isArray(config.thresholds)) {
+        return {
+          success: false,
+          error: "Invalid grading config: thresholds required",
+        };
+      }
+    }
+
     if (examId) {
       await db
         .update(exams)
@@ -86,13 +98,29 @@ export async function upsertExam(data: any) {
         })
         .where(eq(exams.id, examId));
 
-      // Re-assign groups (simplified: delete all and insert)
-      // Ideally we should sync carefully to verify PINs/existing logic but for MVP rebuild is ok
-      await db.delete(examGroups).where(eq(examGroups.examId, examId));
+      // Re-link collections (delete all and insert)
+      await db
+        .delete(examCollections)
+        .where(eq(examCollections.examId, examId));
     } else {
       const [newExam] = await db.insert(exams).values(commonFields).returning();
       examId = newExam.id;
     }
+
+    // Handle collections if present in strategyConfig
+    const collectionIds = (data.strategyConfig as any)?.collectionIds as
+      | string[]
+      | undefined;
+    if (collectionIds && collectionIds.length > 0) {
+      const collectionLinks = collectionIds.map((colId) => ({
+        examId: examId!,
+        collectionId: colId,
+      }));
+      await db.insert(examCollections).values(collectionLinks);
+    }
+
+    // Re-assign groups (simplified: delete all and insert)
+    await db.delete(examGroups).where(eq(examGroups.examId, examId!));
 
     if (data.assignments && data.assignments.length > 0) {
       const assignmentValues = data.assignments.map((assign: any) => ({

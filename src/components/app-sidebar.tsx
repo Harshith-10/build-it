@@ -7,15 +7,14 @@ import {
   Group,
   LayoutDashboard,
   Library,
-  LogOut,
+  Terminal,
   User,
   Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type * as React from "react";
-import { SidebarThemeToggle } from "@/components/theme-toggle";
 import {
   Sidebar,
   SidebarContent,
@@ -29,9 +28,10 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { authClient } from "@/lib/auth-client";
+import { UserMenu } from "@/components/user-menu";
+import { useSession } from "@/lib/auth-client";
 
-const navMain = [
+const adminNavMain = [
   {
     title: "Dashboard",
     url: "/admin",
@@ -64,6 +64,29 @@ const navMain = [
   },
 ];
 
+const studentNavMain = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Problems",
+    url: "/problems",
+    icon: FileQuestion,
+  },
+  {
+    title: "Playground",
+    url: "/playground",
+    icon: Terminal,
+  },
+  {
+    title: "Exams",
+    url: "/exams",
+    icon: GraduationCap,
+  },
+];
+
 const navAccount = [
   {
     title: "Profile",
@@ -79,12 +102,11 @@ const navAccount = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
-  const router = useRouter();
 
-  const handleSignOut = async () => {
-    await authClient.signOut();
-    router.push("/auth/sign-in");
-  };
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "admin";
+
+  const navMain = isAdmin ? adminNavMain : studentNavMain;
 
   return (
     <Sidebar variant="floating" collapsible="icon" {...props}>
@@ -100,7 +122,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">BuildIT</span>
-            <span className="truncate text-xs">Admin Portal</span>
+            <span className="truncate text-xs">
+              {isAdmin ? "Admin Portal" : "Student Portal"}
+            </span>
           </div>
         </div>
       </SidebarHeader>
@@ -114,8 +138,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton
                     asChild
                     isActive={
-                      item.url === "/admin"
-                        ? pathname === "/admin"
+                      item.url === "/admin" || item.url === "/dashboard"
+                        ? pathname === item.url
                         : pathname.startsWith(item.url)
                     }
                     tooltip={item.title}
@@ -139,11 +163,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={
-                      item.url === "/admin"
-                        ? pathname === "/admin"
-                        : pathname.startsWith(item.url)
-                    }
+                    isActive={pathname.startsWith(item.url)}
                     tooltip={item.title}
                   >
                     <Link href={item.url}>
@@ -158,19 +178,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarThemeToggle />
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              className="bg-destructive/10 hover:bg-destructive/80 border border-destructive/80 "
-              onClick={handleSignOut}
-              tooltip="Sign Out"
-            >
-              <LogOut />
-              <span>Sign Out</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <UserMenu />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

@@ -7,13 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface FixedSetPickerProps {
   value: string[];
   onChange: (value: string[]) => void;
+  className?: string;
 }
 
-export function FixedSetPicker({ value = [], onChange }: FixedSetPickerProps) {
+export function FixedSetPicker({
+  value = [],
+  onChange,
+  className,
+}: FixedSetPickerProps) {
   const [problems, setProblems] = useState<any[]>([]);
   const [selectedProblems, setSelectedProblems] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -62,7 +68,12 @@ export function FixedSetPicker({ value = [], onChange }: FixedSetPickerProps) {
   };
 
   return (
-    <div className="h-[400px] border rounded-md overflow-hidden flex flex-col">
+    <div
+      className={cn(
+        "h-[400px] border rounded-md overflow-hidden flex flex-col",
+        className,
+      )}
+    >
       <div className="p-2 border-b bg-muted/10">
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />

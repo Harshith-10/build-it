@@ -1,25 +1,62 @@
-import Image from "next/image";
-import Link from "next/link";
-import { ThemeToggle } from "../theme-toggle";
-import { UserDropdown } from "./user-dropdown";
+"use client";
+
+import { usePathname } from "next/navigation";
+import React from "react";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+
+const labelMap: Record<string, string> = {
+  dashboard: "Dashboard",
+  problems: "Problems",
+  playground: "Playground",
+  exams: "Exams",
+  settings: "Settings",
+  u: "User",
+  me: "Profile",
+};
 
 export function DashboardHeader() {
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+
+  const crumbs = segments.map((seg, idx) => {
+    const href = `/${segments.slice(0, idx + 1).join("/")}`;
+    // Use a generic label for long segments (likely IDs), otherwise look up in map or capitalize
+    const label =
+      labelMap[seg] ||
+      (seg.length > 8 ? "Details" : seg.charAt(0).toUpperCase() + seg.slice(1));
+    const isLast = idx === segments.length - 1;
+    return { href, label, isLast };
+  });
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 mx-auto max-w-screen-2xl items-center justify-between px-4">
-        <Link href="/exams" className="mr-6 flex items-center space-x-2">
-          <div>
-            <Image src="/buildit-logo.png" alt="Logo" width={25} height={25} />
-          </div>
-          <span className="hidden font-bold sm:inline-block text-xl">
-            BuildIT
-          </span>
-        </Link>
-        <div className="flex flex-1 items-center justify-end space-x-2">
-          <ThemeToggle />
-          <UserDropdown />
-        </div>
-      </div>
+    <header className="sticky top-0 z-50 flex shrink-0 items-center border-b bg-background">
+      <SidebarTrigger className="m-2 mr-4" />
+      <Breadcrumb>
+        <BreadcrumbList>
+          {crumbs.map((crumb, idx) => (
+            <React.Fragment key={crumb.href}>
+              {idx > 0 && <BreadcrumbSeparator />}
+              <BreadcrumbItem>
+                {crumb.isLast ? (
+                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink href={crumb.href}>
+                    {crumb.label}
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </React.Fragment>
+          ))}
+        </BreadcrumbList>
+      </Breadcrumb>
     </header>
   );
 }

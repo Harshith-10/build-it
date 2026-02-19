@@ -238,7 +238,7 @@ export function DataTable<TData, TValue>({
       {/* Table with sticky header and scrollable body */}
       <div className="overflow-auto rounded-lg border flex-1 min-h-0 relative">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background">
+          <TableHeader className="sticky top-0 z-10 bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
