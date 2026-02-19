@@ -27,6 +27,9 @@ export const auth = betterAuth({
       adminRole: "admin",
     }),
   ],
+  advanced: {
+    useSecureCookies: true,
+  },
   user: {
     additionalFields: {
       gender: { type: "string" },
