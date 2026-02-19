@@ -74,6 +74,9 @@ export const createColumns = (
   {
     id: "actions",
     enableHiding: false,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Actions" />
+    ),
     cell: ({ row }) => {
       const collection = row.original;
       return (

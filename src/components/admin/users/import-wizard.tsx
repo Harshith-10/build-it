@@ -141,11 +141,24 @@ export function UserImportWizard() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Bulk User Import</CardTitle>
-        <CardDescription>
-          Step {step} of 3:{" "}
-          {step === 1 ? "Upload CSV" : step === 2 ? "Map Fields" : "Results"}
-        </CardDescription>
+        <div className="flex justify-between">
+          <div className="flex flex-col">
+            <CardTitle>Bulk User Import</CardTitle>
+            <CardDescription>
+              Step {step} of 3:{" "}
+              {step === 1
+                ? "Upload CSV"
+                : step === 2
+                  ? "Map Fields"
+                  : "Results"}
+            </CardDescription>
+          </div>
+          {step === 2 && (
+            <Button variant="outline" size="sm" onClick={autoMap}>
+              Auto-Map Fields
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {step === 1 && (
@@ -176,12 +189,7 @@ export function UserImportWizard() {
 
         {step === 2 && (
           <div className="space-y-6">
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={autoMap}>
-                Auto-Map Fields
-              </Button>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-5">
               {DB_FIELDS.map((field) => (
                 <div key={field.value} className="space-y-2">
                   <Label className="text-sm font-medium">
@@ -282,7 +290,15 @@ export function UserImportWizard() {
         {step === 1 && <div />}
 
         {step === 2 && (
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              isSubmitting ||
+              DB_FIELDS.filter((f) => f.required).some(
+                (f) => !mappings[f.value],
+              )
+            }
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

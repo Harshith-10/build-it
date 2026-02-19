@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, MoreHorizontal, Pencil } from "lucide-react";
+import { Copy, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -125,6 +125,9 @@ export const createColumns = (
   {
     id: "actions",
     enableHiding: false,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Actions" />
+    ),
     cell: ({ row }) => {
       const user = row.original;
       return (
@@ -142,23 +145,21 @@ export const createColumns = (
                 toast.success("User ID copied");
               }}
             >
-              <Copy className="mr-2 h-4 w-4" />
+              <Copy className="w-4 h-4 mr-2" />
               Copy ID
             </DropdownMenuItem>
             {onEdit && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onEdit(user)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
-                </DropdownMenuItem>
-              </>
+              <DropdownMenuItem onClick={() => onEdit(user)}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
+              variant="destructive"
               onClick={() => onDelete(user.id)}
             >
+              <Trash2 className="w-4 h-4 mr-2" />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>

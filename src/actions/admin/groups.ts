@@ -89,6 +89,7 @@ export async function upsertGroup(data: {
 }) {
   await requireAdmin();
   try {
+    let groupId = data.id;
     if (data.id) {
       await db
         .update(userGroups)
@@ -98,15 +99,21 @@ export async function upsertGroup(data: {
           updatedAt: new Date(),
         })
         .where(eq(userGroups.id, data.id));
-      revalidatePath(`/admin/groups/${data.id}`);
     } else {
-      await db.insert(userGroups).values({
-        name: data.name,
-        description: data.description,
-      });
+      const [inserted] = await db
+        .insert(userGroups)
+        .values({
+          name: data.name,
+          description: data.description,
+        })
+        .returning({ id: userGroups.id });
+      groupId = inserted.id;
     }
     revalidatePath("/admin/groups");
-    return { success: true };
+    if (groupId) {
+      revalidatePath(`/admin/groups/${groupId}`);
+    }
+    return { success: true, id: groupId };
   } catch (_error) {
     return { success: false, error: "Failed to save group" };
   }

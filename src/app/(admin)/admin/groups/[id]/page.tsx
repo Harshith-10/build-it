@@ -1,6 +1,7 @@
+import { ComponentProps } from "react";
 import { notFound } from "next/navigation";
 import { getGroup } from "@/actions/admin/groups";
-import { GroupDetails } from "@/components/admin/groups/group-details";
+import { GroupForm } from "@/components/admin/groups/group-form";
 import { PageHeader } from "@/components/admin/page-header";
 
 export default async function GroupDetailPage({
@@ -19,7 +20,7 @@ export default async function GroupDetailPage({
         description="Manage group details and members"
         backHref="/admin/groups"
       />
-      <GroupDetails group={group as any} />
+      <GroupForm group={group as ComponentProps<typeof GroupForm>["group"]} />
     </div>
   );
 }

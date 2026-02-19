@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 
 const groupSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(2),
+  name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
 });
 
@@ -40,17 +40,27 @@ type User = {
   role: string | null;
 };
 
-export function GroupDetails({ group }: { group: any }) {
+interface GroupFormProps {
+  group?: {
+    id: string;
+    name: string;
+    description: string | null;
+    members: { user: User }[];
+  } | null;
+}
+
+export function GroupForm({ group }: GroupFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Member management state
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<User[]>(
-    group.members.map((m: any) => m.user),
+    group?.members.map((m) => m.user) || [],
   );
+  // Keep track of initial members to calculate diffs
   const [initialMembers] = useState<User[]>(
-    group.members.map((m: any) => m.user),
+    group?.members.map((m) => m.user) || [],
   );
 
   const [search, setSearch] = useState("");
@@ -60,17 +70,16 @@ export function GroupDetails({ group }: { group: any }) {
   const form = useForm<GroupFormValues>({
     resolver: zodResolver(groupSchema),
     defaultValues: {
-      id: group.id,
-      name: group.name,
-      description: group.description || "",
+      id: group?.id,
+      name: group?.name || "",
+      description: group?.description || "",
     },
   });
 
   // Initial load of users
   useEffect(() => {
     getUsers({ limit: 50 }).then((res) => {
-      // @ts-expect-error
-      setAvailableUsers(res.users);
+      setAvailableUsers(res.users as User[]);
     });
   }, []);
 
@@ -85,8 +94,7 @@ export function GroupDetails({ group }: { group: any }) {
           limit: 50,
           search: query,
         });
-        // @ts-expect-error
-        setAvailableUsers(res.users);
+        setAvailableUsers(res.users as User[]);
       } finally {
         setIsSearching(false);
       }
@@ -109,9 +117,13 @@ export function GroupDetails({ group }: { group: any }) {
   const onSubmit = async (data: GroupFormValues) => {
     setIsSubmitting(true);
     try {
-      // 1. Update Group Details
-      const groupRes = await upsertGroup(data);
-      if (!groupRes.success) throw new Error(groupRes.error);
+      // 1. Create or Update Group
+      const result = await upsertGroup(data);
+      if (!result.success || !result.id) {
+        throw new Error(result.error || "Failed to save group");
+      }
+
+      const groupId = result.id;
 
       // 2. Calculate Diffs
       const initialIds = new Set(initialMembers.map((m) => m.id));
@@ -125,18 +137,26 @@ export function GroupDetails({ group }: { group: any }) {
       // Ideally backend should support bulk update
 
       for (const user of toAdd) {
-        await addGroupMember(group.id, user.email);
+        await addGroupMember(groupId, user.email);
       }
 
       for (const user of toRemove) {
-        await removeGroupMember(group.id, user.id);
+        await removeGroupMember(groupId, user.id);
       }
 
-      toast.success("Group updated successfully");
-      router.refresh();
-      // Update initial state implies a reload/refresh which happens above
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update group");
+      toast.success(
+        group ? "Group updated successfully" : "Group created successfully",
+      );
+
+      if (!group) {
+        router.push("/admin/groups");
+      } else {
+        router.refresh();
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save group",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -161,7 +181,7 @@ export function GroupDetails({ group }: { group: any }) {
               <FormItem>
                 <FormLabel>Group Name</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input {...field} placeholder="e.g. CSE Section A" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -174,7 +194,10 @@ export function GroupDetails({ group }: { group: any }) {
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input
+                    {...field}
+                    placeholder="Brief description of this group"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -248,15 +271,19 @@ export function GroupDetails({ group }: { group: any }) {
               <div className="px-3 py-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider shrink-0 border-b flex justify-between">
                 <span>Group Members ({selectedMembers.length})</span>
                 {selectedMembers.length > 0 && (
-                  <span className="text-muted-foreground normal-case font-normal tracking-normal">
-                    Click to remove
-                  </span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground normal-case font-normal tracking-normal cursor-pointer hover:text-destructive transition-colors bg-transparent border-none p-0 text-xs"
+                    onClick={() => setSelectedMembers([])}
+                  >
+                    Clear all
+                  </button>
                 )}
               </div>
               <div className="flex-1 overflow-y-auto min-h-0">
                 {selectedMembers.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                    No members in this group
+                    No members selected
                   </div>
                 ) : (
                   <div className="p-2 space-y-0.5">
@@ -285,7 +312,7 @@ export function GroupDetails({ group }: { group: any }) {
                                 <span className="text-sm font-medium truncate">
                                   {user.name || "Unnamed User"}
                                 </span>
-                                {isNew && (
+                                {isNew && group && (
                                   <Badge
                                     variant="outline"
                                     className="text-[10px] text-green-600 border-green-200 bg-green-50"
@@ -323,7 +350,7 @@ export function GroupDetails({ group }: { group: any }) {
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            Save Changes
+            {group ? "Save Changes" : "Create Group"}
           </Button>
         </div>
       </form>

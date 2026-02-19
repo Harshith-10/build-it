@@ -62,6 +62,7 @@ export function ExamForm({ initialData }: { initialData?: any }) {
           endTime: initialData.endTime
             ? new Date(initialData.endTime).toISOString().slice(0, 16)
             : "",
+          duration: initialData.durationMinutes || 60,
           assignments:
             initialData.groups?.map((eg: any) => ({
               groupId: eg.groupId,
@@ -81,7 +82,7 @@ export function ExamForm({ initialData }: { initialData?: any }) {
           description: "",
           startTime: "",
           endTime: "",
-          duration: initialData.durationMinutes || 60,
+          duration: 60,
           strategyType: "random_n",
           strategyConfig: { count: 10, collectionIds: [] },
           gradingStrategy: "linear",

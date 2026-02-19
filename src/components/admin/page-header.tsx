@@ -50,29 +50,6 @@ export function PageHeader({
 
   return (
     <div className="space-y-1">
-      {/* Breadcrumbs */}
-      {/* {breadcrumbs.length > 1 && (
-        <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-          {breadcrumbs.map((crumb, index) => (
-            <span key={crumb.label} className="flex items-center gap-1">
-              {index > 0 && <span className="text-muted-foreground/50">/</span>}
-              {crumb.href ? (
-                <Link
-                  href={crumb.href}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {crumb.label}
-                </Link>
-              ) : (
-                <span className="text-foreground font-medium">
-                  {crumb.label}
-                </span>
-              )}
-            </span>
-          ))}
-        </nav>
-      )} */}
-
       {/* Title row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

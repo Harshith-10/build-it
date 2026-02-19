@@ -9,7 +9,7 @@ export default function CreateCollectionPage() {
       <PageHeader
         title="Create Collection"
         description="Organize problems into a reusable collection"
-        // backHref="/admin/collections"
+        backHref="/admin/collections"
       />
       <CollectionForm />
     </div>
