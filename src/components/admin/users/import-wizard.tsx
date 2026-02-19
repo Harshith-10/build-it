@@ -191,14 +191,17 @@ export function UserImportWizard() {
                   <Select
                     value={mappings[field.value] || ""}
                     onValueChange={(val) =>
-                      handleMappingChange(field.value, val)
+                      handleMappingChange(
+                        field.value,
+                        val === "__ignore__" ? "" : val,
+                      )
                     }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select CSV Column" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">-- Ignore --</SelectItem>
+                      <SelectItem value="__ignore__">-- Ignore --</SelectItem>
                       {csvHeaders.map((header) => (
                         <SelectItem key={header} value={header}>
                           {header}
