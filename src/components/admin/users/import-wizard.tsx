@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { bulkImportUsers } from "@/actions/admin/users";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -53,6 +54,9 @@ export function UserImportWizard() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [progress, setProgress] = useState(0);
+  const [processedCount, setProcessedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -106,6 +110,9 @@ export function UserImportWizard() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setProgress(0);
+    setProcessedCount(0);
+    setTotalCount(0);
     try {
       // Prepare data based on mappings
       const payload = csvData.map((row) => {
@@ -118,18 +125,45 @@ export function UserImportWizard() {
         return mappedRow;
       });
 
-      const response = await bulkImportUsers({
-        users: payload,
-        config,
-      });
+      setTotalCount(payload.length);
+      const CHUNK_SIZE = 50;
+      let totalSuccess = 0;
+      let totalError = 0;
+      let finalGroupCount = 0;
 
-      if (response.success) {
-        setResult(response);
-        setStep(3);
-        toast.success(`Successfully imported ${response.count} users.`);
-      } else {
-        toast.error(`Import failed: ${response.message}`);
+      for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
+        const chunk = payload.slice(i, i + CHUNK_SIZE);
+        const isLastChunk = i + CHUNK_SIZE >= payload.length;
+
+        const response = await bulkImportUsers({
+          users: chunk,
+          config,
+          revalidate: isLastChunk,
+        });
+
+        if (response.success) {
+          totalSuccess += response.count;
+          totalError += response.errorCount || 0;
+          finalGroupCount = response.groupCount; // Update with latest group count
+
+          const currentProcessed = Math.min(i + CHUNK_SIZE, payload.length);
+          setProcessedCount(currentProcessed);
+          setProgress((currentProcessed / payload.length) * 100);
+        } else {
+          toast.error(
+            `Import failed at chunk ${i / CHUNK_SIZE + 1}: ${response.message}`,
+          );
+          break; // Stop on first major failure
+        }
       }
+
+      setResult({
+        count: totalSuccess,
+        errorCount: totalError,
+        groupCount: finalGroupCount,
+      });
+      setStep(3);
+      toast.success(`Successfully imported ${totalSuccess} users.`);
     } catch (error: any) {
       toast.error(`An error occurred: ${error.message}`);
     } finally {
@@ -261,6 +295,18 @@ export function UserImportWizard() {
                 Ready to import <strong>{csvData.length}</strong> records.
               </AlertDescription>
             </Alert>
+
+            {isSubmitting && totalCount > 0 && (
+              <div className="space-y-2 mt-4">
+                <div className="flex justify-between text-sm">
+                  <span>Importing...</span>
+                  <span>
+                    {processedCount} / {totalCount}
+                  </span>
+                </div>
+                <Progress value={progress} />
+              </div>
+            )}
           </div>
         )}
 

@@ -11,9 +11,11 @@ import { requireAdmin } from "@/lib/auth-access";
 export async function bulkImportUsers({
   users,
   config,
+  revalidate = true,
 }: {
   users: any[];
   config: any;
+  revalidate?: boolean;
 }) {
   await requireAdmin();
 
@@ -102,7 +104,9 @@ export async function bulkImportUsers({
     }
   }
 
-  revalidatePath("/admin/users");
+  if (revalidate) {
+    revalidatePath("/admin/users");
+  }
   return {
     success: true,
     count: successCount,
