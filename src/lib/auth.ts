@@ -10,16 +10,12 @@ export const auth = betterAuth({
   }),
   trustedOrigins: [
     process.env.BETTER_AUTH_URL as string,
-    "http://172.16.7.253",
-    "http://172.16.7.253:3000",
-    "https://20e4519e8a5a.ngrok-free.app",
+    "http://16.112.169.69",
   ],
-
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
   },
-
   plugins: [
     username(),
     admin({
@@ -38,7 +34,6 @@ export const auth = betterAuth({
       section: { type: "string" },
       dob: { type: "date" },
       regulation: { type: "string" },
-      // role: { type: "string" }, // Managed by admin plugin now
     },
   },
 });
