@@ -44,6 +44,7 @@ const DB_FIELDS = [
   { label: "Section", value: "section" },
   { label: "Date of Birth (YYYY-MM-DD)", value: "dob" },
   { label: "Gender", value: "gender" },
+  { label: "Semester", value: "semester" },
   { label: "Regulation", value: "regulation" },
   { label: "Roll No / Username", value: "username" },
   { label: "Group Name", value: "groupName" }, // Special field for group creation
@@ -136,7 +137,7 @@ export function UserImportWizard() {
       const CHUNK_SIZE = 50;
       let totalSuccess = 0;
       let totalError = 0;
-      let finalGroupCount = 0;
+      const allProcessedGroups = new Map<string, string>(); // id -> name
 
       for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
         const chunk = payload.slice(i, i + CHUNK_SIZE);
@@ -151,7 +152,11 @@ export function UserImportWizard() {
         if (response.success) {
           totalSuccess += response.count;
           totalError += response.errorCount || 0;
-          finalGroupCount = response.groupCount; // Update with latest group count
+          if (response.processedGroups) {
+            response.processedGroups.forEach((g: any) => {
+              allProcessedGroups.set(g.id, g.name);
+            });
+          }
 
           const currentProcessed = Math.min(i + CHUNK_SIZE, payload.length);
           setProcessedCount(currentProcessed);
@@ -167,7 +172,7 @@ export function UserImportWizard() {
       setResult({
         count: totalSuccess,
         errorCount: totalError,
-        groupCount: finalGroupCount,
+        groupCount: allProcessedGroups.size,
       });
       setStep(3);
       toast.success(`Successfully imported ${totalSuccess} users.`);

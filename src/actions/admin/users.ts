@@ -28,112 +28,138 @@ export async function bulkImportUsers({
     new Set(users.map((u) => u.groupName).filter(Boolean)),
   ) as string[];
 
-  for (const groupName of uniqueGroupNames) {
-    if (!groupName) continue;
-    const existing = await db.query.userGroups.findFirst({
-      where: eq(userGroups.name, groupName),
-    });
-    if (existing) {
-      groupCache.set(groupName, existing.id);
-    } else {
-      const [newGroup] = await db
-        .insert(userGroups)
-        .values({
-          name: groupName,
-          description: "Imported via Admin Portal",
-        })
-        .returning();
-      groupCache.set(groupName, newGroup.id);
-    }
-  }
-
-  // 2. Process Users
-  for (const userData of users) {
-    try {
-      let password = config.defaultPassword;
-      if (config.passwordFromDob && userData.dob) {
-        password = userData.dob.replace(/[^0-9]/g, "");
-      }
-
-      let gender = userData.gender?.toLowerCase()?.trim();
-      if (gender === "m" || gender === "male") gender = "male";
-      else if (gender === "f" || gender === "female") gender = "female";
-      else if (gender) gender = "other";
-
-      let parsedDob: Date | undefined;
-      if (userData.dob) {
-        const parts = userData.dob.split(/[-/]/);
-        if (parts.length === 3 && parts[2].length === 4) {
-          const d = parseInt(parts[0], 10);
-          const m = parseInt(parts[1], 10) - 1;
-          const y = parseInt(parts[2], 10);
-          parsedDob = new Date(y, m, d);
-        } else {
-          parsedDob = new Date(userData.dob);
-        }
-        if (parsedDob && Number.isNaN(parsedDob.getTime())) {
-          parsedDob = undefined;
-        }
-      }
-
-      await auth.api.createUser({
-        body: {
-          email: userData.email,
-          password: password,
-          name: userData.name,
-          role: userData.role || "user",
-          data: {
-            username: userData.username,
-            branch: userData.branch,
-            section: userData.section,
-            gender: gender,
-            regulation: userData.regulation,
-            dob: parsedDob,
-          },
-          // Username is handled by plugin, usually generated from email or name if not provided?
-          // Better Auth username plugin might fail if username not provided in body?
-          // If username is provided in CSV, use it.
-        },
+  // Fetch or create groups in parallel
+  await Promise.all(
+    uniqueGroupNames.map(async (groupName) => {
+      const existing = await db.query.userGroups.findFirst({
+        where: eq(userGroups.name, groupName),
       });
-
-      // Link Group
-      if (userData.groupName && groupCache.has(userData.groupName)) {
-        const createdUser = await db.query.user.findFirst({
-          where: eq(user.email, userData.email),
-        });
-        if (createdUser) {
-          const groupId = groupCache.get(userData.groupName)!;
-          // Check membership
-          const existingMember = await db.query.userGroupMembers.findFirst({
-            where: and(
-              eq(userGroupMembers.userId, createdUser.id),
-              eq(userGroupMembers.groupId, groupId),
-            ),
+      if (existing) {
+        groupCache.set(groupName, existing.id);
+      } else {
+        // Simple duplicate protection for concurrent requests or same group missing
+        try {
+          const [newGroup] = await db
+            .insert(userGroups)
+            .values({
+              name: groupName,
+              description: "Imported via Admin Portal",
+            })
+            .returning();
+          groupCache.set(groupName, newGroup.id);
+        } catch (e) {
+          // If concurrent insert failed, try fetching again
+          const retry = await db.query.userGroups.findFirst({
+            where: eq(userGroups.name, groupName),
           });
-          if (!existingMember) {
-            await db.insert(userGroupMembers).values({
-              userId: createdUser.id,
-              groupId: groupId,
-            });
+          if (retry) {
+            groupCache.set(groupName, retry.id);
           }
         }
       }
+    }),
+  );
 
+  // 2. Process Users concurrently
+  const userPromises = users.map(async (userData) => {
+    let gender = userData.gender?.toLowerCase()?.trim();
+    if (gender === "m" || gender === "male") gender = "male";
+    else if (gender === "f" || gender === "female") gender = "female";
+    else if (gender) gender = "other";
+
+    let parsedDob: Date | undefined;
+    if (userData.dob) {
+      const parts = userData.dob.split(/[-/]/);
+      if (parts.length === 3 && parts[2].length === 4) {
+        const d = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const y = parseInt(parts[2], 10);
+        parsedDob = new Date(y, m, d);
+      } else {
+        parsedDob = new Date(userData.dob);
+      }
+      if (parsedDob && Number.isNaN(parsedDob.getTime())) {
+        parsedDob = undefined;
+      }
+    }
+
+    let password = config.defaultPassword;
+    if (config.passwordFromDob && parsedDob) {
+      // Generate password in exact DDMMYYYY format
+      const dd = String(parsedDob.getDate()).padStart(2, "0");
+      const mm = String(parsedDob.getMonth() + 1).padStart(2, "0");
+      const yyyy = String(parsedDob.getFullYear());
+      password = `${dd}${mm}${yyyy}`;
+    } else if (config.passwordFromDob && userData.dob) {
+      // Fallback to strip if parsing failed but dob provided
+      password = userData.dob.replace(/[^0-9]/g, "");
+    }
+
+    const newUser = await auth.api.createUser({
+      body: {
+        email: userData.email,
+        password: password,
+        name: userData.name,
+        role: userData.role || "user",
+        data: {
+          username: userData.username,
+          branch: userData.branch,
+          semester: userData.semester,
+          section: userData.section,
+          gender: gender,
+          regulation: userData.regulation,
+          dob: parsedDob,
+        },
+      },
+    });
+
+    // Link Group
+    if (
+      userData.groupName &&
+      groupCache.has(userData.groupName) &&
+      newUser?.user?.id
+    ) {
+      const groupId = groupCache.get(userData.groupName)!;
+      // Check membership
+      const existingMember = await db.query.userGroupMembers.findFirst({
+        where: and(
+          eq(userGroupMembers.userId, newUser.user.id),
+          eq(userGroupMembers.groupId, groupId),
+        ),
+      });
+      if (!existingMember) {
+        await db.insert(userGroupMembers).values({
+          userId: newUser.user.id,
+          groupId: groupId,
+        });
+      }
+    }
+  });
+
+  const results = await Promise.allSettled(userPromises);
+
+  results.forEach((res, index) => {
+    if (res.status === "fulfilled") {
       successCount++;
-    } catch (err) {
-      console.error(`Failed to import user ${userData.email}:`, err);
+    } else {
+      console.error(`Failed to import user ${users[index].email}:`, res.reason);
       errorCount++;
     }
-  }
+  });
 
   if (revalidate) {
     revalidatePath("/admin/users");
   }
+
+  const processedGroups = Array.from(groupCache.entries()).map(
+    ([name, id]) => ({ id, name }),
+  );
+
   return {
     success: true,
     count: successCount,
     errorCount,
-    groupCount: groupCache.size,
+    processedGroups,
     message: "Import processing complete.",
   };
 }
