@@ -188,34 +188,6 @@ export async function getRuntimes(): Promise<Runtime[]> {
   return response.json();
 }
 
-export interface Package {
-  name: string;
-  version: string;
-  installed: boolean;
-}
-
-/**
- * Get available packages from the Turbo Engine.
- * This returns installed language runtimes.
- */
-export async function getPackages(): Promise<Package[]> {
-  const response = await fetch(`${TURBO_API_BASE_URL}/packages`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new TurboError(
-      `Failed to fetch packages: ${response.status}`,
-      response.status,
-    );
-  }
-
-  return response.json();
-}
-
 // ============================================
 // Error Handling
 // ============================================

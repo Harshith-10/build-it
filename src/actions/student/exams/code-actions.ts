@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import {
   executeCode,
-  getPackages,
+  getRuntimes as getTurboRuntimes,
   type JobResult,
   mapTestCases,
   TurboError,
@@ -188,10 +188,8 @@ export async function runWithCustomInput(
 }
 
 /**
-/**
  * Fetch available Language runtimes from the Turbo Engine.
- * Uses the /packages endpoint to get installed language runtimes.
- * Returns both Java and Python runtimes.
+ * Uses the /runtimes endpoint to get installed language runtimes.
  */
 export async function getRuntimes(): Promise<{
   success: boolean;
@@ -199,14 +197,13 @@ export async function getRuntimes(): Promise<{
   error?: string;
 }> {
   try {
-    const allPackages = await getPackages();
-    // Filter for installed Java and Python packages
+    const allRuntimes = await getTurboRuntimes();
     const runtimes: Array<{ language: string; version: string }> = [];
 
-    allPackages.forEach((pkg) => {
-      if (!pkg.installed) return;
-      const name = pkg.name.toLowerCase();
-      if (name === "java" || name === "python") {
+    allRuntimes.forEach((pkg) => {
+      const name = pkg.language.toLowerCase();
+      // Maintain previous filtering if desired, or return all available
+      if (name === "java" || name === "python" || name === "rust") {
         runtimes.push({
           language: name,
           version: pkg.version,

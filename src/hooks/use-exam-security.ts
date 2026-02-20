@@ -71,9 +71,9 @@ export const useExamSecurity = ({
       // Show immediate feedback for non-blocking issues
       if (!isSevere) {
         if (type === "external_paste") {
-          toast.warning("External Paste Blocked", {
+          toast.error("External Paste Detected!", {
             description:
-              "You cannot paste content from outside the exam environment.",
+              "You're not allowed to paste content from outside the exam environment. This has been recorded.",
           });
         } else if (type === "right_click") {
           toast.warning("Right Click Disabled", {
