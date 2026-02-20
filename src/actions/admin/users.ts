@@ -62,6 +62,7 @@ export async function bulkImportUsers({
           name: userData.name,
           role: userData.role || "user",
           data: {
+            username: userData.username,
             branch: userData.branch,
             section: userData.section,
             gender: userData.gender,

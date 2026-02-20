@@ -6,6 +6,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { bulkImportUsers } from "@/actions/admin/users";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import {
@@ -295,31 +302,47 @@ export function UserImportWizard() {
                 Ready to import <strong>{csvData.length}</strong> records.
               </AlertDescription>
             </Alert>
-
-            {isSubmitting && totalCount > 0 && (
-              <div className="space-y-2 mt-4">
-                <div className="flex justify-between text-sm">
-                  <span>Importing...</span>
-                  <span>
-                    {processedCount} / {totalCount}
-                  </span>
-                </div>
-                <Progress value={progress} />
-              </div>
-            )}
           </div>
         )}
+
+        <Dialog open={isSubmitting && totalCount > 0} onOpenChange={() => {}}>
+          <DialogContent className="sm:max-w-md [&>button]:hidden">
+            <DialogHeader>
+              <DialogTitle>Importing Users</DialogTitle>
+              <DialogDescription>
+                Please wait while we process the CSV. Do not close this page.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="flex justify-between text-sm font-medium">
+                <span>Progress</span>
+                <span>
+                  {processedCount} / {totalCount}
+                </span>
+              </div>
+              <Progress value={progress} className="h-3" />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {step === 3 && result && (
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <CheckCircle2 className="h-16 w-16 text-green-500" />
-            <h3 className="text-2xl font-bold">Import Successful!</h3>
-            <p className="text-muted-foreground text-center">
-              Processed {result.count} users successfully.
-              <br />
-              Created/Found {result.groupCount} groups.
-            </p>
-            {/* Download generated creds button could go here */}
+            <h3 className="text-2xl font-bold">Import Complete</h3>
+            <div className="text-center space-y-2">
+              <p className="text-muted-foreground">
+                Successfully processed <strong>{result.count}</strong> users.
+              </p>
+              {result.errorCount > 0 && (
+                <p className="text-red-500 font-medium">
+                  Failed to process <strong>{result.errorCount}</strong> users.
+                  They might have missing or invalid data.
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Created/Found {result.groupCount} groups.
+              </p>
+            </div>
           </div>
         )}
       </CardContent>

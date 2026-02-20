@@ -3,6 +3,7 @@ import { confirm } from "@inquirer/prompts";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
+import { auth } from "./src/lib/auth";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -75,6 +76,20 @@ async function main() {
         await db.execute(sql.raw(`TRUNCATE TABLE ${tableNames} CASCADE;`));
         console.log(`Successfully truncated ${tables.length} tables.`);
       }
+
+      console.log("Creating default system administrator...");
+      await auth.api.createUser({
+        body: {
+          email: "admin@buildit.iare.ac.in",
+          password: "builditadmin123",
+          name: "System Administrator",
+          role: "admin",
+          data: {
+            username: "admin",
+          },
+        },
+      });
+      console.log("Admin user created.");
     }
   } catch (error) {
     console.error("Error occurred during reset:", error);
