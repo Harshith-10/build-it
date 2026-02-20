@@ -55,6 +55,27 @@ export async function bulkImportUsers({
         password = userData.dob.replace(/[^0-9]/g, "");
       }
 
+      let gender = userData.gender?.toLowerCase()?.trim();
+      if (gender === "m" || gender === "male") gender = "male";
+      else if (gender === "f" || gender === "female") gender = "female";
+      else if (gender) gender = "other";
+
+      let parsedDob: Date | undefined = undefined;
+      if (userData.dob) {
+        const parts = userData.dob.split(/[-/]/);
+        if (parts.length === 3 && parts[2].length === 4) {
+          const d = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          const y = parseInt(parts[2], 10);
+          parsedDob = new Date(y, m, d);
+        } else {
+          parsedDob = new Date(userData.dob);
+        }
+        if (parsedDob && isNaN(parsedDob.getTime())) {
+          parsedDob = undefined;
+        }
+      }
+
       await auth.api.createUser({
         body: {
           email: userData.email,
@@ -65,9 +86,9 @@ export async function bulkImportUsers({
             username: userData.username,
             branch: userData.branch,
             section: userData.section,
-            gender: userData.gender,
+            gender: gender,
             regulation: userData.regulation,
-            dob: userData.dob ? new Date(userData.dob) : undefined,
+            dob: parsedDob,
           },
           // Username is handled by plugin, usually generated from email or name if not provided?
           // Better Auth username plugin might fail if username not provided in body?
