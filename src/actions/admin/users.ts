@@ -60,7 +60,7 @@ export async function bulkImportUsers({
       else if (gender === "f" || gender === "female") gender = "female";
       else if (gender) gender = "other";
 
-      let parsedDob: Date | undefined = undefined;
+      let parsedDob: Date | undefined;
       if (userData.dob) {
         const parts = userData.dob.split(/[-/]/);
         if (parts.length === 3 && parts[2].length === 4) {
@@ -71,7 +71,7 @@ export async function bulkImportUsers({
         } else {
           parsedDob = new Date(userData.dob);
         }
-        if (parsedDob && isNaN(parsedDob.getTime())) {
+        if (parsedDob && Number.isNaN(parsedDob.getTime())) {
           parsedDob = undefined;
         }
       }

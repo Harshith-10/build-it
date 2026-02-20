@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { confirm } from "@inquirer/prompts";
-import { Pool } from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { auth } from "./src/lib/auth";
 
 async function main() {
