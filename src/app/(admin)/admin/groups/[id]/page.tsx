@@ -1,5 +1,5 @@
-import { ComponentProps } from "react";
 import { notFound } from "next/navigation";
+import type { ComponentProps } from "react";
 import { getGroup } from "@/actions/admin/groups";
 import { GroupForm } from "@/components/admin/groups/group-form";
 import { PageHeader } from "@/components/admin/page-header";

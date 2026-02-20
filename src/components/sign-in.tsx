@@ -30,14 +30,13 @@ type SignInValues = z.infer<typeof signInSchema>;
 
 export default function SignIn() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -51,20 +50,23 @@ export default function SignIn() {
 
     const callbacks = {
       onRequest: () => {
-        setLoading(true);
         setError(null);
       },
-      onSuccess: async () => {
-        const { data } = await authClient.getSession();
+      onSuccess: (ctx: any) => {
         toast.success("Login successful");
-        if (data?.user?.role === "admin") {
+
+        // Force Next.js to update server components with the new cookie
+        router.refresh();
+
+        // Read the user role directly from the Better-Auth context data
+        // Check your specific Better-Auth version's return type, usually it's ctx.data.user
+        if (ctx.data?.user?.role === "admin") {
           router.push("/admin");
         } else {
           router.push("/exams");
         }
       },
       onError: (ctx: { error: { message: string } }) => {
-        setLoading(false);
         setError(ctx.error.message);
         toast.error(ctx.error.message);
       },
@@ -154,8 +156,8 @@ export default function SignIn() {
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Signing In...
