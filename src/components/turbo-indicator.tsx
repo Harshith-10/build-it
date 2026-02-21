@@ -25,7 +25,7 @@ export default function TurboIndicator() {
         <div className="h-2 w-2 bg-green-500 rounded-full" />
       )}
       <span className="text-muted-foreground text-xs hidden sm:inline-block">
-        Turbo Server
+        Turbo
       </span>
     </div>
   );
