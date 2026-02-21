@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useTurboStore } from "@/components/store/use-turbo-store";
 
 interface ExamCardActionProps {
   examId: string;
@@ -23,6 +24,7 @@ export function ExamCardAction({
   const [status, setStatus] = useState(initialStatus);
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
   const router = useRouter();
+  const { status: turboStatus } = useTurboStore();
 
   useEffect(() => {
     // If already active or ended, do nothing
@@ -75,6 +77,20 @@ export function ExamCardAction({
   }
 
   if (status === "active") {
+    if (turboStatus === "offline") {
+      return (
+        <Button
+          variant="secondary"
+          className="w-full cursor-not-allowed"
+          disabled
+        >
+          <span className="text-destructive font-medium">
+            Turbo Server Offline - Contact Admin
+          </span>
+        </Button>
+      );
+    }
+
     return (
       <Button className="w-full group" asChild>
         <Link href={`/exams/${examId}/onboarding`}>
@@ -111,9 +127,20 @@ export function ExamCardAction({
     );
   }
 
+  const tzName = (() => {
+    try {
+      return Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+        .format(new Date())
+        .split(" ")
+        .pop();
+    } catch {
+      return "";
+    }
+  })();
+
   return (
     <Button variant="outline" className="w-full" disabled>
-      Opens {format(effectiveStart, "MMM d, HH:mm")}
+      Opens {format(effectiveStart, "MMM d, HH:mm")} {tzName}
     </Button>
   );
 }

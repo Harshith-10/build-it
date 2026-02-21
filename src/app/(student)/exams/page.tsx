@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { eq, inArray } from "drizzle-orm";
-import { Calendar, Clock, Timer } from "lucide-react";
+import { Calendar, Clock, Timer, LayoutList, Trophy } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -126,6 +126,17 @@ export default async function ExamsPage() {
       };
     });
 
+  const tzName = (() => {
+    try {
+      return Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+        .format(new Date())
+        .split(" ")
+        .pop();
+    } catch {
+      return "";
+    }
+  })();
+
   return (
     <div className="space-y-6 mx-auto max-w-screen-2xl">
       <div className="flex items-center justify-between">
@@ -137,7 +148,7 @@ export default async function ExamsPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         {examsWithSlots.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center p-8 border rounded-lg border-dashed text-center">
             <div className="bg-muted p-4 rounded-full mb-4">
@@ -181,13 +192,42 @@ export default async function ExamsPage() {
                     <Clock className="h-4 w-4" />
                     <span>
                       {format(exam.effectiveStart, "HH:mm")} -{" "}
-                      {format(exam.effectiveEnd, "HH:mm")}
+                      {format(exam.effectiveEnd, "HH:mm")} {tzName}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 col-span-2">
+                  <div className="flex items-center gap-2">
                     <Timer className="h-4 w-4" />
-                    <span>{exam.durationMinutes} minutes</span>
+                    <span>{exam.durationMinutes} mins</span>
                   </div>
+                  {exam.gradingConfig &&
+                    // biome-ignore lint/suspicious/noExplicitAny: complex json column
+                    (exam.gradingConfig as any).totalMarks && (
+                      <div className="flex items-center gap-2">
+                        <Trophy className="h-4 w-4" />
+                        <span>
+                          {
+                            // biome-ignore lint/suspicious/noExplicitAny: complex json column
+                            (exam.gradingConfig as any).totalMarks
+                          }{" "}
+                          Marks
+                        </span>
+                      </div>
+                    )}
+                  {exam.strategyConfig &&
+                    exam.strategyType === "random_n" &&
+                    // biome-ignore lint/suspicious/noExplicitAny: complex json column
+                    (exam.strategyConfig as any).count && (
+                      <div className="flex items-center gap-2">
+                        <LayoutList className="h-4 w-4" />
+                        <span>
+                          {
+                            // biome-ignore lint/suspicious/noExplicitAny: complex json column
+                            (exam.strategyConfig as any).count
+                          }{" "}
+                          Questions
+                        </span>
+                      </div>
+                    )}
                 </div>
               </CardContent>
               <CardFooter>
