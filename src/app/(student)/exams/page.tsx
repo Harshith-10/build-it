@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { eq, inArray } from "drizzle-orm";
-import { Calendar, Clock, Timer, LayoutList, Trophy } from "lucide-react";
+import { Calendar, Clock, LayoutList, Timer, Trophy } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";

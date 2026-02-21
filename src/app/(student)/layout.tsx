@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
-import { requireUser } from "@/lib/auth-access";
 import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/animate-ui/components/radix/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardHeader } from "@/components/layouts/dashboard-header";
+import { requireUser } from "@/lib/auth-access";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;

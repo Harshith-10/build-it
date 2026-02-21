@@ -26,7 +26,7 @@ export function DateTimePicker({
 }: DateTimePickerProps) {
   const [open, setOpen] = React.useState(false);
 
-  let dateValue: Date | undefined = undefined;
+  let dateValue: Date | undefined;
   if (value) {
     const d = new Date(value);
     if (!Number.isNaN(d.getTime())) {
