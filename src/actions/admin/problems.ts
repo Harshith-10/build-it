@@ -116,7 +116,7 @@ export async function upsertProblem(data: any) {
           problemStatement: data.problemStatement,
           difficulty: data.difficulty,
           driverCode: data.driverCode,
-          allowedLanguages: data.allowedLanguages || ["javascript"], // Default
+          allowedLanguages: data.allowedLanguages || ["java"], // Default
         })
         .where(eq(questions.id, problemId));
 
@@ -131,7 +131,7 @@ export async function upsertProblem(data: any) {
           problemStatement: data.problemStatement,
           difficulty: data.difficulty,
           driverCode: data.driverCode,
-          allowedLanguages: data.allowedLanguages || ["javascript"],
+          allowedLanguages: data.allowedLanguages || ["java"],
         })
         .returning();
       problemId = newProblem.id;

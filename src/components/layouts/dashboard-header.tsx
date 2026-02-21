@@ -11,6 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import TurboIndicator from "../turbo-indicator";
 
 const labelMap: Record<string, string> = {
   dashboard: "Dashboard",
@@ -37,9 +38,9 @@ export function DashboardHeader() {
   });
 
   return (
-    <header className="sticky top-0 pt-2 z-50 flex shrink-0 items-center border-b bg-background">
+    <header className="sticky top-0 pt-2 pr-4 z-50 flex shrink-0 items-center border-b bg-background">
       <SidebarTrigger className="m-2 mr-4" />
-      <Breadcrumb>
+      <Breadcrumb className="flex-1">
         <BreadcrumbList>
           {crumbs.map((crumb, idx) => (
             <React.Fragment key={crumb.href}>
@@ -57,6 +58,7 @@ export function DashboardHeader() {
           ))}
         </BreadcrumbList>
       </Breadcrumb>
+      <TurboIndicator />
     </header>
   );
 }

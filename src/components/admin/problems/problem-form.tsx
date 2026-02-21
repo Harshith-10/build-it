@@ -17,17 +17,19 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import * as z from "zod";
 import { upsertProblem } from "@/actions/admin/problems";
-import { runWithCustomInput } from "@/actions/student/exams/code-actions";
+import { runCode, getRuntimes } from "@/actions/student/exams/code-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useProblemStore } from "./use-problem-store";
+import { useTurboStore } from "@/components/store/use-turbo-store";
 import {
   Form,
   FormControl,
@@ -54,8 +56,8 @@ const problemSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   difficulty: z.enum(["easy", "medium", "hard"]),
   problemStatement: z.string().min(10, "Problem statement is required"),
-  driverCode: z.string().optional(),
-  allowedLanguages: z.array(z.string()).default(["javascript"]),
+  driverCode: z.record(z.string(), z.string()).optional(),
+  allowedLanguages: z.array(z.string()).default(["java"]),
   testCases: z.array(
     z.object({
       input: z.string(),
@@ -82,9 +84,43 @@ const languageExtensions: Record<string, () => any> = {
 export function ProblemForm({ initialData }: { initialData?: any }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [driverLang, setDriverLang] = useState("javascript");
-  const [isRunning, setIsRunning] = useState(false);
-  const [runOutput, setRunOutput] = useState<string | null>(null);
+
+  const {
+    allowedLanguages,
+    driverCodeMap,
+    toggleAllowedLanguage,
+    setDriverCode,
+    initialize,
+  } = useProblemStore();
+
+  const [codeTabLang, setCodeTabLang] = useState("java");
+  const [verifyTabLang, setVerifyTabLang] = useState("java");
+  const [isVerifying, setIsVerifying] = useState(false);
+  // biome-ignore lint/suspicious/noExplicitAny: Verify result typing
+  const [verifyResults, setVerifyResults] = useState<any[] | null>(null);
+  const [availableRuntimes, setAvailableRuntimes] = useState<
+    { language: string; version: string }[]
+  >([]);
+
+  const { isOnline } = useTurboStore();
+
+  useEffect(() => {
+    if (initialData) {
+      initialize(
+        initialData.allowedLanguages || ["java"],
+        initialData.driverCode || { java: defaultDriverCode },
+      );
+    } else {
+      initialize(["java"], { java: defaultDriverCode });
+    }
+
+    getRuntimes().then((res) => {
+      if (res.success && res.runtimes) {
+        setAvailableRuntimes(res.runtimes);
+      }
+    });
+  }, [initialData, initialize]);
+
   const [selectedTestCase, setSelectedTestCase] = useState(0);
 
   const form = useForm<ProblemFormValues>({
@@ -107,7 +143,12 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
   const onSubmit = async (data: ProblemFormValues) => {
     setIsSubmitting(true);
     try {
-      const res = await upsertProblem(data);
+      const payload = {
+        ...data,
+        allowedLanguages,
+        driverCode: driverCodeMap,
+      };
+      const res = await upsertProblem(payload);
       if (res.success) {
         toast.success("Problem saved successfully");
         router.push("/admin/problems");
@@ -121,36 +162,68 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     }
   };
 
-  const handleRunCode = useCallback(async () => {
-    const code = form.getValues("driverCode");
+  const handleVerify = useCallback(async () => {
+    if (!isOnline) {
+      toast.error("Turbo Server is offline. Cannot verify code.");
+      return;
+    }
+
+    const code = driverCodeMap[verifyTabLang];
     if (!code?.trim()) {
       toast.error("No driver code to run");
       return;
     }
-    setIsRunning(true);
-    setRunOutput(null);
+    const currentTestCases = form.getValues("testCases");
+    if (!currentTestCases || currentTestCases.length === 0) {
+      toast.error("Add test cases before verifying");
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerifyResults(null);
     try {
-      const result = await runWithCustomInput({
+      const result = await runCode({
         code,
-        language: driverLang,
-        stdin: "",
+        language: verifyTabLang,
+        testCases: currentTestCases.map((tc, idx) => ({
+          id: String(idx),
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+        })),
       });
+
       if (result.compilationError) {
-        setRunOutput(`Compilation Error:\n${result.compilationError}`);
+        toast.error("Compilation Error");
+        setVerifyResults([
+          {
+            id: "error",
+            passed: false,
+            actualOutput: `Compilation Error:\n${result.compilationError}`,
+          },
+        ]);
       } else if (result.error) {
-        setRunOutput(`Error: ${result.error}`);
-      } else {
-        setRunOutput(
-          [result.stdout, result.stderr].filter(Boolean).join("\n") ||
-            "(No output)",
-        );
+        toast.error("Execution Error");
+        setVerifyResults([
+          {
+            id: "error",
+            passed: false,
+            actualOutput: `Error: ${result.error}`,
+          },
+        ]);
+      } else if (result.results) {
+        setVerifyResults(result.results);
+        if (result.results.every((r) => r.passed)) {
+          toast.success("All test cases passed!");
+        } else {
+          toast.error("Some test cases failed");
+        }
       }
     } catch {
-      setRunOutput("Failed to execute code");
+      toast.error("Failed to execute code");
     } finally {
-      setIsRunning(false);
+      setIsVerifying(false);
     }
-  }, [form, driverLang]);
+  }, [driverCodeMap, verifyTabLang, form, isOnline]);
 
   // Ensure selectedTestCase is in bounds
   const safeIndex = selectedTestCase >= fields.length ? 0 : selectedTestCase;
@@ -183,6 +256,10 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                   {fields.length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="verify" className="gap-1.5">
+              <Play className="h-3.5 w-3.5" />
+              Verify
             </TabsTrigger>
           </TabsList>
 
@@ -269,78 +346,69 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
             value="code"
             className="flex-1 flex flex-col min-h-0 mt-4 gap-4"
           >
-            {/* Header with language selector + run */}
-            <div className="flex items-center justify-between shrink-0">
-              <div>
-                <h3 className="text-lg font-medium">Driver Code</h3>
-                <p className="text-sm text-muted-foreground">
-                  The code that wraps the user&apos;s solution and executes test
-                  cases.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select value={driverLang} onValueChange={setDriverLang}>
-                  <SelectTrigger className="w-[140px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="javascript">JavaScript</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="java">Java</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleRunCode}
-                  disabled={isRunning}
-                >
-                  {isRunning ? (
-                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Play className="mr-1 h-3.5 w-3.5" />
-                  )}
-                  Run
-                </Button>
-              </div>
-            </div>
-
-            {/* Code editor — fills remaining space */}
-            <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
-              <FormField
-                control={form.control}
-                name="driverCode"
-                render={({ field }) => (
-                  <CodeMirror
-                    value={field.value}
-                    height="100%"
-                    extensions={[
-                      (languageExtensions[driverLang] || javascript)(),
-                    ]}
-                    onChange={(value) => field.onChange(value)}
-                    theme="dark"
-                    style={{ height: "100%" }}
-                  />
+            <div className="flex-1 min-h-0 grid gap-4 grid-cols-1 lg:grid-cols-[200px_1fr]">
+              {/* Sidebar with language toggles */}
+              <div className="flex flex-col gap-2 border rounded-md p-3 overflow-y-auto min-h-0">
+                <h4 className="text-sm font-medium mb-1 shrink-0">
+                  Supported Languages
+                </h4>
+                {availableRuntimes.length === 0 ? (
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading...
+                  </div>
+                ) : (
+                  availableRuntimes.map((rt) => {
+                    const isAllowed = allowedLanguages.includes(rt.language);
+                    const isActive = codeTabLang === rt.language;
+                    return (
+                      <button
+                        type="button"
+                        key={rt.language}
+                        className={`flex items-center justify-between p-2 rounded-md border text-sm transition-colors cursor-pointer shrink-0 w-full text-left ${isActive ? "bg-primary/10 border-primary/30" : "hover:bg-muted"}`}
+                        onClick={() => {
+                          if (isAllowed || !isActive) {
+                            setCodeTabLang(rt.language);
+                          }
+                        }}
+                      >
+                        <span className="capitalize">{rt.language}</span>
+                        <Switch
+                          checked={isAllowed}
+                          onCheckedChange={() => {
+                            toggleAllowedLanguage(rt.language);
+                            if (!isAllowed) setCodeTabLang(rt.language);
+                          }}
+                        />
+                      </button>
+                    );
+                  })
                 )}
-              />
-            </div>
+              </div>
 
-            {/* Run output panel */}
-            {runOutput !== null && (
-              <Card className="bg-muted/30 shrink-0 max-h-[200px] overflow-auto">
-                <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-xs font-medium text-muted-foreground">
-                    Output
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-3 pb-3">
-                  <pre className="text-xs font-mono whitespace-pre-wrap">
-                    {runOutput}
-                  </pre>
-                </CardContent>
-              </Card>
-            )}
+              {/* Code editor for active lang */}
+              <div className="flex flex-col min-h-0 border rounded-md overflow-hidden">
+                <div className="bg-muted px-3 py-2 border-b flex items-center justify-between shrink-0">
+                  <span className="text-sm font-medium capitalize">
+                    {codeTabLang} Driver Code
+                  </span>
+                  {!allowedLanguages.includes(codeTabLang) && (
+                    <Badge variant="destructive" className="h-5">
+                      Not Allowed
+                    </Badge>
+                  )}
+                </div>
+                <CodeMirror
+                  value={driverCodeMap[codeTabLang] || ""}
+                  height="100%"
+                  extensions={[
+                    (languageExtensions[codeTabLang] || javascript)(),
+                  ]}
+                  onChange={(value) => setDriverCode(codeTabLang, value)}
+                  theme="dark"
+                  style={{ flex: 1, minHeight: 0 }}
+                />
+              </div>
+            </div>
           </TabsContent>
 
           {/* ─── Tab: Test Cases ─── */}
@@ -489,6 +557,126 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                 )}
               </div>
             )}
+          </TabsContent>
+
+          {/* ─── Tab: Verify ─── */}
+          <TabsContent
+            value="verify"
+            className="flex-1 flex flex-col min-h-0 mt-4 gap-4"
+          >
+            <div className="flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-lg font-medium">Verify Solution</h3>
+                <p className="text-sm text-muted-foreground">
+                  Run the driver code against the defined test cases.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={verifyTabLang} onValueChange={setVerifyTabLang}>
+                  <SelectTrigger className="w-[140px] h-8">
+                    <SelectValue placeholder="Language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowedLanguages.map((lang) => (
+                      <SelectItem
+                        key={lang}
+                        value={lang}
+                        className="capitalize"
+                      >
+                        {lang}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleVerify}
+                  disabled={isVerifying}
+                >
+                  {isVerifying ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Play className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Verify
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 grid gap-4 grid-cols-1 lg:grid-cols-[1fr_300px]">
+              {/* Code Editor */}
+              <div className="flex flex-col min-h-0 border rounded-md overflow-hidden">
+                <div className="bg-muted px-3 py-2 border-b flex items-center shrink-0">
+                  <span className="text-sm font-medium capitalize">
+                    {verifyTabLang} Test Editor
+                  </span>
+                </div>
+                <CodeMirror
+                  value={driverCodeMap[verifyTabLang] || ""}
+                  height="100%"
+                  extensions={[
+                    (languageExtensions[verifyTabLang] || javascript)(),
+                  ]}
+                  onChange={(value) => setDriverCode(verifyTabLang, value)}
+                  theme="dark"
+                  style={{ flex: 1, minHeight: 0 }}
+                />
+              </div>
+
+              {/* Results Panel */}
+              <div className="flex flex-col gap-2 overflow-y-auto min-h-0 border rounded-md p-3">
+                <h4 className="text-sm font-medium shrink-0">Results</h4>
+                {!verifyResults ? (
+                  <div className="text-sm text-muted-foreground flex-1 flex items-center justify-center">
+                    Click verify to run cases...
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 pb-2">
+                    {verifyResults.map((res, i) => (
+                      <Card
+                        key={res.id || i}
+                        className={`border ${res.passed ? "border-green-500/50 bg-green-500/5" : "border-red-500/50 bg-red-500/5"}`}
+                      >
+                        <CardHeader className="py-2 px-3 border-b flex flex-row items-center justify-between space-y-0">
+                          <CardTitle className="text-xs font-medium">
+                            {res.id === "error"
+                              ? "Execution Error"
+                              : `Test Case ${Number(res.id) + 1}`}
+                          </CardTitle>
+                          <Badge
+                            variant={res.passed ? "default" : "destructive"}
+                            className="text-[10px] h-4"
+                          >
+                            {res.passed ? "Passed" : "Failed"}
+                          </Badge>
+                        </CardHeader>
+                        <CardContent className="px-3 py-2 text-xs flex flex-col gap-2">
+                          {res.expectedOutput && (
+                            <div>
+                              <span className="font-semibold text-muted-foreground">
+                                Expected:
+                              </span>
+                              <pre className="mt-1 font-mono">
+                                {res.expectedOutput}
+                              </pre>
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-semibold text-muted-foreground">
+                              Output:
+                            </span>
+                            <pre className="mt-1 font-mono text-muted-foreground">
+                              {res.actualOutput || "(No output)"}
+                            </pre>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

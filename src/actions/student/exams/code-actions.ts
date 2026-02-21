@@ -202,13 +202,10 @@ export async function getRuntimes(): Promise<{
 
     allRuntimes.forEach((pkg) => {
       const name = pkg.language.toLowerCase();
-      // Maintain previous filtering if desired, or return all available
-      if (name === "java" || name === "python" || name === "rust") {
-        runtimes.push({
-          language: name,
-          version: pkg.version,
-        });
-      }
+      runtimes.push({
+        language: name,
+        version: pkg.version,
+      });
     });
 
     return {
@@ -230,5 +227,25 @@ export async function getRuntimes(): Promise<{
       error:
         error instanceof Error ? error.message : "Failed to fetch runtimes",
     };
+  }
+}
+
+/**
+ * Check if the Turbo server is online via health endpoint.
+ */
+export async function checkTurboHealth(): Promise<{ success: boolean }> {
+  try {
+    const healthUrl =
+      process.env.TURBO_HEALTH_URL || "http://localhost:4000/health";
+    const res = await fetch(healthUrl, {
+      method: "GET",
+      // Short timeout for health checks
+      signal: AbortSignal.timeout(3000),
+    });
+
+    // Status 200 implies healthy, return success based on that
+    return { success: res.ok };
+  } catch {
+    return { success: false };
   }
 }
