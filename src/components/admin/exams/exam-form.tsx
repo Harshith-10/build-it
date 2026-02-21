@@ -57,10 +57,10 @@ export function ExamForm({ initialData }: { initialData?: any }) {
       ? {
           ...initialData,
           startTime: initialData.startTime
-            ? new Date(initialData.startTime).toISOString().slice(0, 16)
+            ? new Date(initialData.startTime).toISOString()
             : "",
           endTime: initialData.endTime
-            ? new Date(initialData.endTime).toISOString().slice(0, 16)
+            ? new Date(initialData.endTime).toISOString()
             : "",
           duration: initialData.durationMinutes || 60,
           assignments:
@@ -68,11 +68,9 @@ export function ExamForm({ initialData }: { initialData?: any }) {
               groupId: eg.groupId,
               groupName: eg.group.name,
               startTime: eg.startTime
-                ? new Date(eg.startTime).toISOString().slice(0, 16)
+                ? new Date(eg.startTime).toISOString()
                 : "",
-              endTime: eg.endTime
-                ? new Date(eg.endTime).toISOString().slice(0, 16)
-                : "",
+              endTime: eg.endTime ? new Date(eg.endTime).toISOString() : "",
               requiresPin: !!eg.pin,
               pinCode: eg.pin,
             })) || [],

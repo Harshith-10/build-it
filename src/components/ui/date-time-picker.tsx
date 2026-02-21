@@ -26,26 +26,55 @@ export function DateTimePicker({
 }: DateTimePickerProps) {
   const [open, setOpen] = React.useState(false);
 
-  const dateValue = value ? new Date(value) : undefined;
-  const timeValue = value ? value.slice(11, 16) : "00:00";
+  let dateValue: Date | undefined = undefined;
+  if (value) {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      dateValue = d;
+    } else {
+      const datePart = value.split("T")[0];
+      if (datePart) {
+        const fallback = new Date(`${datePart}T00:00`);
+        if (!Number.isNaN(fallback.getTime())) {
+          dateValue = fallback;
+        }
+      }
+    }
+  }
+
+  const timeValue = dateValue
+    ? `${dateValue.getHours().toString().padStart(2, "0")}:${dateValue.getMinutes().toString().padStart(2, "0")}`
+    : value?.includes("T")
+      ? value.slice(11, 16)
+      : "00:00";
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
-    const time = timeValue || "00:00";
-    const iso = `${format(date, "yyyy-MM-dd")}T${time}`;
-    onChange?.(iso);
+    const [hours = 0, minutes = 0] = timeValue.split(":").map(Number);
+    const newDate = new Date(date);
+    newDate.setHours(hours, minutes, 0, 0);
+    onChange?.(newDate.toISOString());
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = e.target.value;
-    if (!dateValue) {
-      const today = format(new Date(), "yyyy-MM-dd");
-      onChange?.(`${today}T${time}`);
-    } else {
-      const iso = `${format(dateValue, "yyyy-MM-dd")}T${time}`;
-      onChange?.(iso);
-    }
+    const dateToUse = dateValue || new Date();
+    const [hours = 0, minutes = 0] = time.split(":").map(Number);
+    const newDate = new Date(dateToUse);
+    newDate.setHours(hours, minutes, 0, 0);
+    onChange?.(newDate.toISOString());
   };
+
+  const tzName = React.useMemo(() => {
+    try {
+      return Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+        .format(new Date())
+        .split(" ")
+        .pop();
+    } catch {
+      return "";
+    }
+  }, []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -58,7 +87,9 @@ export function DateTimePicker({
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {dateValue ? format(dateValue, "PPP 'at' HH:mm") : placeholder}
+          {dateValue
+            ? `${format(dateValue, timeValue ? "PPP 'at' HH:mm" : "PPP")} ${tzName ? `(${tzName})` : ""}`
+            : placeholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
