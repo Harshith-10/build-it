@@ -91,6 +91,7 @@ export function CreateUserDialog() {
           role: data.role,
           username: data.username || undefined,
           data: {
+            username: data.username || undefined,
             branch: data.branch || undefined,
             gender: data.gender || undefined,
             semester: data.semester || undefined,
@@ -106,6 +107,9 @@ export function CreateUserDialog() {
         setOpen(false);
         form.reset();
         router.refresh();
+        window.dispatchEvent(
+          new CustomEvent("entity-table-refresh", { detail: "User" }),
+        );
       } else {
         const err = await res.json().catch(() => ({}));
         toast.error(err.message || "Failed to create user");

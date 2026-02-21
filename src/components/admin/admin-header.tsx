@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import React from "react";
+import { SidebarTrigger } from "@/components/animate-ui/components/radix/sidebar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,7 +11,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import TurboIndicator from "../turbo-indicator";
 
 const labelMap: Record<string, string> = {

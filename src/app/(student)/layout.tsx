@@ -1,18 +1,30 @@
+import { cookies } from "next/headers";
+import { requireUser } from "@/lib/auth-access";
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/animate-ui/components/radix/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardHeader } from "@/components/layouts/dashboard-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default async function DashboardLayout({
+  children,
+}: DashboardLayoutProps) {
+  const session = await requireUser();
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  const isAdmin = session?.user?.role === "admin";
+
   return (
-    <SidebarProvider className="h-svh">
-      <AppSidebar />
+    <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
+      <AppSidebar isAdmin={isAdmin} />
       <SidebarInset>
         <DashboardHeader />
-        <main className="flex-1 h-full space-y-4 p-4 md:p-8 pt-6 overflow-hidden min-h-0">
+        <main className="flex-1 h-full space-y-4 p-6 overflow-hidden min-h-0">
           {children}
         </main>
       </SidebarInset>

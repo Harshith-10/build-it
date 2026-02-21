@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import React from "react";
+import { SidebarTrigger } from "@/components/animate-ui/components/radix/sidebar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,7 +11,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import TurboIndicator from "../turbo-indicator";
 
 const labelMap: Record<string, string> = {
@@ -38,7 +38,7 @@ export function DashboardHeader() {
   });
 
   return (
-    <header className="sticky top-0 pt-2 pr-4 z-50 flex shrink-0 items-center border-b bg-background">
+    <header className="sticky top-0 py-1 pr-4 z-50 flex shrink-0 items-center border-b bg-background">
       <SidebarTrigger className="m-2 mr-4" />
       <Breadcrumb className="flex-1">
         <BreadcrumbList>

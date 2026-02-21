@@ -47,7 +47,7 @@ export async function bulkImportUsers({
             })
             .returning();
           groupCache.set(groupName, newGroup.id);
-        } catch (e) {
+        } catch (_e) {
           // If concurrent insert failed, try fetching again
           const retry = await db.query.userGroups.findFirst({
             where: eq(userGroups.name, groupName),
@@ -260,7 +260,6 @@ export async function updateUser(
         data: {
           name: data.name,
           role: data.role,
-          username: data.username || undefined,
           gender: data.gender || undefined,
           branch: data.branch || undefined,
           semester: data.semester || undefined,
@@ -271,6 +270,18 @@ export async function updateUser(
       },
       headers: await h(),
     });
+
+    if (data.username !== undefined) {
+      // Manually update username since adminUpdateUser plugin might not handle it
+      await db
+        .update(user)
+        .set({
+          username: data.username || null,
+          displayUsername: data.username || null,
+        })
+        .where(eq(user.id, userId));
+    }
+
     revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {

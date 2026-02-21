@@ -11,6 +11,7 @@
     "prefix": ""
   },
   "iconLibrary": "lucide",
+  "menuAccent": "bold",
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
@@ -18,6 +19,7 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "menuAccent": "bold",
-  "registries": {}
+  "registries": {
+    "@animate-ui": "https://animate-ui.com/r/{name}.json"
+  }
 }

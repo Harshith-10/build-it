@@ -148,6 +148,9 @@ export function EditUserDialog({
         toast.success("User updated successfully");
         onOpenChange(false);
         router.refresh();
+        window.dispatchEvent(
+          new CustomEvent("entity-table-refresh", { detail: "User" }),
+        );
       } else {
         toast.error(result.error || "Failed to update user");
       }

@@ -3,11 +3,14 @@
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/animate-ui/components/radix/sidebar";
+import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 import { CodePlayground } from "./code-playground";
 import { ExamHeader } from "./exam-header";

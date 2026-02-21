@@ -1,6 +1,10 @@
+import { cookies } from "next/headers";
 import { AdminHeader } from "@/components/admin/admin-header";
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/animate-ui/components/radix/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireAdmin } from "@/lib/auth-access";
 
 export default async function AdminLayout({
@@ -8,11 +12,15 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdmin();
+  const session = await requireAdmin();
+
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  const isAdmin = session?.user?.role === "admin";
 
   return (
-    <SidebarProvider className="h-svh">
-      <AppSidebar />
+    <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
+      <AppSidebar isAdmin={isAdmin} />
       <SidebarInset>
         <AdminHeader />
         <div className="flex flex-1 flex-col gap-6 p-6 overflow-hidden min-h-0">

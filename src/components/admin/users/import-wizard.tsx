@@ -176,6 +176,9 @@ export function UserImportWizard() {
       });
       setStep(3);
       toast.success(`Successfully imported ${totalSuccess} users.`);
+      window.dispatchEvent(
+        new CustomEvent("entity-table-refresh", { detail: "User" }),
+      );
     } catch (error: any) {
       toast.error(`An error occurred: ${error.message}`);
     } finally {

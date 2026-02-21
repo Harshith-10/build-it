@@ -12,7 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar";
+} from "@/components/animate-ui/components/radix/sidebar";
 import type { Question } from "./ide-shell";
 
 interface ExamSidebarProps {

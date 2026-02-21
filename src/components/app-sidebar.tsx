@@ -27,9 +27,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar";
+} from "@/components/animate-ui/components/radix/sidebar";
 import { UserMenu } from "@/components/user-menu";
-import { useSession } from "@/lib/auth-client";
 
 const adminNavMain = [
   {
@@ -100,16 +99,16 @@ const navAccount = [
   },
 ];
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  isAdmin,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & { isAdmin: boolean }) {
   const pathname = usePathname();
-
-  const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "admin";
 
   const navMain = isAdmin ? adminNavMain : studentNavMain;
 
   return (
-    <Sidebar variant="floating" collapsible="icon" {...props}>
+    <Sidebar variant="sidebar" collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:px-0 transition-all">
           <div className="flex aspect-square size-8 items-center justify-center rounded-full">
@@ -127,8 +126,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </span>
           </div>
         </div>
-        <div className="h-px bg-sidebar-border" />
       </SidebarHeader>
+      <div className="-mt-[5.4px] mb-2 border-b border-sidebar-border" />
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>

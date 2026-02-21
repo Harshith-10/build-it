@@ -3,12 +3,12 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar";
+} from "@/components/animate-ui/components/radix/sidebar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const iconSizeMap = {

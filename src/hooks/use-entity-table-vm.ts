@@ -94,7 +94,19 @@ export function useEntityTableVM<T extends { id: string }>(
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+
+    const handleRefetch = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail === config.entityName) {
+        fetchData();
+      }
+    };
+
+    window.addEventListener("entity-table-refresh", handleRefetch);
+    return () => {
+      window.removeEventListener("entity-table-refresh", handleRefetch);
+    };
+  }, [fetchData, config.entityName]);
 
   // Delete workflow
   const handleDelete = useCallback(async () => {
