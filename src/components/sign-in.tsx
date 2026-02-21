@@ -52,19 +52,14 @@ export default function SignIn() {
       onRequest: () => {
         setError(null);
       },
-      onSuccess: (ctx: any) => {
+      onSuccess: () => {
         toast.success("Login successful");
+
+        // Push to root path, where app/page.tsx securely handles role-based routing
+        router.push("/");
 
         // Force Next.js to update server components with the new cookie
         router.refresh();
-
-        // Read the user role directly from the Better-Auth context data
-        // Check your specific Better-Auth version's return type, usually it's ctx.data.user
-        if (ctx.data?.user?.role === "admin") {
-          router.push("/admin");
-        } else {
-          router.push("/exams");
-        }
       },
       onError: (ctx: { error: { message: string } }) => {
         setError(ctx.error.message);
