@@ -132,6 +132,9 @@ importers:
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
+      drizzle-kit:
+        specifier: ^0.31.8
+        version: 0.31.8
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@types/pg@8.16.0)(kysely@0.28.9)(pg@8.16.3)
@@ -174,6 +177,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.16.3
+      pm2:
+        specifier: ^6.0.14
+        version: 6.0.14
       radix-ui:
         specifier: ^1.4.3
         version: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -247,12 +253,6 @@ importers:
       babel-plugin-react-compiler:
         specifier: 1.0.0
         version: 1.0.0
-      drizzle-kit:
-        specifier: ^0.31.8
-        version: 0.31.8
-      pm2:
-        specifier: ^6.0.14
-        version: 6.0.14
       tailwindcss:
         specifier: ^4
         version: 4.1.18
