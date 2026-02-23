@@ -78,9 +78,5 @@ jobs:
             # Install only production dependencies to save space/time
             pnpm install --prod --frozen-lockfile
 
-            # Database migrations (often safer to run from the server)
-            pnpm db:generate
-            pnpm db:push
-
             # Reload PM2
             pnpm exec pm2 reload "build-it" --update-env
