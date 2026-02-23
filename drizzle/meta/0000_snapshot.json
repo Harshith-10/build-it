@@ -1,5 +1,5 @@
 {
-  "id": "0e1eb17a-ed2a-403e-ba71-445561ebbc85",
+  "id": "5c68dce0-6e64-4942-9522-4b59928f17b7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -88,8 +88,12 @@
           "name": "exam_assignments_user_id_user_id_fk",
           "tableFrom": "exam_assignments",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -97,8 +101,12 @@
           "name": "exam_assignments_exam_id_exams_id_fk",
           "tableFrom": "exam_assignments",
           "tableTo": "exams",
-          "columnsFrom": ["exam_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "exam_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -152,8 +160,12 @@
           "name": "malpractice_events_assignment_id_exam_assignments_id_fk",
           "tableFrom": "malpractice_events",
           "tableTo": "exam_assignments",
-          "columnsFrom": ["assignment_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "assignment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -186,6 +198,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "language": {
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'java'"
         },
         "code": {
           "name": "code",
@@ -228,8 +247,12 @@
           "name": "submissions_assignment_id_exam_assignments_id_fk",
           "tableFrom": "submissions",
           "tableTo": "exam_assignments",
-          "columnsFrom": ["assignment_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "assignment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -237,8 +260,12 @@
           "name": "submissions_question_id_questions_id_fk",
           "tableFrom": "submissions",
           "tableTo": "questions",
-          "columnsFrom": ["question_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "question_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -355,8 +382,12 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -419,6 +450,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "impersonated_by": {
+          "name": "impersonated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -443,8 +480,12 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -454,7 +495,9 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -564,6 +607,25 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'student'"
+        },
+        "banned": {
+          "name": "banned",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "ban_reason": {
+          "name": "ban_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ban_expires": {
+          "name": "ban_expires",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -573,12 +635,16 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         },
         "user_username_unique": {
           "name": "user_username_unique",
           "nullsNotDistinct": false,
-          "columns": ["username"]
+          "columns": [
+            "username"
+          ]
         }
       },
       "policies": {},
@@ -687,6 +753,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "pin": {
+          "name": "pin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "assigned_at": {
           "name": "assigned_at",
           "type": "timestamp",
@@ -701,8 +773,12 @@
           "name": "exam_groups_exam_id_exams_id_fk",
           "tableFrom": "exam_groups",
           "tableTo": "exams",
-          "columnsFrom": ["exam_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "exam_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -710,8 +786,12 @@
           "name": "exam_groups_group_id_user_group_id_fk",
           "tableFrom": "exam_groups",
           "tableTo": "user_group",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -763,6 +843,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "requires_pin": {
+          "name": "requires_pin",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "status": {
           "name": "status",
           "type": "exam_status",
@@ -777,7 +864,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'random_3'"
+          "default": "'random_n'"
         },
         "grading_strategy": {
           "name": "grading_strategy",
@@ -785,10 +872,16 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'standard_20_40_50'"
+          "default": "'linear'"
         },
         "strategy_config": {
           "name": "strategy_config",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grading_config": {
+          "name": "grading_config",
           "type": "json",
           "primaryKey": false,
           "notNull": false
@@ -853,8 +946,12 @@
           "name": "user_group_member_group_id_user_group_id_fk",
           "tableFrom": "user_group_member",
           "tableTo": "user_group",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -862,8 +959,12 @@
           "name": "user_group_member_user_id_user_id_fk",
           "tableFrom": "user_group_member",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -896,6 +997,193 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.collection_questions": {
+      "name": "collection_questions",
+      "schema": "",
+      "columns": {
+        "collection_id": {
+          "name": "collection_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question_id": {
+          "name": "question_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "added_at": {
+          "name": "added_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "collection_questions_collection_id_question_collections_id_fk": {
+          "name": "collection_questions_collection_id_question_collections_id_fk",
+          "tableFrom": "collection_questions",
+          "tableTo": "question_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "collection_questions_question_id_questions_id_fk": {
+          "name": "collection_questions_question_id_questions_id_fk",
+          "tableFrom": "collection_questions",
+          "tableTo": "questions",
+          "columnsFrom": [
+            "question_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "collection_questions_collection_id_question_id_pk": {
+          "name": "collection_questions_collection_id_question_id_pk",
+          "columns": [
+            "collection_id",
+            "question_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.exam_collections": {
+      "name": "exam_collections",
+      "schema": "",
+      "columns": {
+        "exam_id": {
+          "name": "exam_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection_id": {
+          "name": "collection_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assigned_at": {
+          "name": "assigned_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "exam_collections_exam_id_exams_id_fk": {
+          "name": "exam_collections_exam_id_exams_id_fk",
+          "tableFrom": "exam_collections",
+          "tableTo": "exams",
+          "columnsFrom": [
+            "exam_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "exam_collections_collection_id_question_collections_id_fk": {
+          "name": "exam_collections_collection_id_question_collections_id_fk",
+          "tableFrom": "exam_collections",
+          "tableTo": "question_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "exam_collections_exam_id_collection_id_pk": {
+          "name": "exam_collections_exam_id_collection_id_pk",
+          "columns": [
+            "exam_id",
+            "collection_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.question_collections": {
+      "name": "question_collections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'[]'::json"
         },
         "created_at": {
           "name": "created_at",
@@ -963,6 +1251,20 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'{\"java\":\"\"}'::json"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -1016,8 +1318,12 @@
           "name": "test_cases_question_id_questions_id_fk",
           "tableFrom": "test_cases",
           "tableTo": "questions",
-          "columnsFrom": ["question_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "question_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1033,32 +1339,57 @@
     "public.assignment_status": {
       "name": "assignment_status",
       "schema": "public",
-      "values": ["not_started", "in_progress", "completed"]
+      "values": [
+        "not_started",
+        "in_progress",
+        "completed"
+      ]
     },
     "public.submission_verdict": {
       "name": "submission_verdict",
       "schema": "public",
-      "values": ["passed", "failed", "compile_error", "runtime_error"]
+      "values": [
+        "passed",
+        "failed",
+        "compile_error",
+        "runtime_error"
+      ]
     },
     "public.exam_status": {
       "name": "exam_status",
       "schema": "public",
-      "values": ["upcoming", "active", "ended"]
+      "values": [
+        "upcoming",
+        "active",
+        "ended"
+      ]
     },
     "public.grading_strategy": {
       "name": "grading_strategy",
       "schema": "public",
-      "values": ["standard_20_40_50", "linear"]
+      "values": [
+        "linear",
+        "difficulty_based",
+        "count_based"
+      ]
     },
     "public.strategy_type": {
       "name": "strategy_type",
       "schema": "public",
-      "values": ["random_3", "fixed_set", "difficulty_mix"]
+      "values": [
+        "random_n",
+        "fixed_set",
+        "difficulty_mix"
+      ]
     },
     "public.difficulty": {
       "name": "difficulty",
       "schema": "public",
-      "values": ["easy", "medium", "hard"]
+      "values": [
+        "easy",
+        "medium",
+        "hard"
+      ]
     }
   },
   "schemas": {},

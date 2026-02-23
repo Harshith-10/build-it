@@ -4,6 +4,7 @@ import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { examGroups, exams } from "@/db/schema/exams";
+import { examAssignments } from "@/db/schema/assignments";
 import { examCollections } from "@/db/schema/question-collections";
 import { requireAdmin } from "@/lib/auth-access";
 
@@ -190,5 +191,44 @@ export async function deleteExam(id: string) {
     return { success: true };
   } catch (_error) {
     return { success: false, error: "Failed to delete" };
+  }
+}
+
+export async function getExamSubmissions(examId: string) {
+  await requireAdmin();
+  const assignments = await db.query.examAssignments.findMany({
+    where: eq(examAssignments.examId, examId),
+    with: {
+      user: {
+        columns: {
+          id: true,
+          name: true,
+          email: true,
+          username: true,
+        },
+      },
+    },
+    orderBy: desc(examAssignments.createdAt),
+  });
+  return assignments;
+}
+
+export async function deleteExamSubmission(assignmentId: string) {
+  await requireAdmin();
+  try {
+    const [deleted] = await db
+      .delete(examAssignments)
+      .where(eq(examAssignments.id, assignmentId))
+      .returning({ id: examAssignments.id });
+
+    if (!deleted) {
+      return { success: false, error: "Submission not found" };
+    }
+
+    revalidatePath("/admin/exams");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete exam submission:", error);
+    return { success: false, error: "Failed to delete submission" };
   }
 }

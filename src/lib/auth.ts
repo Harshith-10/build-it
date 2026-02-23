@@ -19,12 +19,12 @@ export const auth = betterAuth({
   plugins: [
     username(),
     admin({
-      defaultRole: "user",
+      defaultRole: "student",
       adminRole: "admin",
     }),
   ],
   advanced: {
-    useSecureCookies: true,
+    useSecureCookies: process.env.NODE_ENV === "production",
   },
   user: {
     additionalFields: {

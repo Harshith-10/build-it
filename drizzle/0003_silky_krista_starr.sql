@@ -1,1 +1,0 @@
-ALTER TABLE "exams" ALTER COLUMN "strategy_type" SET DEFAULT 'random_n';

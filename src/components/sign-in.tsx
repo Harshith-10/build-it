@@ -46,7 +46,7 @@ export default function SignIn() {
   });
 
   const onSubmit = async (data: SignInValues) => {
-    const isEmail = z.string().email().safeParse(data.identifier).success;
+    const isEmail = z.email().safeParse(data.identifier).success;
 
     const callbacks = {
       onRequest: () => {
@@ -54,11 +54,7 @@ export default function SignIn() {
       },
       onSuccess: () => {
         toast.success("Login successful");
-
-        // Push to root path, where app/page.tsx securely handles role-based routing
         router.push("/");
-
-        // Force Next.js to update server components with the new cookie
         router.refresh();
       },
       onError: (ctx: { error: { message: string } }) => {

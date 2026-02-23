@@ -100,7 +100,7 @@ export async function bulkImportUsers({
         email: userData.email,
         password: password,
         name: userData.name,
-        role: userData.role || "user",
+        role: userData.role || "student",
         data: {
           username: userData.username,
           branch: userData.branch,

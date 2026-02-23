@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,132 +37,137 @@ const statusVariant = (status: string) => {
 
 export const createColumns = (
   onDelete: (id: string) => void,
+  onViewStudents: (id: string) => void,
   pageIndex: number,
   pageSize: number,
 ): ColumnDef<Exam>[] => [
-  {
-    id: "serialNumber",
-    header: "#",
-    cell: ({ row }) => (pageIndex - 1) * pageSize + row.index + 1,
-    enableSorting: false,
-    enableHiding: false,
-    size: 50,
-  },
-  {
-    accessorKey: "title",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Title" />
-    ),
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("title")}</div>
-    ),
-    enableSorting: true,
-  },
-  {
-    accessorKey: "startTime",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Start Time" />
-    ),
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("startTime") as string);
-      return (
-        <span className="text-muted-foreground">
-          {date.toLocaleString("en-US", {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "numeric",
-          })}
-        </span>
-      );
+    {
+      id: "serialNumber",
+      header: "#",
+      cell: ({ row }) => (pageIndex - 1) * pageSize + row.index + 1,
+      enableSorting: false,
+      enableHiding: false,
+      size: 50,
     },
-    enableSorting: true,
-  },
-  {
-    accessorKey: "strategyType",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Strategy" />
-    ),
-    cell: ({ row }) => {
-      const strategy = row.getValue("strategyType") as string;
-      return (
-        <Badge variant="outline" className="capitalize">
-          {strategy.replace("_", " ")}
-        </Badge>
-      );
+    {
+      accessorKey: "title",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Title" />
+      ),
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("title")}</div>
+      ),
+      enableSorting: true,
     },
-    enableSorting: true,
-  },
-  {
-    accessorKey: "status",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
-    cell: ({ row }) => {
-      const status = row.getValue("status") as string;
-      return (
-        <Badge variant={statusVariant(status)} className="capitalize">
-          {status}
-        </Badge>
-      );
+    {
+      accessorKey: "startTime",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Start Time" />
+      ),
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("startTime") as string);
+        return (
+          <span className="text-muted-foreground">
+            {date.toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "numeric",
+            })}
+          </span>
+        );
+      },
+      enableSorting: true,
     },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id));
+    {
+      accessorKey: "strategyType",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Strategy" />
+      ),
+      cell: ({ row }) => {
+        const strategy = row.getValue("strategyType") as string;
+        return (
+          <Badge variant="outline" className="capitalize">
+            {strategy.replace("_", " ")}
+          </Badge>
+        );
+      },
+      enableSorting: true,
     },
-    enableSorting: true,
-  },
-  {
-    accessorKey: "createdAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created" />
-    ),
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("createdAt") as string);
-      return (
-        <span className="text-muted-foreground">
-          {date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </span>
-      );
+    {
+      accessorKey: "status",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string;
+        return (
+          <Badge variant={statusVariant(status)} className="capitalize">
+            {status}
+          </Badge>
+        );
+      },
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
+      enableSorting: true,
     },
-    enableSorting: true,
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Actions" />
-    ),
-    cell: ({ row }) => {
-      const exam = row.original;
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/admin/exams/${exam.id}`}>
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => onDelete(exam.id)}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
+    {
+      accessorKey: "createdAt",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Created" />
+      ),
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("createdAt") as string);
+        return (
+          <span className="text-muted-foreground">
+            {date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </span>
+        );
+      },
+      enableSorting: true,
     },
-  },
-];
+    {
+      id: "actions",
+      enableHiding: false,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Actions" />
+      ),
+      cell: ({ row }) => {
+        const exam = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/admin/exams/${exam.id}`}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onViewStudents(exam.id)}>
+                <Users className="w-4 h-4 mr-2" />
+                View Students
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => onDelete(exam.id)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
