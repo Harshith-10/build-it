@@ -6,13 +6,52 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js app
+        run: pnpm build
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_SSL: ${{ secrets.DB_SSL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
+          TURBO_API_BASE_URL: ${{ secrets.TURBO_API_BASE_URL }}
+          TURBO_HEALTH_URL: ${{ secrets.TURBO_HEALTH_URL }}
+
+      - name: Copy build artifacts to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          # We sync the standalone build, public, and static files
+          source: ".next/,public/,package.json,pnpm-lock.yaml"
+          target: ${{ secrets.TARGET_DIR }}
+
+      - name: Finalize Deployment via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST_DNS }}
@@ -21,29 +60,17 @@ jobs:
           port: 22
           script_stop: true
           script: |
-            # Add fnm to the PATH
             export PATH="/home/developer/.local/share/fnm:$PATH"
-
-            # Initialize fnm environment
             eval "$(fnm env --shell bash)"
             
-            # Navigate to the project directory
             cd ${{ secrets.TARGET_DIR }}
 
-            # Pull latest changes
-            git pull origin main
+            # Install only production dependencies to save space/time
+            pnpm install --prod --frozen-lockfile
 
-            # Install dependencies (frozen-lockfile ensures strict adherence to pnpm-lock.yaml)
-            pnpm install --frozen-lockfile
-
-            # Build the Next.js app
-            pnpm build
-
-            # Generate schema migrations
+            # Database migrations (often safer to run from the server)
             pnpm db:generate
-
-            # Apply schema migrations
             pnpm db:push
 
-            # Reload PM2 with zero downtime
+            # Reload PM2
             pnpm exec pm2 reload "build-it" --update-env

@@ -148,7 +148,7 @@ export default async function ExamsPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {examsWithSlots.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center p-8 border rounded-lg border-dashed text-center">
             <div className="bg-muted p-4 rounded-full mb-4">
