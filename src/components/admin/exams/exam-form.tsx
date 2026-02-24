@@ -24,7 +24,7 @@ const examSchema = z.object({
   endTime: z.string(),
   duration: z.coerce.number().min(1),
 
-  strategyType: z.enum(["random_n", "fixed_set", "difficulty_mix"]),
+  strategyType: z.enum(["random_n", "difficulty_mix"]),
   strategyConfig: z.any(), // Refined based on type in UI
 
   gradingStrategy: z.enum(["linear", "difficulty_based", "count_based"]),
@@ -122,11 +122,11 @@ export function ExamForm({ initialData }: { initialData?: any }) {
       const total = gradingConfig?.totalMarks || 0;
       return count > 0 ? (total / count).toFixed(2) : 0;
     }
-    if (strategyType === "fixed_set") {
-      const count = strategyConfig?.questionIds?.length || 0;
-      const total = gradingConfig?.totalMarks || 0;
-      return count > 0 ? (total / count).toFixed(2) : 0;
-    }
+    // if (strategyType === "fixed_set") {
+    //   const count = strategyConfig?.questionIds?.length || 0;
+    //   const total = gradingConfig?.totalMarks || 0;
+    //   return count > 0 ? (total / count).toFixed(2) : 0;
+    // }
     if (strategyType === "difficulty_mix") {
       const count =
         (strategyConfig?.easy || 0) +

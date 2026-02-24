@@ -54,7 +54,7 @@ export function StrategyConfig() {
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="random_n">Random N Questions</SelectItem>
-                  <SelectItem value="fixed_set">Fixed Set</SelectItem>
+                  {/* <SelectItem value="fixed_set">Fixed Set</SelectItem> */}
                   <SelectItem value="difficulty_mix">Difficulty Mix</SelectItem>
                 </SelectContent>
               </Select>

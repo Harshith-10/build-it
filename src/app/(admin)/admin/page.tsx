@@ -115,7 +115,7 @@ export default async function AdminDashboard() {
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card
-              className={`bg-gradient-to-br ${stat.color} border transition-shadow hover:shadow-md cursor-pointer`}
+              className={`bg-linear-to-br ${stat.color} border transition-shadow hover:shadow-md cursor-pointer`}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">

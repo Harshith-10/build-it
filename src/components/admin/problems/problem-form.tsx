@@ -130,7 +130,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
       title: "",
       difficulty: "easy",
       problemStatement: "",
-      driverCode: defaultDriverCode,
+      driverCode: {},
       testCases: [{ input: "", expectedOutput: "", isHidden: false }],
     },
   });
@@ -141,6 +141,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
   });
 
   const onSubmit = async (data: ProblemFormValues) => {
+    console.log("OnSubmit triggered with data:", data);
     setIsSubmitting(true);
     try {
       const payload = {
@@ -160,6 +161,10 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const onError = (errors: any) => {
+    console.error("Form validation errors:", errors);
   };
 
   const handleVerify = useCallback(async () => {
@@ -231,7 +236,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(onSubmit, onError)}
         className="flex flex-1 flex-col min-h-0 gap-4"
       >
         <Tabs defaultValue="details" className="flex flex-1 flex-col min-h-0">
@@ -321,11 +326,16 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                     control={form.control}
                     name="problemStatement"
                     render={({ field }) => (
-                      <Textarea
-                        className="h-full google-sans w-full resize-none border-0 focus-visible:ring-0 p-4"
-                        placeholder="# Problem Description..."
-                        {...field}
-                      />
+                      <FormItem className="h-full flex flex-col space-y-0 relative">
+                        <FormControl className="h-full">
+                          <Textarea
+                            className="h-full google-sans w-full resize-none border-0 focus-visible:ring-0 p-4"
+                            placeholder="# Problem Description..."
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage className="absolute bottom-2 left-4" />
+                      </FormItem>
                     )}
                   />
                 </div>
@@ -361,8 +371,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                     const isAllowed = allowedLanguages.includes(rt.language);
                     const isActive = codeTabLang === rt.language;
                     return (
-                      <button
-                        type="button"
+                      <div
                         key={rt.language}
                         className={`flex items-center justify-between p-2 rounded-md border text-sm transition-colors cursor-pointer shrink-0 w-full text-left ${isActive ? "bg-primary/10 border-primary/30" : "hover:bg-muted"}`}
                         onClick={() => {
@@ -379,7 +388,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                             if (!isAllowed) setCodeTabLang(rt.language);
                           }}
                         />
-                      </button>
+                      </div>
                     );
                   })
                 )}
@@ -450,15 +459,13 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                   {fields.map((field, index) => {
                     const isHidden = form.watch(`testCases.${index}.isHidden`);
                     return (
-                      <button
+                      <div
                         key={field.id}
-                        type="button"
                         onClick={() => setSelectedTestCase(index)}
-                        className={`flex items-center justify-between px-3 py-2 rounded-md text-sm text-left transition-colors ${
-                          safeIndex === index
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-muted"
-                        }`}
+                        className={`flex items-center justify-between px-3 py-2 rounded-md text-sm text-left transition-colors cursor-pointer ${safeIndex === index
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                          }`}
                       >
                         <span className="flex items-center gap-2">
                           <span>Test {index + 1}</span>
@@ -483,7 +490,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
