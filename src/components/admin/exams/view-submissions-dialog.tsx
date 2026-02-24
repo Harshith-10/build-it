@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type SubmissionsResponse = Awaited<ReturnType<typeof getExamSubmissions>>;
+type SubmissionsResponse = Awaited<ReturnType<typeof getExamSubmissions>>["submissions"][number];
 
 interface ViewSubmissionsDialogProps {
     examId: string | null;
@@ -36,7 +36,7 @@ export function ViewSubmissionsDialog({
     open,
     onOpenChange,
 }: ViewSubmissionsDialogProps) {
-    const [submissions, setSubmissions] = useState<SubmissionsResponse>([]);
+    const [submissions, setSubmissions] = useState<SubmissionsResponse[]>([]);
     const [loading, setLoading] = useState(false);
 
     const handleDelete = async (id: string) => {
@@ -44,7 +44,7 @@ export function ViewSubmissionsDialog({
             const res = await deleteExamSubmission(id);
             if (res.success) {
                 toast.success("Submission deleted successfully");
-                setSubmissions(current => current.filter(sub => sub.id !== id));
+                setSubmissions(current => current.filter(cur => cur.id !== id));
             } else {
                 toast.error(res.error || "Failed to delete submission");
             }
@@ -56,8 +56,8 @@ export function ViewSubmissionsDialog({
     useEffect(() => {
         if (open && examId) {
             setLoading(true);
-            getExamSubmissions(examId)
-                .then(setSubmissions)
+            getExamSubmissions({examId})
+                .then(({submissions})=>setSubmissions(submissions))
                 .catch(console.error)
                 .finally(() => setLoading(false));
         } else {
