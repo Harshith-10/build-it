@@ -17,6 +17,8 @@ const labelMap: Record<string, string> = {
   admin: "Admin",
   problems: "Problems",
   exams: "Exams",
+  edit: "Edit",
+  submissions: "Submissions",
   groups: "Groups",
   collections: "Collections",
   users: "Users",
@@ -28,12 +30,17 @@ export function AdminHeader() {
   const segments = pathname.split("/").filter(Boolean);
   // segments: ["admin"] or ["admin", "problems"] or ["admin", "problems", "new"] etc.
 
-  const crumbs = segments.map((seg, idx) => {
+  const rawCrumbs = segments.map((seg, idx) => {
     const href = `/${segments.slice(0, idx + 1).join("/")}`;
-    const label = labelMap[seg] || (seg.length > 8 ? "Edit" : seg);
-    const isLast = idx === segments.length - 1;
-    return { href, label, isLast };
+    const label = labelMap[seg] || (seg.length > 8 ? "" : seg);
+    return { href, label };
   });
+
+  const visibleCrumbs = rawCrumbs.filter((crumb) => crumb.label !== "");
+  const crumbs = visibleCrumbs.map((crumb, idx) => ({
+    ...crumb,
+    isLast: idx === visibleCrumbs.length - 1,
+  }));
 
   return (
     <header className="sticky top-0 z-50 flex shrink-0 items-center pt-2 pr-4 border-b bg-background">

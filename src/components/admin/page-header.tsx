@@ -42,24 +42,13 @@ function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
 export function PageHeader({
   title,
   description,
-  backHref,
   actions,
 }: PageHeaderProps) {
-  const pathname = usePathname();
-  const _breadcrumbs = generateBreadcrumbs(pathname);
-
   return (
     <div className="space-y-1">
       {/* Title row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {backHref && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-              <Link href={backHref}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-          )}
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
             {description && (

@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
 
 export type Exam = {
   id: string;
@@ -37,7 +38,6 @@ const statusVariant = (status: string) => {
 
 export const createColumns = (
   onDelete: (id: string) => void,
-  onViewStudents: (id: string) => void,
   pageIndex: number,
   pageSize: number,
 ): ColumnDef<Exam>[] => [
@@ -139,6 +139,7 @@ export const createColumns = (
     ),
     cell: ({ row }) => {
       const exam = row.original;
+      const router = useRouter();
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -154,9 +155,9 @@ export const createColumns = (
                 Edit
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onViewStudents(exam.id)}>
+            <DropdownMenuItem onClick={() => router.push(`/admin/exams/${exam.id}/submissions`) }>
               <Users className="w-4 h-4 mr-2" />
-              View Students
+              View Submissions
             </DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"

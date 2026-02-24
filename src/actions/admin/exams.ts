@@ -1,8 +1,9 @@
 "use server";
 
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
+import { user } from "@/db/schema/auth";
 import { examGroups, exams } from "@/db/schema/exams";
 import { examAssignments } from "@/db/schema/assignments";
 import { examCollections } from "@/db/schema/question-collections";
@@ -194,23 +195,100 @@ export async function deleteExam(id: string) {
   }
 }
 
-export async function getExamSubmissions(examId: string) {
+export async function getExamSubmissions({
+  examId,
+  page = 1,
+  limit = 10,
+  search = "",
+  sort = "",
+  order = "desc",
+}: {
+  examId: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  sort?: string;
+  order?: "asc" | "desc";
+}) {
   await requireAdmin();
-  const assignments = await db.query.examAssignments.findMany({
-    where: eq(examAssignments.examId, examId),
-    with: {
-      user: {
-        columns: {
-          id: true,
-          name: true,
-          email: true,
-          username: true,
+  const offset = (page - 1) * limit;
+
+  // We filter by examId and optionally by user name/email if search is provided
+  const whereClause = and(
+    eq(examAssignments.examId, examId),
+    search
+      ? or(
+        ilike(user.name, `%${search}%`),
+        ilike(user.email, `%${search}%`),
+        ilike(user.username, `%${search}%`),
+      )
+      : undefined,
+  );
+
+  let orderBy = desc(examAssignments.createdAt);
+  if (sort) {
+    switch (sort) {
+      case "user.name":
+        orderBy =
+          order === "asc" ? sql`${user.name} asc` : sql`${user.name} desc`;
+        break;
+      case "status":
+        orderBy =
+          order === "asc"
+            ? sql`${examAssignments.status} asc`
+            : sql`${examAssignments.status} desc`;
+        break;
+      case "score":
+        orderBy =
+          order === "asc"
+            ? sql`${examAssignments.score} asc`
+            : sql`${examAssignments.score} desc`;
+        break;
+      case "malpracticeCount":
+        orderBy =
+          order === "asc"
+            ? sql`${examAssignments.malpracticeCount} asc`
+            : sql`${examAssignments.malpracticeCount} desc`;
+        break;
+      case "createdAt":
+        orderBy =
+          order === "asc"
+            ? sql`${examAssignments.createdAt} asc`
+            : sql`${examAssignments.createdAt} desc`;
+        break;
+    }
+  }
+
+  const [data, totalCount] = await Promise.all([
+    db.query.examAssignments.findMany({
+      where: whereClause,
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            username: true,
+          },
         },
       },
-    },
-    orderBy: desc(examAssignments.createdAt),
-  });
-  return assignments;
+      limit: limit,
+      offset: offset,
+      orderBy: orderBy,
+    }),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(examAssignments)
+      .leftJoin(user, eq(examAssignments.userId, user.id))
+      .where(whereClause),
+  ]);
+
+  return {
+    submissions: data,
+    total: Number(totalCount[0]?.count || 0),
+    page,
+    limit,
+  };
 }
 
 export async function deleteExamSubmission(assignmentId: string) {

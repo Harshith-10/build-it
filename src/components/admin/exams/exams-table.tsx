@@ -23,25 +23,12 @@ const examsConfig: EntityTableConfig<Exam> = {
 };
 
 export function ExamsTableContent() {
-  const [viewSubmissionsId, setViewSubmissionsId] =
-    useQueryState("viewSubmissions");
-
-  const handleViewSubmissions = (id: string) => {
-    setViewSubmissionsId(id);
-  };
-
-  const handleCloseSubmissionsDialog = (open: boolean) => {
-    if (!open) {
-      setViewSubmissionsId(null);
-    }
-  };
-
   return (
     <>
       <AdminEntityTable
         config={examsConfig}
         createColumns={(onDelete, page, pageSize) =>
-          createColumns(onDelete, handleViewSubmissions, page, pageSize)
+          createColumns(onDelete, page, pageSize)
         }
         emptyState={
           <div className="flex flex-col items-center gap-2">
@@ -52,12 +39,6 @@ export function ExamsTableContent() {
             </p>
           </div>
         }
-      />
-
-      <ViewSubmissionsDialog
-        examId={viewSubmissionsId}
-        open={!!viewSubmissionsId}
-        onOpenChange={handleCloseSubmissionsDialog}
       />
     </>
   );
