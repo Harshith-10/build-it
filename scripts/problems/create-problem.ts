@@ -1,6 +1,6 @@
 import inquirer from "inquirer";
-import { db } from "@/db";
-import { questions } from "@/db/schema/questions";
+import { db } from "../../src/db";
+import { questions } from "../../src/db/schema/questions";
 
 async function createProblem() {
   console.log("➕ Create New Problem");

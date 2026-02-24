@@ -4,6 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
+import type { GradingConfigMap } from "@/db/schema";
 import { examAssignments, submissions } from "@/db/schema/assignments";
 import { questions, testCases } from "@/db/schema/questions";
 import { auth } from "@/lib/auth";
@@ -197,7 +198,8 @@ export async function submitQuestion(
     }
 
     const gradingStrategy = assignment.exam.gradingStrategy;
-    const gradingConfig = assignment.exam.gradingConfig as any;
+    const gradingConfig = assignment.exam
+      .gradingConfig as GradingConfigMap[keyof GradingConfigMap];
     const questionDifficulties: Record<string, "easy" | "medium" | "hard"> = {};
 
     if (gradingStrategy === "difficulty_based") {

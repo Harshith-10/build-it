@@ -7,7 +7,7 @@ const CSV_FILE_PATH = path.join(__dirname, "students_data.csv");
 const COOKIE = "PHPSESSID=<REDACTED>";
 
 // Helper function to safely escape strings for CSV formats
-function escapeCsvValue(value: any): string {
+function escapeCsvValue(value: string): string {
   if (value === null || value === undefined) return "";
   const str = String(value);
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
@@ -44,7 +44,7 @@ async function fetchAndAppendData(secid: string): Promise<boolean> {
     }
 
     const jsonResponse = await response.json();
-    const data: Record<string, any>[] = jsonResponse.data;
+    const data: Record<string, string>[] = jsonResponse.data;
 
     if (!data || data.length === 0) {
       console.log(`No student data found for secid ${secid}. Skipping.`);

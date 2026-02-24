@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense } from "react";
 import { GraduationCap } from "lucide-react";
+import { useQueryState } from "nuqs";
+import { Suspense } from "react";
 import { deleteExam, getExams } from "@/actions/admin/exams";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
 import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { createColumns, type Exam } from "./columns";
 import { ViewSubmissionsDialog } from "./view-submissions-dialog";
 
@@ -23,23 +23,16 @@ const examsConfig: EntityTableConfig<Exam> = {
 };
 
 export function ExamsTableContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-
-  const viewSubmissionsId = searchParams.get("viewSubmissions");
+  const [viewSubmissionsId, setViewSubmissionsId] =
+    useQueryState("viewSubmissions");
 
   const handleViewSubmissions = (id: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("viewSubmissions", id);
-    router.push(`${pathname}?${params.toString()}`);
+    setViewSubmissionsId(id);
   };
 
   const handleCloseSubmissionsDialog = (open: boolean) => {
     if (!open) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("viewSubmissions");
-      router.push(`${pathname}?${params.toString()}`);
+      setViewSubmissionsId(null);
     }
   };
 

@@ -31,7 +31,7 @@ export function calculateGradingScore(input: GradingInput): number {
   if (strategy === "linear") {
     // Linear: Score = (Number of passed questions) * (Marks per question)
     // Partial: Score = Sum(percentage * Marks per question)
-    const marksPerQuestion = config?.marks || 0;
+    const marksPerQuestion = config?.totalMarks || 0;
 
     if (allowPartial && questionScores) {
       // Iterate over all questions we have a score for
@@ -44,9 +44,9 @@ export function calculateGradingScore(input: GradingInput): number {
   } else if (strategy === "difficulty_based") {
     // Difficulty Based: Sum of marks of passed questions based on their difficulty
     const difficultyMarks = {
-      easy: config?.easy || 5,
-      medium: config?.medium || 10,
-      hard: config?.hard || 20,
+      easy: config?.easyWeight || 5,
+      medium: config?.mediumWeight || 10,
+      hard: config?.hardWeight || 20,
     };
 
     if (allowPartial && questionScores && questionDifficulties) {
@@ -69,7 +69,7 @@ export function calculateGradingScore(input: GradingInput): number {
     // This strategy intrinsically depends on "Count of Completed Questions".
     // Partial points don't map well to "Count".
     // We will stick to the binary definition of "Passed" for the count.
-    const rules = (config?.rules || []) as {
+    const rules = (config?.thresholds || []) as {
       count: number;
       marks: number;
     }[];

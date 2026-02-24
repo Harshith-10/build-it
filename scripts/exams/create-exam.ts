@@ -3,9 +3,13 @@ import confirm from "@inquirer/confirm";
 import input from "@inquirer/input";
 import select from "@inquirer/select";
 import { addHours, format } from "date-fns";
-import { db } from "@/db";
-import { exams, type StrategyConfig } from "@/db/schema/exams";
-import { examCollections } from "@/db/schema/question-collections";
+import { db } from "../../src/db";
+import {
+  exams,
+  type GradingConfigMap,
+  type StrategyConfig,
+} from "../../src/db/schema/exams";
+import { examCollections } from "../../src/db/schema/question-collections";
 
 async function createExam() {
   console.log("📝 Create New Exam");
@@ -57,7 +61,7 @@ async function createExam() {
           ? true
           : "Must be a positive number",
     });
-    strategyConfig = { count: parseInt(countStr, 10) };
+    strategyConfig = { count: parseInt(countStr, 10), collectionIds: [] };
   } else if (strategyType === "difficulty_mix") {
     const easyStr = await input({
       message: "Number of EASY questions:",
@@ -81,6 +85,7 @@ async function createExam() {
       easy: parseInt(easyStr, 10),
       medium: parseInt(mediumStr, 10),
       hard: parseInt(hardStr, 10),
+      collectionIds: [],
     };
   }
 
@@ -93,7 +98,7 @@ async function createExam() {
     ],
   });
 
-  let gradingConfig: Record<string, unknown> | null = null;
+  let gradingConfig: GradingConfigMap[keyof GradingConfigMap] | null = null;
 
   if (gradingStrategy === "linear") {
     const marksStr = await input({
@@ -102,7 +107,7 @@ async function createExam() {
       validate: (v) =>
         !Number.isNaN(parseInt(v, 10)) ? true : "Must be a number",
     });
-    gradingConfig = { marks: parseInt(marksStr, 10) };
+    gradingConfig = { totalMarks: parseInt(marksStr, 10) };
   } else if (gradingStrategy === "difficulty_based") {
     const easy = await input({
       message: "Marks for Easy questions:",
@@ -117,9 +122,9 @@ async function createExam() {
       default: "20",
     });
     gradingConfig = {
-      easy: parseInt(easy, 10),
-      medium: parseInt(medium, 10),
-      hard: parseInt(hard, 10),
+      easyWeight: parseInt(easy, 10),
+      mediumWeight: parseInt(medium, 10),
+      hardWeight: parseInt(hard, 10),
     };
   } else if (gradingStrategy === "count_based") {
     const tiersCountStr = await input({
@@ -136,7 +141,7 @@ async function createExam() {
       const ms = await input({ message: `[Rule ${i + 1}] Marks awarded:` });
       rules.push({ count: parseInt(qs, 10), marks: parseInt(ms, 10) });
     }
-    gradingConfig = { rules };
+    gradingConfig = { thresholds: rules };
   }
 
   const requiresPin = await confirm({

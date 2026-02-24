@@ -1,5 +1,5 @@
-import { db } from "@/db";
-import { exams } from "@/db/schema/exams";
+import { db } from "../../src/db";
+import { exams } from "../../src/db/schema/exams";
 
 async function listExams() {
   console.log("📚 List of Exams");

@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { db } from "@/db";
-import { examAssignments, questions } from "@/db/schema";
+import { examAssignments, type GradingConfigMap, questions } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { ReturnToDashboardButton } from "./return-to-dashboard-button";
 
@@ -61,11 +61,14 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
   // Calculate Total Possible Score
   let totalPossibleScore = 0;
   const gradingStrategy = assignment.exam.gradingStrategy;
-  const gradingConfig = assignment.exam.gradingConfig as any;
+  const gradingConfig = assignment.exam
+    .gradingConfig as GradingConfigMap[keyof GradingConfigMap];
 
   if (gradingStrategy === "linear") {
-    totalPossibleScore = totalQuestions * (gradingConfig?.marks || 0);
+    const config = gradingConfig as GradingConfigMap["linear"];
+    totalPossibleScore = totalQuestions * (config?.totalMarks || 0);
   } else if (gradingStrategy === "difficulty_based") {
+    const config = gradingConfig as GradingConfigMap["difficulty_based"];
     const assignedQuestionIds = assignment.assignedQuestionIds as string[];
     if (assignedQuestionIds.length > 0) {
       const questionDetails = await db.query.questions.findMany({
@@ -76,9 +79,9 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
       });
 
       const difficultyMarks = {
-        easy: gradingConfig?.easy || 0,
-        medium: gradingConfig?.medium || 0,
-        hard: gradingConfig?.hard || 0,
+        easy: config?.easyWeight || 0,
+        medium: config?.mediumWeight || 0,
+        hard: config?.hardWeight || 0,
       };
 
       for (const q of questionDetails) {
@@ -86,13 +89,14 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
       }
     }
   } else if (gradingStrategy === "count_based") {
-    const rules = (gradingConfig?.rules || []) as {
+    const config = gradingConfig as GradingConfigMap["count_based"];
+    const thresholds = (config?.thresholds || []) as {
       count: number;
       marks: number;
     }[];
     // Max possible score is the max marks defined in rules
-    if (rules.length > 0) {
-      totalPossibleScore = Math.max(...rules.map((r) => r.marks));
+    if (thresholds.length > 0) {
+      totalPossibleScore = Math.max(...thresholds.map((r) => r.marks));
     }
   } else {
     // Default fallback (legacy behavior was 50)
