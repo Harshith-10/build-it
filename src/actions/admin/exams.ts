@@ -260,22 +260,25 @@ export async function getExamSubmissions({
   }
 
   const [data, totalCount] = await Promise.all([
-    db.query.examAssignments.findMany({
-      where: whereClause,
-      with: {
+    db
+      .select({
+        id: examAssignments.id,
+        status: examAssignments.status,
+        score: examAssignments.score,
+        malpracticeCount: examAssignments.malpracticeCount,
+        createdAt: examAssignments.createdAt,
         user: {
-          columns: {
-            id: true,
-            name: true,
-            email: true,
-            username: true,
-          },
+          name: user.name,
+          email: user.email,
+          username: user.username,
         },
-      },
-      limit: limit,
-      offset: offset,
-      orderBy: orderBy,
-    }),
+      })
+      .from(examAssignments)
+      .leftJoin(user, eq(examAssignments.userId, user.id))
+      .where(whereClause)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(orderBy),
     db
       .select({ count: sql<number>`count(*)` })
       .from(examAssignments)

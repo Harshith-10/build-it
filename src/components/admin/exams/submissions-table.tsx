@@ -22,11 +22,10 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
             const result = await getExamSubmissions({
                 ...params,
                 examId,
-                limit: 10, // Force limit to 10 as requested
             });
             return {
                 data: result.submissions as unknown as Submission[],
-                total: result.total
+                total: result.total,
             };
         },
         deleteFn: deleteExamSubmission,
