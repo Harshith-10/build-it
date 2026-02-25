@@ -11,7 +11,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { useExamOnboarding } from "@/hooks/use-exam-onboarding";
 
@@ -96,21 +101,30 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
           )}
 
           {exam.requiresPin && (
-            <div className="mx-auto max-w-sm space-y-2 rounded-lg border bg-card p-4 shadow-sm">
-              <Label htmlFor="exam-pin">Exam PIN Required</Label>
-              <Input
+            <div className="mx-auto flex flex-col items-center justify-center space-y-4">
+              <div className="text-center">
+                <Label htmlFor="exam-pin" className="text-base font-semibold">
+                  Exam PIN Required
+                </Label>
+              </div>
+              <InputOTP
                 id="exam-pin"
-                type="text"
-                placeholder="Enter 6-digit PIN"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                className="text-center text-lg tracking-widest"
                 maxLength={6}
-                autoComplete="off"
-              />
-              <p className="text-xs text-muted-foreground text-center">
-                This PIN was provided to your group facilitator.
-              </p>
+                value={pin}
+                onChange={(value) => setPin(value)}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                </InputOTPGroup>
+                <InputOTPSeparator />
+                <InputOTPGroup>
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
             </div>
           )}
         </CardContent>
@@ -118,7 +132,7 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
           <Button
             size="lg"
             onClick={handleStartExam}
-            disabled={isLoading || (exam.requiresPin && !pin)}
+            disabled={isLoading || (exam.requiresPin && pin.length !== 6)}
             className="w-full max-w-sm text-lg"
           >
             {isLoading ? "Initializing..." : "I Understand, Start Exam"}
