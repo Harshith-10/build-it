@@ -48,4 +48,3 @@ export default async function OnboardingPage({ params }: PageProps) {
 
   return <OnboardingClient exam={{ ...exam, requiresPin }} />;
 }
-

@@ -43,7 +43,7 @@ const roleVariant = (role: string | null) => {
 
 export const createColumns = (
   onDelete: (id: string) => void,
-  
+
   onEdit: ((user: User) => void) | undefined,
   pageIndex: number,
   pageSize: number,

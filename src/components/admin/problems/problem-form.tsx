@@ -462,10 +462,11 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                       <div
                         key={field.id}
                         onClick={() => setSelectedTestCase(index)}
-                        className={`flex items-center justify-between px-3 py-2 rounded-md text-sm text-left transition-colors cursor-pointer ${safeIndex === index
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
-                          }`}
+                        className={`flex items-center justify-between px-3 py-2 rounded-md text-sm text-left transition-colors cursor-pointer ${
+                          safeIndex === index
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted"
+                        }`}
                       >
                         <span className="flex items-center gap-2">
                           <span>Test {index + 1}</span>

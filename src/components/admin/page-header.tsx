@@ -1,9 +1,5 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 interface BreadcrumbItem {
@@ -18,7 +14,7 @@ interface PageHeaderProps {
   actions?: React.ReactNode;
 }
 
-function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
+function _generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
   const segments = pathname.split("/").filter(Boolean);
   const crumbs: BreadcrumbItem[] = [];
 
@@ -39,11 +35,7 @@ function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
   return crumbs;
 }
 
-export function PageHeader({
-  title,
-  description,
-  actions,
-}: PageHeaderProps) {
+export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
     <div className="space-y-1">
       {/* Title row */}

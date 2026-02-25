@@ -23,9 +23,7 @@ export default async function AdminLayout({
       <AppSidebar isAdmin={isAdmin} />
       <SidebarInset>
         <AdminHeader />
-        <div className="flex flex-1 flex-col gap-6 p-6 min-h-0">
-          {children}
-        </div>
+        <div className="flex flex-1 flex-col gap-6 p-6 min-h-0">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -3,14 +3,20 @@
 import { Download, GraduationCap } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useRef, Suspense } from "react";
-import { deleteExamSubmission, getExamSubmissions } from "@/actions/admin/exams";
+import {
+  deleteExamSubmission,
+  getExamSubmissions,
+} from "@/actions/admin/exams";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
 import { Button } from "@/components/ui/button";
-import type { EntityTableConfig, FetchParams } from "@/hooks/use-entity-table-vm";
+import type {
+  EntityTableConfig,
+  FetchParams,
+} from "@/hooks/use-entity-table-vm";
 import { createColumns, type Submission } from "./submissions-columns";
 
 interface SubmissionsTableProps {
-    examId: string;
+  examId: string;
 }
 
 function exportToCSV(data: Submission[]) {
@@ -57,25 +63,25 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
     const isSubmissionsPage = pathname.split("/").pop() === "submissions";
     const latestDataRef = useRef<Submission[]>([]);
 
-    const submissionsConfig: EntityTableConfig<Submission> = {
-        entityName: "Submission",
-        searchKey: "user.name",
-        searchPlaceholder: "Search students...",
-        deleteDescription:
-            "This will permanently delete this exam submission. This action cannot be undone.",
-        fetchFn: async (params: FetchParams) => {
-            const result = await getExamSubmissions({
-                ...params,
-                examId,
-            });
+  const submissionsConfig: EntityTableConfig<Submission> = {
+    entityName: "Submission",
+    searchKey: "user.name",
+    searchPlaceholder: "Search students...",
+    deleteDescription:
+      "This will permanently delete this exam submission. This action cannot be undone.",
+    fetchFn: async (params: FetchParams) => {
+      const result = await getExamSubmissions({
+        ...params,
+        examId,
+      });
             latestDataRef.current = result.submissions;
-            return {
-                data: result.submissions,
-                total: result.total,
-            };
-        },
-        deleteFn: deleteExamSubmission,
-    };
+      return {
+        data: result.submissions,
+        total: result.total,
+      };
+    },
+    deleteFn: deleteExamSubmission,
+  };
 
     const exportButton = isSubmissionsPage ? (
         <Button
@@ -89,30 +95,30 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
         </Button>
     ) : undefined;
 
-    return (
-        <AdminEntityTable
-            config={submissionsConfig}
-            createColumns={(onDelete, page, pageSize) =>
-                createColumns(onDelete, page, pageSize)
-            }
+  return (
+    <AdminEntityTable
+      config={submissionsConfig}
+      createColumns={(onDelete, page, pageSize) =>
+        createColumns(onDelete, page, pageSize)
+      }
             actions={exportButton}
-            emptyState={
-                <div className="flex flex-col items-center gap-2">
-                    <GraduationCap className="h-8 w-8 text-muted-foreground" />
-                    <p className="text-muted-foreground">No submissions yet</p>
-                    <p className="text-sm text-muted-foreground">
-                        No students have attempted this exam yet.
-                    </p>
-                </div>
-            }
-        />
-    );
+      emptyState={
+        <div className="flex flex-col items-center gap-2">
+          <GraduationCap className="h-8 w-8 text-muted-foreground" />
+          <p className="text-muted-foreground">No submissions yet</p>
+          <p className="text-sm text-muted-foreground">
+            No students have attempted this exam yet.
+          </p>
+        </div>
+      }
+    />
+  );
 }
 
 export function SubmissionsTable({ examId }: SubmissionsTableProps) {
-    return (
-        <Suspense fallback={<div>Loading submissions...</div>}>
-            <SubmissionsTableContent examId={examId} />
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={<div>Loading submissions...</div>}>
+      <SubmissionsTableContent examId={examId} />
+    </Suspense>
+  );
 }
