@@ -65,8 +65,6 @@ export function DateTimePicker({
     onChange?.(newDate.toISOString());
   };
 
-
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -80,7 +78,10 @@ export function DateTimePicker({
           <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
           <span className="truncate">
             {dateValue
-              ? format(dateValue, timeValue ? "dd MMM yyyy, HH:mm" : "dd MMM yyyy")
+              ? format(
+                  dateValue,
+                  timeValue ? "dd MMM yyyy, HH:mm" : "dd MMM yyyy",
+                )
               : placeholder}
           </span>
         </Button>

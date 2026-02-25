@@ -3,9 +3,9 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
+import { examAssignments } from "@/db/schema/assignments";
 import { user } from "@/db/schema/auth";
 import { examGroups, exams } from "@/db/schema/exams";
-import { examAssignments } from "@/db/schema/assignments";
 import { examCollections } from "@/db/schema/question-collections";
 import { requireAdmin } from "@/lib/auth-access";
 
@@ -221,10 +221,10 @@ export async function getExamSubmissions({
     eq(examAssignments.examId, examId),
     search
       ? or(
-        ilike(user.name, `%${search}%`),
-        ilike(user.email, `%${search}%`),
-        ilike(user.username, `%${search}%`),
-      )
+          ilike(user.name, `%${search}%`),
+          ilike(user.email, `%${search}%`),
+          ilike(user.username, `%${search}%`),
+        )
       : undefined,
   );
 

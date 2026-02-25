@@ -175,3 +175,77 @@ export async function removeGroupMember(groupId: string, userId: string) {
   revalidatePath(`/admin/groups/${groupId}`);
   return { success: true };
 }
+
+export async function bulkCreateGroupWithMembers(data: {
+  name: string;
+  description?: string;
+  emails: string[];
+}) {
+  await requireAdmin();
+  try {
+    // Create the group
+    const [inserted] = await db
+      .insert(userGroups)
+      .values({
+        name: data.name,
+        description: data.description,
+      })
+      .returning({ id: userGroups.id });
+
+    const groupId = inserted.id;
+
+    // Deduplicate emails (case-insensitive)
+    const uniqueEmails = [
+      ...new Set(data.emails.map((e) => e.toLowerCase().trim())),
+    ];
+
+    const results = {
+      added: 0,
+      notFound: [] as string[],
+      alreadyMember: [] as string[],
+    };
+
+    // Process each email
+    for (const email of uniqueEmails) {
+      const targetUser = await db.query.user.findFirst({
+        where: eq(user.email, email),
+      });
+
+      if (!targetUser) {
+        results.notFound.push(email);
+        continue;
+      }
+
+      // Check if already a member (shouldn't happen for a new group, but just in case)
+      const existing = await db.query.userGroupMembers.findFirst({
+        where: and(
+          eq(userGroupMembers.groupId, groupId),
+          eq(userGroupMembers.userId, targetUser.id),
+        ),
+      });
+
+      if (existing) {
+        results.alreadyMember.push(email);
+        continue;
+      }
+
+      await db.insert(userGroupMembers).values({
+        groupId,
+        userId: targetUser.id,
+      });
+      results.added++;
+    }
+
+    revalidatePath("/admin/groups");
+    revalidatePath(`/admin/groups/${groupId}`);
+
+    return {
+      success: true,
+      id: groupId,
+      totalEmails: uniqueEmails.length,
+      ...results,
+    };
+  } catch (_error) {
+    return { success: false, error: "Failed to create group with members" };
+  }
+}

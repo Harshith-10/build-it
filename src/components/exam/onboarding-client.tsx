@@ -1,6 +1,13 @@
 "use client";
 
-import { KeyRound, AlertTriangle, BookOpen, Clock, Monitor, Shield } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpen,
+  Clock,
+  KeyRound,
+  Monitor,
+  Shield,
+} from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -94,8 +101,8 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Strict Environment Enforced</AlertTitle>
               <AlertDescription>
-                This exam is monitored. Switching tabs, minimizing the window, or
-                exiting fullscreen will be recorded as malpractice incidents.
+                This exam is monitored. Switching tabs, minimizing the window,
+                or exiting fullscreen will be recorded as malpractice incidents.
               </AlertDescription>
             </Alert>
 
