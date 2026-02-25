@@ -71,6 +71,8 @@ interface DataTableProps<TData, TValue> {
   // ── Other ──
   isLoading?: boolean;
   toolbar?: React.ReactNode;
+  /** Extra action buttons rendered between the search/toolbar area and the View Options button */
+  actions?: React.ReactNode;
   emptyState?: React.ReactNode;
 }
 
@@ -92,6 +94,7 @@ export function DataTable<TData, TValue>({
   onHiddenColumnsChange,
   isLoading = false,
   toolbar,
+  actions,
   emptyState,
   sorting: controlledSorting,
   onSortingChange: controlledOnSortingChange,
@@ -174,34 +177,34 @@ export function DataTable<TData, TValue>({
       columnFilters,
       columnVisibility,
       ...(manualPagination &&
-      controlledPageIndex !== undefined &&
-      controlledPageSize !== undefined
+        controlledPageIndex !== undefined &&
+        controlledPageSize !== undefined
         ? {
-            pagination: {
-              pageIndex: controlledPageIndex,
-              pageSize: controlledPageSize,
-            },
-          }
+          pagination: {
+            pageIndex: controlledPageIndex,
+            pageSize: controlledPageSize,
+          },
+        }
         : {}),
     },
     ...(manualPagination
       ? {
-          onPaginationChange: (updater) => {
-            if (typeof updater === "function") {
-              const prev = {
-                pageIndex: controlledPageIndex ?? 0,
-                pageSize: controlledPageSize ?? 10,
-              };
-              const next = updater(prev);
-              if (next.pageIndex !== prev.pageIndex) {
-                onPageChange?.(next.pageIndex);
-              }
-              if (next.pageSize !== prev.pageSize) {
-                onPageSizeChange?.(next.pageSize);
-              }
+        onPaginationChange: (updater) => {
+          if (typeof updater === "function") {
+            const prev = {
+              pageIndex: controlledPageIndex ?? 0,
+              pageSize: controlledPageSize ?? 10,
+            };
+            const next = updater(prev);
+            if (next.pageIndex !== prev.pageIndex) {
+              onPageChange?.(next.pageIndex);
             }
-          },
-        }
+            if (next.pageSize !== prev.pageSize) {
+              onPageSizeChange?.(next.pageSize);
+            }
+          }
+        },
+      }
       : {}),
   });
 
@@ -241,11 +244,14 @@ export function DataTable<TData, TValue>({
           )}
           {toolbar}
         </div>
-        <DataTableViewOptions
-          table={table}
-          hiddenColumns={hiddenColumns}
-          onHiddenColumnsChange={onHiddenColumnsChange}
-        />
+        <div className="flex items-center gap-2">
+          {actions}
+          <DataTableViewOptions
+            table={table}
+            hiddenColumns={hiddenColumns}
+            onHiddenColumnsChange={onHiddenColumnsChange}
+          />
+        </div>
       </div>
 
       {/* Table with sticky header and scrollable body */}
@@ -260,9 +266,9 @@ export function DataTable<TData, TValue>({
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
                     </TableHead>
                   );
                 })}

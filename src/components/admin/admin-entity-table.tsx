@@ -24,6 +24,9 @@ interface AdminEntityTableProps<T extends { id: string }> {
 
   /** Rendered when the table has no data */
   emptyState: React.ReactNode;
+
+  /** Optional extra action buttons rendered before the View Options button */
+  actions?: React.ReactNode;
 }
 
 /**
@@ -45,6 +48,7 @@ export function AdminEntityTable<T extends { id: string }>({
   config,
   createColumns,
   emptyState,
+  actions,
 }: AdminEntityTableProps<T>) {
   const vm = useEntityTableVM(config);
 
@@ -91,6 +95,8 @@ export function AdminEntityTable<T extends { id: string }>({
         // Sorting (server-side)
         sorting={vm.sorting}
         onSortingChange={vm.onSortingChange}
+        // Extra toolbar actions
+        actions={actions}
       />
 
       <ConfirmDeleteDialog
