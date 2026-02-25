@@ -176,7 +176,7 @@ export async function upsertExam(data: any) {
     }
 
     revalidatePath("/admin/exams");
-    revalidatePath(`/admin/exams/${examId}`);
+    revalidatePath(`/admin/exams/${examId}/edit`);
     return { success: true, id: examId };
   } catch (error) {
     console.error("Failed to upsert exam:", error);
