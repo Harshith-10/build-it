@@ -104,6 +104,9 @@ export async function upsertExam(data: any) {
   try {
     let examId = data.id;
 
+    const requiresPin =
+      data.assignments?.some((a: any) => a.requiresPin) || false;
+
     const commonFields = {
       title: data.title,
       description: data.description,
@@ -117,6 +120,7 @@ export async function upsertExam(data: any) {
       gradingStrategy: data.gradingStrategy || "linear",
       gradingConfig: data.gradingConfig || {},
       status: data.status || "upcoming",
+      requiresPin,
     };
 
     // Validate grading config
@@ -169,8 +173,7 @@ export async function upsertExam(data: any) {
         groupId: assign.groupId,
         startTime: assign.startTime ? new Date(assign.startTime) : null,
         endTime: assign.endTime ? new Date(assign.endTime) : null,
-        requiresPin: assign.requiresPin || false,
-        pinCode: assign.requiresPin ? assign.pinCode : null,
+        pin: assign.requiresPin ? assign.pinCode : null,
       }));
       await db.insert(examGroups).values(assignmentValues);
     }
