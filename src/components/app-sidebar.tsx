@@ -64,16 +64,16 @@ const adminNavMain = [
 ];
 
 const studentNavMain = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Problems",
-    url: "/problems",
-    icon: FileQuestion,
-  },
+  // {
+  //   title: "Dashboard",
+  //   url: "/dashboard",
+  //   icon: LayoutDashboard,
+  // },
+  // {
+  //   title: "Problems",
+  //   url: "/problems",
+  //   icon: FileQuestion,
+  // },
   {
     title: "Playground",
     url: "/playground",
@@ -154,7 +154,7 @@ export function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <div className="mx-2 h-px bg-sidebar-border" />
+        {/* <div className="mx-2 h-px bg-sidebar-border" />
         <SidebarGroup>
           <SidebarGroupLabel>Account</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -175,7 +175,7 @@ export function AppSidebar({
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> */}
       </SidebarContent>
       <SidebarFooter>
         <UserMenu />
