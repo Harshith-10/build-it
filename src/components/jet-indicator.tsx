@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { useTurboStore } from "@/components/store/use-turbo-store";
+import { useJetStore } from "@/components/store/use-jet-store";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-export default function TurboIndicator() {
-  const { status, initialize } = useTurboStore();
+export default function JetIndicator() {
+  const { status, initialize } = useJetStore();
 
   useEffect(() => {
     initialize();
@@ -25,14 +25,14 @@ export default function TurboIndicator() {
             <div className="h-2 w-2 bg-green-500 rounded-full" />
           )}
           <span className="text-muted-foreground text-xs hidden sm:inline-block">
-            Turbo
+            Jet
           </span>
         </div>
       </TooltipTrigger>
       <TooltipContent side="left">
         <div className="">
           <p className="text-sm">
-            Turbo Server is{" "}
+            Jet Server is{" "}
             <span
               className={`capitalize ${status === "online" ? "text-green-500" : status === "offline" ? "text-red-500" : "text-yellow-500"}`}
             >

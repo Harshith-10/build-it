@@ -1,9 +1,9 @@
 import { create } from "zustand";
-import { checkTurboHealth } from "@/actions/student/exams/code-actions";
+import { checkJetHealth } from "@/actions/student/exams/code-actions";
 
 type Status = "checking" | "online" | "offline";
 
-interface TurboState {
+interface JetState {
   status: Status;
   isOnline: boolean;
   lastChecked: Date | null;
@@ -12,7 +12,7 @@ interface TurboState {
   initialize: () => void;
 }
 
-export const useTurboStore = create<TurboState>((set, get) => ({
+export const useJetStore = create<JetState>((set, get) => ({
   status: "checking",
   isOnline: false,
   lastChecked: null,
@@ -20,7 +20,7 @@ export const useTurboStore = create<TurboState>((set, get) => ({
 
   checkHealth: async () => {
     try {
-      const res = await checkTurboHealth();
+      const res = await checkJetHealth();
       set({
         status: res.success ? "online" : "offline",
         isOnline: res.success,
@@ -36,17 +36,14 @@ export const useTurboStore = create<TurboState>((set, get) => ({
   },
 
   initialize: () => {
-    // Only initialize once
     if (get()._initialized) return;
 
     set({ _initialized: true });
 
-    // Initial check
     get().checkHealth();
 
-    // Set polling every 30 seconds
     setInterval(() => {
       get().checkHealth();
-    }, 30000); // 30 seconds
+    }, 30000);
   },
 }));

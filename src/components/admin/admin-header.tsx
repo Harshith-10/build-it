@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import TurboIndicator from "../turbo-indicator";
+import JetIndicator from "../jet-indicator";
 
 const labelMap: Record<string, string> = {
   admin: "Admin",
@@ -63,7 +63,7 @@ export function AdminHeader() {
           ))}
         </BreadcrumbList>
       </Breadcrumb>
-      <TurboIndicator />
+      <JetIndicator />
     </header>
   );
 }

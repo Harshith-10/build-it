@@ -3,13 +3,14 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import {
+  checkHealth,
   executeCode,
-  getRuntimes as getTurboRuntimes,
+  getRuntimes as getJetRuntimes,
+  JetError,
+  type JetTestCase,
   type JobResult,
   mapTestCases,
-  TurboError,
-  type TurboTestCase,
-} from "@/lib/turbo";
+} from "@/lib/jet";
 import type { TestcaseResult } from "@/types/problem";
 
 // ============================================
@@ -56,7 +57,6 @@ export interface RunCustomResult {
  * Used for the "Run" button to test against visible test cases.
  */
 export async function runCode(input: RunCodeInput): Promise<RunCodeResult> {
-  // Auth check
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -65,15 +65,18 @@ export async function runCode(input: RunCodeInput): Promise<RunCodeResult> {
     return { success: false, error: "Unauthorized: Please sign in" };
   }
 
+  if (!input.version) {
+    return { success: false, error: "Runtime version is required" };
+  }
+
   try {
-    const turboTestCases: TurboTestCase[] = mapTestCases(input.testCases);
+    const jetTestCases: JetTestCase[] = mapTestCases(input.testCases);
 
     const result: JobResult = await executeCode(
       input.code,
       input.language,
-      turboTestCases,
-      undefined,
       input.version,
+      jetTestCases,
     );
 
     // Check for compilation errors
@@ -84,30 +87,30 @@ export async function runCode(input: RunCodeInput): Promise<RunCodeResult> {
       };
     }
 
-    // Map Turbo results to our TestcaseResult format
-    const testResults: TestcaseResult[] = result.testcases.map((tc, index) => ({
-      id: tc.id,
-      passed: tc.passed,
-      input: input.testCases[index]?.input || "",
-      expectedOutput:
-        input.testCases[index]?.expectedOutput || tc.expected_output || "",
-      actualOutput: tc.actual_output,
-      run_details: {
-        // Use per-testcase run_details if available, fallback to global run
-        stdout: tc.run_details?.stdout || result.run?.stdout || "",
-        stderr: tc.run_details?.stderr || result.run?.stderr || "",
-      },
-    }));
+    // Map Jet results to our TestcaseResult format
+    const testResults: TestcaseResult[] = (result.testcases ?? []).map(
+      (tc, index) => ({
+        id: tc.id,
+        passed: tc.passed,
+        input: input.testCases[index]?.input || "",
+        expectedOutput: input.testCases[index]?.expectedOutput || "",
+        actualOutput: tc.actual_output,
+        run_details: {
+          stdout: tc.run_details?.stdout || "",
+          stderr: tc.run_details?.stderr || "",
+        },
+      }),
+    );
 
     return {
       success: true,
       results: testResults,
-      executionTime: result.run?.execution_time,
+      executionTime: result.run?.execution_time ?? undefined,
     };
   } catch (error) {
     console.error("Code execution error:", error);
 
-    if (error instanceof TurboError) {
+    if (error instanceof JetError) {
       return {
         success: false,
         error: `Execution service error: ${error.message}`,
@@ -128,7 +131,6 @@ export async function runCode(input: RunCodeInput): Promise<RunCodeResult> {
 export async function runWithCustomInput(
   input: RunCustomInput,
 ): Promise<RunCustomResult> {
-  // Auth check
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -137,13 +139,17 @@ export async function runWithCustomInput(
     return { success: false, error: "Unauthorized: Please sign in" };
   }
 
+  if (!input.version) {
+    return { success: false, error: "Runtime version is required" };
+  }
+
   try {
     const result: JobResult = await executeCode(
       input.code,
       input.language,
-      undefined, // No test cases
-      input.stdin,
       input.version,
+      undefined,
+      input.stdin,
     );
 
     // Check for compilation errors
@@ -157,10 +163,10 @@ export async function runWithCustomInput(
     // Check for runtime errors
     if (result.run && result.run.status !== "SUCCESS") {
       return {
-        success: true, // Still return output even with runtime errors
+        success: true,
         stdout: result.run.stdout,
         stderr: result.run.stderr,
-        executionTime: result.run.execution_time,
+        executionTime: result.run.execution_time ?? undefined,
       };
     }
 
@@ -168,12 +174,12 @@ export async function runWithCustomInput(
       success: true,
       stdout: result.run?.stdout || "",
       stderr: result.run?.stderr || "",
-      executionTime: result.run?.execution_time,
+      executionTime: result.run?.execution_time ?? undefined,
     };
   } catch (error) {
     console.error("Custom input execution error:", error);
 
-    if (error instanceof TurboError) {
+    if (error instanceof JetError) {
       return {
         success: false,
         error: `Execution service error: ${error.message}`,
@@ -188,8 +194,7 @@ export async function runWithCustomInput(
 }
 
 /**
- * Fetch available Language runtimes from the Turbo Engine.
- * Uses the /runtimes endpoint to get installed language runtimes.
+ * Fetch available language runtimes from the Jet Engine.
  */
 export async function getRuntimes(): Promise<{
   success: boolean;
@@ -197,28 +202,15 @@ export async function getRuntimes(): Promise<{
   error?: string;
 }> {
   try {
-    const allRuntimes = await getTurboRuntimes();
-    const runtimes: Array<{ language: string; version: string }> = [];
-
-    allRuntimes.forEach((pkg) => {
-      const name = pkg.language.toLowerCase();
-      runtimes.push({
-        language: name,
-        version: pkg.version,
-      });
-    });
-
-    return {
-      success: true,
-      runtimes,
-    };
+    const runtimes = await getJetRuntimes();
+    return { success: true, runtimes };
   } catch (error) {
     console.error("Failed to fetch runtimes:", error);
 
-    if (error instanceof TurboError) {
+    if (error instanceof JetError) {
       return {
         success: false,
-        error: `Failed to connect to this execution service: ${error.message}`,
+        error: `Failed to connect to execution service: ${error.message}`,
       };
     }
 
@@ -231,21 +223,9 @@ export async function getRuntimes(): Promise<{
 }
 
 /**
- * Check if the Turbo server is online via health endpoint.
+ * Check if the Jet server is online via health endpoint.
  */
-export async function checkTurboHealth(): Promise<{ success: boolean }> {
-  try {
-    const healthUrl =
-      process.env.TURBO_HEALTH_URL || "http://localhost:4000/health";
-    const res = await fetch(healthUrl, {
-      method: "GET",
-      // Short timeout for health checks
-      signal: AbortSignal.timeout(3000),
-    });
-
-    // Status 200 implies healthy, return success based on that
-    return { success: res.ok };
-  } catch {
-    return { success: false };
-  }
+export async function checkJetHealth(): Promise<{ success: boolean }> {
+  const isHealthy = await checkHealth();
+  return { success: isHealthy };
 }

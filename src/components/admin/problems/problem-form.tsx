@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { upsertProblem } from "@/actions/admin/problems";
 import { getRuntimes, runCode } from "@/actions/student/exams/code-actions";
-import { useTurboStore } from "@/components/store/use-turbo-store";
+import { useJetStore } from "@/components/store/use-jet-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,7 +102,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     { language: string; version: string }[]
   >([]);
 
-  const { isOnline } = useTurboStore();
+  const { isOnline } = useJetStore();
 
   useEffect(() => {
     if (initialData) {

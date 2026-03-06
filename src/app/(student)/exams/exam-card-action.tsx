@@ -5,7 +5,7 @@ import { ArrowRight, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTurboStore } from "@/components/store/use-turbo-store";
+import { useJetStore } from "@/components/store/use-jet-store";
 import { Button } from "@/components/ui/button";
 
 interface ExamCardActionProps {
@@ -24,7 +24,7 @@ export function ExamCardAction({
   const [status, setStatus] = useState(initialStatus);
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
   const router = useRouter();
-  const { status: turboStatus } = useTurboStore();
+  const { status: jetStatus } = useJetStore();
 
   useEffect(() => {
     // If already active or ended, do nothing
@@ -77,7 +77,7 @@ export function ExamCardAction({
   }
 
   if (status === "active") {
-    if (turboStatus === "offline") {
+    if (jetStatus === "offline") {
       return (
         <Button
           variant="secondary"
@@ -85,7 +85,7 @@ export function ExamCardAction({
           disabled
         >
           <span className="text-destructive font-medium">
-            Turbo Server Offline - Contact Admin
+            Jet Server Offline - Contact Admin
           </span>
         </Button>
       );

@@ -11,11 +11,11 @@ import { auth } from "@/lib/auth";
 import { calculateGradingScore } from "@/lib/grading";
 import {
   executeCode,
+  JetError,
+  type JetTestCase,
   type JobResult,
   mapTestCases,
-  TurboError,
-  type TurboTestCase,
-} from "@/lib/turbo";
+} from "@/lib/jet";
 
 // ============================================
 // Types
@@ -95,8 +95,12 @@ export async function submitQuestion(
       return { success: false, error: "No test cases found for grading" };
     }
 
-    // 4. Turbo Execution (Hidden)
-    const turboTestCases: TurboTestCase[] = mapTestCases(
+    // 4. Jet Execution (Hidden Test Cases)
+    if (!input.version) {
+      return { success: false, error: "Runtime version is required" };
+    }
+
+    const jetTestCases: JetTestCase[] = mapTestCases(
       gradingTestCases.map((tc) => ({
         id: tc.id,
         input: tc.input,
@@ -107,9 +111,8 @@ export async function submitQuestion(
     const executionResult: JobResult = await executeCode(
       input.code,
       input.language,
-      turboTestCases,
-      undefined,
       input.version,
+      jetTestCases,
     );
 
     // 5. Determine Verdict
@@ -134,7 +137,7 @@ export async function submitQuestion(
         `Runtime Error: ${executionResult.run.status}`;
     } else {
       // Check test cases
-      const parsedResults = executionResult.testcases;
+      const parsedResults = executionResult.testcases ?? [];
       passedCount = parsedResults.filter((tc) => tc.passed).length;
 
       if (passedCount === gradingTestCases.length) {
@@ -243,7 +246,7 @@ export async function submitQuestion(
     };
   } catch (error) {
     console.error("Submission error:", error);
-    if (error instanceof TurboError) {
+    if (error instanceof JetError) {
       return {
         success: false,
         error: `Execution Engine Error: ${error.message}`,
