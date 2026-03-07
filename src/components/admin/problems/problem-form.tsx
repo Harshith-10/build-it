@@ -3,6 +3,7 @@
 import { java } from "@codemirror/lang-java";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
+import { EditorState } from "@codemirror/state";
 import { zodResolver } from "@hookform/resolvers/zod";
 import CodeMirror from "@uiw/react-codemirror";
 import {
@@ -101,6 +102,12 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
   const [availableRuntimes, setAvailableRuntimes] = useState<
     { language: string; version: string }[]
   >([]);
+  const [languageVersionMap, setLanguageVersionMap] = useState<
+    Record<string, string>
+  >({});
+  const [verifyCodeMap, setVerifyCodeMap] = useState<Record<string, string>>(
+    {},
+  );
 
   const { isOnline } = useJetStore();
 
@@ -117,9 +124,27 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     getRuntimes().then((res) => {
       if (res.success && res.runtimes) {
         setAvailableRuntimes(res.runtimes);
+        // Create a map of language -> first version for that language
+        const versionMap: Record<string, string> = {};
+        res.runtimes.forEach((rt) => {
+          if (!versionMap[rt.language]) {
+            versionMap[rt.language] = rt.version;
+          }
+        });
+        setLanguageVersionMap(versionMap);
       }
     });
   }, [initialData, initialize]);
+
+  // Initialize verify code map from driver code map when language changes
+  useEffect(() => {
+    if (!verifyCodeMap[verifyTabLang]) {
+      setVerifyCodeMap((prev) => ({
+        ...prev,
+        [verifyTabLang]: driverCodeMap[verifyTabLang] || "",
+      }));
+    }
+  }, [verifyTabLang, driverCodeMap, verifyCodeMap]);
 
   const [selectedTestCase, setSelectedTestCase] = useState(0);
 
@@ -173,7 +198,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
       return;
     }
 
-    const code = driverCodeMap[verifyTabLang];
+    const code = verifyCodeMap[verifyTabLang];
     if (!code?.trim()) {
       toast.error("No driver code to run");
       return;
@@ -190,6 +215,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
       const result = await runCode({
         code,
         language: verifyTabLang,
+        version: languageVersionMap[verifyTabLang],
         testCases: currentTestCases.map((tc, idx) => ({
           id: String(idx),
           input: tc.input,
@@ -228,7 +254,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     } finally {
       setIsVerifying(false);
     }
-  }, [driverCodeMap, verifyTabLang, form, isOnline]);
+  }, [verifyCodeMap, verifyTabLang, form, isOnline, languageVersionMap]);
 
   // Ensure selectedTestCase is in bounds
   const safeIndex = selectedTestCase >= fields.length ? 0 : selectedTestCase;
@@ -367,25 +393,27 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                     <Loader2 className="h-3 w-3 animate-spin" /> Loading...
                   </div>
                 ) : (
-                  availableRuntimes.map((rt) => {
-                    const isAllowed = allowedLanguages.includes(rt.language);
-                    const isActive = codeTabLang === rt.language;
+                  Array.from(
+                    new Set(availableRuntimes.map((rt) => rt.language)),
+                  ).map((language) => {
+                    const isAllowed = allowedLanguages.includes(language);
+                    const isActive = codeTabLang === language;
                     return (
                       <div
-                        key={rt.language}
+                        key={language}
                         className={`flex items-center justify-between p-2 rounded-md border text-sm transition-colors cursor-pointer shrink-0 w-full text-left ${isActive ? "bg-primary/10 border-primary/30" : "hover:bg-muted"}`}
                         onClick={() => {
                           if (isAllowed || !isActive) {
-                            setCodeTabLang(rt.language);
+                            setCodeTabLang(language);
                           }
                         }}
                       >
-                        <span className="capitalize">{rt.language}</span>
+                        <span className="capitalize">{language}</span>
                         <Switch
                           checked={isAllowed}
                           onCheckedChange={() => {
-                            toggleAllowedLanguage(rt.language);
-                            if (!isAllowed) setCodeTabLang(rt.language);
+                            toggleAllowedLanguage(language);
+                            if (!isAllowed) setCodeTabLang(language);
                           }}
                         />
                       </div>
@@ -411,6 +439,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
                   height="100%"
                   extensions={[
                     (languageExtensions[codeTabLang] || javascript)(),
+                    EditorState.tabSize.of(4),
                   ]}
                   onChange={(value) => setDriverCode(codeTabLang, value)}
                   theme="dark"
@@ -612,21 +641,27 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 grid gap-4 grid-cols-1 lg:grid-cols-[1fr_300px]">
+            <div className="flex-1 min-h-0 grid gap-4 grid-cols-1 lg:grid-cols-3">
               {/* Code Editor */}
-              <div className="flex flex-col min-h-0 border rounded-md overflow-hidden">
+              <div className="col-span-2 flex flex-col min-h-0 border rounded-md overflow-hidden">
                 <div className="bg-muted px-3 py-2 border-b flex items-center shrink-0">
                   <span className="text-sm font-medium capitalize">
                     {verifyTabLang} Test Editor
                   </span>
                 </div>
                 <CodeMirror
-                  value={driverCodeMap[verifyTabLang] || ""}
+                  value={verifyCodeMap[verifyTabLang] || ""}
                   height="100%"
                   extensions={[
                     (languageExtensions[verifyTabLang] || javascript)(),
+                    EditorState.tabSize.of(4),
                   ]}
-                  onChange={(value) => setDriverCode(verifyTabLang, value)}
+                  onChange={(value) =>
+                    setVerifyCodeMap((prev) => ({
+                      ...prev,
+                      [verifyTabLang]: value,
+                    }))
+                  }
                   theme="dark"
                   style={{ flex: 1, minHeight: 0 }}
                 />

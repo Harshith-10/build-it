@@ -4,6 +4,7 @@ import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
+import { EditorState } from "@codemirror/state";
 import CodeMirror from "@uiw/react-codemirror";
 import { ChevronDown, Loader2, Play, Send } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -237,7 +238,10 @@ export function CodePlayground({
               key={question.id}
               value={currentCode}
               height="100%"
-              extensions={[getLanguageExtension(selectedLanguage)]}
+              extensions={[
+                getLanguageExtension(selectedLanguage),
+                EditorState.tabSize.of(4),
+              ]}
               onChange={(val) => setCode(question.id, selectedLanguage, val)}
               theme={theme === "dark" ? "dark" : "light"}
               className="h-full"
