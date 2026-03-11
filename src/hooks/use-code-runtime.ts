@@ -11,7 +11,7 @@ export interface Runtime {
 
 export function useCodeRuntime() {
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
-  const [selectedLanguage, setSelectedLanguage] = useState("java");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,10 +26,13 @@ export function useCodeRuntime() {
       if (result.success && result.runtimes) {
         setRuntimes(result.runtimes);
 
-        // Auto-select version for default language (java)
-        const javaRuntime = result.runtimes.find((r) => r.language === "java");
-        if (javaRuntime) {
-          setSelectedVersion(javaRuntime.version);
+        if (result.runtimes.length > 0) {
+          // Prefer java if available, otherwise use the first available language
+          const javaRuntime = result.runtimes.find((r) => r.language === "java");
+          const defaultRuntime = javaRuntime || result.runtimes[0];
+          
+          setSelectedLanguage(defaultRuntime.language);
+          setSelectedVersion(defaultRuntime.version);
         }
       } else {
         toast.error(result.error || "Failed to load runtimes");

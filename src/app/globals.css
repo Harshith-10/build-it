@@ -200,3 +200,36 @@
 .google-sans {
   font-family: var(--font-google-sans);
 }
+
+/* Swiss/International grid background pattern */
+.landing-grid-bg {
+  background-image:
+    linear-gradient(to right, oklch(0.85 0 0 / 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.85 0 0 / 0.35) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+:is(.dark) .landing-grid-bg {
+  background-image:
+    linear-gradient(to right, oklch(0.3 0 0 / 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.3 0 0 / 0.4) 1px, transparent 1px);
+}
+
+/* Smooth scroll for anchor links */
+html {
+  scroll-behavior: smooth;
+}
+
+.shaku {
+  animation: shaku 2s ease-in-out infinite;
+}
+
+@keyframes shaku {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(10px);
+  }
+}

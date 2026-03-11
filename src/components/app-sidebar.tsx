@@ -86,7 +86,7 @@ const studentNavMain = [
   },
 ];
 
-const navAccount = [
+const _navAccount = [
   {
     title: "Profile",
     url: "/u/me",

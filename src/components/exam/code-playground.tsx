@@ -117,6 +117,32 @@ export function CodePlayground({
     }
   };
 
+  // Get unique languages from available runtimes
+  const availableLanguages = Array.from(
+    new Set(runtimes.map((r) => r.language)),
+  ).sort();
+
+  // Helper to format language names for display
+  const formatLanguageName = (lang: string) => {
+    const nameMap: Record<string, string> = {
+      cpp: "C++",
+      c: "C",
+      java: "Java",
+      python: "Python",
+      javascript: "JavaScript",
+      typescript: "TypeScript",
+      rust: "Rust",
+      go: "Go",
+      csharp: "C#",
+      ruby: "Ruby",
+      php: "PHP",
+      swift: "Swift",
+      kotlin: "Kotlin",
+      zig: "Zig",
+    };
+    return nameMap[lang] || lang.charAt(0).toUpperCase() + lang.slice(1);
+  };
+
   return (
     <ResizablePanelGroup orientation="vertical">
       <ResizablePanel defaultSize={60} minSize={30}>
@@ -126,15 +152,27 @@ export function CodePlayground({
               <Select
                 value={selectedLanguage}
                 onValueChange={setSelectedLanguage}
+                disabled={runtimeLoading || availableLanguages.length === 0}
               >
                 <SelectTrigger className="w-[100px] h-7 text-xs">
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="java">Java</SelectItem>
-                  <SelectItem value="python">Python</SelectItem>
-                  <SelectItem value="cpp">C++</SelectItem>
-                  <SelectItem value="rust">Rust</SelectItem>
+                  {runtimeLoading ? (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  ) : availableLanguages.length === 0 ? (
+                    <SelectItem value="none" disabled>
+                      No languages available
+                    </SelectItem>
+                  ) : (
+                    availableLanguages.map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {formatLanguageName(lang)}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
 

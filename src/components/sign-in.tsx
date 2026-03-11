@@ -54,7 +54,7 @@ export default function SignIn() {
       },
       onSuccess: () => {
         toast.success("Login successful");
-        router.push("/");
+        router.push("/redirect");
         router.refresh();
       },
       onError: (ctx: { error: { message: string } }) => {
@@ -164,11 +164,11 @@ export default function SignIn() {
           <p className="text-center text-xs text-muted-foreground">
             Powered by{" "}
             <Link
-              href="https://github.com/Harshith-10/turbo"
+              href="https://github.com/Harshith-10/jet"
               className="underline hover:text-foreground transition-colors"
               target="_blank"
             >
-              Turbo
+              Jet
             </Link>
           </p>
         </div>

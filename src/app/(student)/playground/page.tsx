@@ -135,7 +135,7 @@ export default function PlaygroundPage() {
                     <SelectTrigger className="w-[120px] h-8 text-sm font-medium">
                       <SelectValue placeholder="Language" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper">
                       {runtimes.length === 0 ? (
                         <SelectItem value="loading" disabled>
                           {runtimeLoading ? "Loading..." : "No languages found"}

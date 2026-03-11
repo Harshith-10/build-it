@@ -177,34 +177,34 @@ export function DataTable<TData, TValue>({
       columnFilters,
       columnVisibility,
       ...(manualPagination &&
-        controlledPageIndex !== undefined &&
-        controlledPageSize !== undefined
+      controlledPageIndex !== undefined &&
+      controlledPageSize !== undefined
         ? {
-          pagination: {
-            pageIndex: controlledPageIndex,
-            pageSize: controlledPageSize,
-          },
-        }
+            pagination: {
+              pageIndex: controlledPageIndex,
+              pageSize: controlledPageSize,
+            },
+          }
         : {}),
     },
     ...(manualPagination
       ? {
-        onPaginationChange: (updater) => {
-          if (typeof updater === "function") {
-            const prev = {
-              pageIndex: controlledPageIndex ?? 0,
-              pageSize: controlledPageSize ?? 10,
-            };
-            const next = updater(prev);
-            if (next.pageIndex !== prev.pageIndex) {
-              onPageChange?.(next.pageIndex);
+          onPaginationChange: (updater) => {
+            if (typeof updater === "function") {
+              const prev = {
+                pageIndex: controlledPageIndex ?? 0,
+                pageSize: controlledPageSize ?? 10,
+              };
+              const next = updater(prev);
+              if (next.pageIndex !== prev.pageIndex) {
+                onPageChange?.(next.pageIndex);
+              }
+              if (next.pageSize !== prev.pageSize) {
+                onPageSizeChange?.(next.pageSize);
+              }
             }
-            if (next.pageSize !== prev.pageSize) {
-              onPageSizeChange?.(next.pageSize);
-            }
-          }
-        },
-      }
+          },
+        }
       : {}),
   });
 
@@ -266,9 +266,9 @@ export function DataTable<TData, TValue>({
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
                     </TableHead>
                   );
                 })}

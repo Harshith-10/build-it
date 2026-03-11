@@ -113,8 +113,9 @@ export interface RuntimesResponse {
 // Configuration
 // ============================================
 
-const JET_BASE_URL =
-  (process.env.JET_API_BASE_URL || "http://localhost:4000").replace(/\/+$/, "");
+const JET_BASE_URL = (
+  process.env.JET_API_BASE_URL || "http://localhost:4000"
+).replace(/\/+$/, "");
 
 const DEFAULT_TIMEOUTS = {
   run: 5000,
@@ -293,8 +294,7 @@ export async function getRuntimes(): Promise<
  */
 export async function checkHealth(): Promise<boolean> {
   try {
-    const healthUrl =
-      process.env.JET_HEALTH_URL || `${JET_BASE_URL}/health`;
+    const healthUrl = process.env.JET_HEALTH_URL || `${JET_BASE_URL}/health`;
     const res = await fetch(healthUrl, {
       method: "GET",
       signal: AbortSignal.timeout(3000),

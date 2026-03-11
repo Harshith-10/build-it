@@ -8,7 +8,7 @@ export async function requireAdmin() {
   });
 
   if (!session || session.user.role !== "admin") {
-    redirect("/");
+    redirect("/redirect");
   }
 
   return session;
