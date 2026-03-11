@@ -130,7 +130,8 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
         res.runtimes.forEach((rt) => {
           if (!versionMap[rt.language]) {
             versionMap[rt.language] =
-              getPreferredRuntime(res.runtimes, rt.language)?.version ?? rt.version;
+              // biome-ignore lint/style/noNonNullAssertion: We know runtimes is not null because of the check above
+              getPreferredRuntime(res.runtimes!, rt.language)?.version ?? rt.version;
           }
         });
         setLanguageVersionMap(versionMap);
