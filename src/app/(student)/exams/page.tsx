@@ -135,7 +135,7 @@ export default async function ExamsPage() {
     .sort(
       (a, b) =>
         statusPriority[a.computedStatus] - statusPriority[b.computedStatus] ||
-        a.effectiveStart.getTime() - b.effectiveStart.getTime(),
+        b.effectiveStart.getTime() - a.effectiveStart.getTime(),
     );
 
   const tzName = (() => {
