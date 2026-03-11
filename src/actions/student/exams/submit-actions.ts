@@ -109,10 +109,11 @@ export async function submitQuestion(
     );
 
     const executionResult: JobResult = await executeCode(
+      session.user.id,
       input.code,
       input.language,
       input.version,
-      jetTestCases,
+      jetTestCases
     );
 
     // 5. Determine Verdict

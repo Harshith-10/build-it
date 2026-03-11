@@ -47,8 +47,8 @@ jobs:
           DB_SSL: ${{ secrets.DB_SSL }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
-          JET_API_BASE_URL: ${{ secrets.JET_API_BASE_URL }}
-          JET_HEALTH_URL: ${{ secrets.JET_HEALTH_URL }}
+          JET_SERVER_URL: ${{ secrets.JET_SERVER_URL }}
+          JET_HMAC_SECRET: ${{ secrets.JET_HMAC_SECRET }}
 
       - name: Copy build artifacts to server
         uses: appleboy/scp-action@v0.1.7

@@ -73,10 +73,11 @@ export async function runCode(input: RunCodeInput): Promise<RunCodeResult> {
     const jetTestCases: JetTestCase[] = mapTestCases(input.testCases);
 
     const result: JobResult = await executeCode(
+      session.user.id,
       input.code,
       input.language,
       input.version,
-      jetTestCases,
+      jetTestCases
     );
 
     // Check for compilation errors
@@ -145,11 +146,12 @@ export async function runWithCustomInput(
 
   try {
     const result: JobResult = await executeCode(
+      session.user.id,
       input.code,
       input.language,
       input.version,
       undefined,
-      input.stdin,
+      input.stdin
     );
 
     // Check for compilation errors

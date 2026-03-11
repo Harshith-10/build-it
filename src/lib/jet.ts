@@ -7,6 +7,8 @@
  * @see API_SPEC.md for the full Jet Server API specification.
  */
 
+import { buildJetRateLimitHeaders } from "@/lib/jet-headers";
+
 // ============================================
 // Types - Request
 // ============================================
@@ -114,8 +116,16 @@ export interface RuntimesResponse {
 // ============================================
 
 const JET_BASE_URL = (
-  process.env.JET_API_BASE_URL || "http://localhost:4000"
+  process.env.JET_SERVER_URL || "http://localhost:4000"
 ).replace(/\/+$/, "");
+
+const JET_HMAC_SECRET =
+  process.env.JET_HMAC_SECRET || "some_unsecure_default_secret";
+if (JET_HMAC_SECRET === "some_unsecure_default_secret") {
+  console.warn(
+    "Warning: JET_HMAC_SECRET environment variable is not set. Rate-limited endpoints may fail.",
+  );
+}
 
 const DEFAULT_TIMEOUTS = {
   run: 5000,
@@ -149,10 +159,18 @@ export class JetError extends Error {
 // Internal Helpers
 // ============================================
 
-async function submitJob(request: JobRequest): Promise<SubmitJobResponse> {
+async function submitJob(
+  request: JobRequest,
+  userId: string,
+): Promise<SubmitJobResponse> {
+  const rateHeaders = buildJetRateLimitHeaders({
+    userId,
+    secret: JET_HMAC_SECRET,
+  });
+
   const response = await fetch(`${JET_BASE_URL}/jobs`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...rateHeaders },
     body: JSON.stringify(request),
   });
 
@@ -211,6 +229,7 @@ async function pollUntilComplete(jobId: string): Promise<JobStateRecord> {
  *
  * Submits a job and polls until completion. Returns the final JobResult.
  *
+ * @param userId - User ID for rate limiting headers
  * @param code - Source code to execute
  * @param language - Programming language (e.g., "java", "python")
  * @param version - Runtime version (required by Jet)
@@ -218,6 +237,7 @@ async function pollUntilComplete(jobId: string): Promise<JobStateRecord> {
  * @param stdin - Standard input (single-run mode; ignored when testcases provided)
  */
 export async function executeCode(
+  userId: string,
   code: string,
   language: string,
   version: string,
@@ -238,7 +258,7 @@ export async function executeCode(
     compile_memory_limit: DEFAULT_MEMORY_LIMITS.compile,
   };
 
-  const submission = await submitJob(request);
+  const submission = await submitJob(request, userId);
   const finalState = await pollUntilComplete(submission.job_id);
 
   if (finalState.status === "failed") {
@@ -294,7 +314,7 @@ export async function getRuntimes(): Promise<
  */
 export async function checkHealth(): Promise<boolean> {
   try {
-    const healthUrl = process.env.JET_HEALTH_URL || `${JET_BASE_URL}/health`;
+    const healthUrl = `${JET_BASE_URL}/health`;
     const res = await fetch(healthUrl, {
       method: "GET",
       signal: AbortSignal.timeout(3000),
