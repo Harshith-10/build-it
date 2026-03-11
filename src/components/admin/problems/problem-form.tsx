@@ -49,6 +49,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { getPreferredRuntime } from "@/lib/runtime-utils";
 import { useProblemStore } from "./use-problem-store";
 
 // Schema
@@ -124,11 +125,12 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     getRuntimes().then((res) => {
       if (res.success && res.runtimes) {
         setAvailableRuntimes(res.runtimes);
-        // Create a map of language -> first version for that language
+        // Prefer the latest stable version for each language, falling back to the latest pre-release.
         const versionMap: Record<string, string> = {};
         res.runtimes.forEach((rt) => {
           if (!versionMap[rt.language]) {
-            versionMap[rt.language] = rt.version;
+            versionMap[rt.language] =
+              getPreferredRuntime(res.runtimes, rt.language)?.version ?? rt.version;
           }
         });
         setLanguageVersionMap(versionMap);

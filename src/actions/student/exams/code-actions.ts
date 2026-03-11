@@ -11,6 +11,7 @@ import {
   type JobResult,
   mapTestCases,
 } from "@/lib/jet";
+import { sortRuntimes } from "@/lib/runtime-utils";
 import type { TestcaseResult } from "@/types/problem";
 
 // ============================================
@@ -205,7 +206,7 @@ export async function getRuntimes(): Promise<{
 }> {
   try {
     const runtimes = await getJetRuntimes();
-    return { success: true, runtimes };
+    return { success: true, runtimes: sortRuntimes(runtimes) };
   } catch (error) {
     console.error("Failed to fetch runtimes:", error);
 

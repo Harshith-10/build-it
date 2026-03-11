@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getRuntimes } from "@/actions/student/exams/code-actions";
+import { getPreferredRuntime } from "@/lib/runtime-utils";
 
 export interface Runtime {
   language: string;
@@ -28,9 +29,14 @@ export function useCodeRuntime() {
 
         if (result.runtimes.length > 0) {
           // Prefer java if available, otherwise use the first available language
-          const javaRuntime = result.runtimes.find((r) => r.language === "java");
-          const defaultRuntime = javaRuntime || result.runtimes[0];
-          
+          const defaultRuntime =
+            getPreferredRuntime(result.runtimes, "java") ??
+            getPreferredRuntime(result.runtimes);
+
+          if (!defaultRuntime) {
+            return;
+          }
+
           setSelectedLanguage(defaultRuntime.language);
           setSelectedVersion(defaultRuntime.version);
         }
@@ -52,7 +58,7 @@ export function useCodeRuntime() {
     );
     if (languageRuntimes.length > 0) {
       if (!languageRuntimes.find((r) => r.version === selectedVersion)) {
-        setSelectedVersion(languageRuntimes[0].version);
+        setSelectedVersion(getPreferredRuntime(languageRuntimes)?.version);
       }
     } else {
       setSelectedVersion(undefined);
