@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { db } from "@/db";
 import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -29,6 +30,12 @@ function getStatusColor(status: "upcoming" | "active" | "ended") {
       return "bg-neutral-500";
   }
 }
+
+const statusPriority: Record<"upcoming" | "active" | "ended", number> = {
+  active: 0,
+  upcoming: 1,
+  ended: 2,
+};
 
 export default async function ExamsPage() {
   const session = await auth.api.getSession({
@@ -107,7 +114,7 @@ export default async function ExamsPage() {
       }
 
       // Determine status based on EFFECTIVE times
-      let status = "active"; // Default
+      let status: "upcoming" | "active" | "ended" = "active";
 
       // Override status logic based on time
       if (now < effectiveStart) status = "upcoming";
@@ -124,7 +131,12 @@ export default async function ExamsPage() {
         computedStatus: status,
         isSubmitted: assignmentStatus === "completed",
       };
-    });
+    })
+    .sort(
+      (a, b) =>
+        statusPriority[a.computedStatus] - statusPriority[b.computedStatus] ||
+        a.effectiveStart.getTime() - b.effectiveStart.getTime(),
+    );
 
   const tzName = (() => {
     try {
@@ -138,7 +150,7 @@ export default async function ExamsPage() {
   })();
 
   return (
-    <div className="space-y-6 mx-auto max-w-screen-2xl">
+    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Exams</h2>
@@ -148,102 +160,98 @@ export default async function ExamsPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {examsWithSlots.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center p-8 border rounded-lg border-dashed text-center">
-            <div className="bg-muted p-4 rounded-full mb-4">
-              <Calendar className="h-8 w-8 text-muted-foreground" />
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="grid gap-6 pb-1 pr-4 md:grid-cols-2 lg:grid-cols-3">
+          {examsWithSlots.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+              <div className="bg-muted mb-4 rounded-full p-4">
+                <Calendar className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium">No Exams Found</h3>
+              <p className="text-muted-foreground mt-1 max-w-sm">
+                There are no exams scheduled at the moment. Please check back
+                later.
+              </p>
             </div>
-            <h3 className="text-lg font-medium">No Exams Found</h3>
-            <p className="text-muted-foreground mt-1 max-w-sm">
-              There are no exams scheduled at the moment. Please check back
-              later.
-            </p>
-          </div>
-        ) : (
-          examsWithSlots.map((exam) => (
-            <Card key={exam.id} className="flex flex-col">
-              <CardHeader>
-                <div className="flex items-center justify-between mb-2">
-                  <Badge
-                    className={getStatusColor(
-                      exam.computedStatus as "upcoming" | "active" | "ended",
+          ) : (
+            examsWithSlots.map((exam) => (
+              <Card key={exam.id} className="flex flex-col">
+                <CardHeader>
+                  <div className="mb-2 flex items-center justify-between">
+                    <Badge className={getStatusColor(exam.computedStatus)}>
+                      {exam.computedStatus.charAt(0).toUpperCase() +
+                        exam.computedStatus.slice(1)}
+                    </Badge>
+                    {exam.computedStatus === "active" && (
+                      <span className="flex h-2 w-2 animate-pulse rounded-full bg-green-500" />
                     )}
-                  >
-                    {exam.computedStatus.charAt(0).toUpperCase() +
-                      exam.computedStatus.slice(1)}
-                  </Badge>
-                  {exam.computedStatus === "active" && (
-                    <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  )}
-                </div>
-                <CardTitle className="line-clamp-1">{exam.title}</CardTitle>
-                <CardDescription className="line-clamp-2 min-h-[40px]">
-                  {exam.description || "No description provided."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm text-neutral-600 dark:text-neutral-400">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <span>{format(exam.effectiveStart, "MMM d, yyyy")}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>
-                      {format(exam.effectiveStart, "HH:mm")} -{" "}
-                      {format(exam.effectiveEnd, "HH:mm")} {tzName}
-                    </span>
+                  <CardTitle className="line-clamp-1">{exam.title}</CardTitle>
+                  <CardDescription className="line-clamp-2 min-h-[40px]">
+                    {exam.description || "No description provided."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-neutral-600 dark:text-neutral-400">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>{format(exam.effectiveStart, "MMM d, yyyy")}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        {format(exam.effectiveStart, "HH:mm")} -{" "}
+                        {format(exam.effectiveEnd, "HH:mm")} {tzName}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Timer className="h-4 w-4" />
+                      <span>{exam.durationMinutes} mins</span>
+                    </div>
+                    {exam.gradingConfig &&
+                      // biome-ignore lint/suspicious/noExplicitAny: complex json column
+                      (exam.gradingConfig as any).totalMarks && (
+                        <div className="flex items-center gap-2">
+                          <Trophy className="h-4 w-4" />
+                          <span>
+                            {
+                              // biome-ignore lint/suspicious/noExplicitAny: complex json column
+                              (exam.gradingConfig as any).totalMarks
+                            }{" "}
+                            Marks
+                          </span>
+                        </div>
+                      )}
+                    {exam.strategyConfig &&
+                      exam.strategyType === "random_n" &&
+                      // biome-ignore lint/suspicious/noExplicitAny: complex json column
+                      (exam.strategyConfig as any).count && (
+                        <div className="flex items-center gap-2">
+                          <LayoutList className="h-4 w-4" />
+                          <span>
+                            {
+                              // biome-ignore lint/suspicious/noExplicitAny: complex json column
+                              (exam.strategyConfig as any).count
+                            }{" "}
+                            Questions
+                          </span>
+                        </div>
+                      )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Timer className="h-4 w-4" />
-                    <span>{exam.durationMinutes} mins</span>
-                  </div>
-                  {exam.gradingConfig &&
-                    // biome-ignore lint/suspicious/noExplicitAny: complex json column
-                    (exam.gradingConfig as any).totalMarks && (
-                      <div className="flex items-center gap-2">
-                        <Trophy className="h-4 w-4" />
-                        <span>
-                          {
-                            // biome-ignore lint/suspicious/noExplicitAny: complex json column
-                            (exam.gradingConfig as any).totalMarks
-                          }{" "}
-                          Marks
-                        </span>
-                      </div>
-                    )}
-                  {exam.strategyConfig &&
-                    exam.strategyType === "random_n" &&
-                    // biome-ignore lint/suspicious/noExplicitAny: complex json column
-                    (exam.strategyConfig as any).count && (
-                      <div className="flex items-center gap-2">
-                        <LayoutList className="h-4 w-4" />
-                        <span>
-                          {
-                            // biome-ignore lint/suspicious/noExplicitAny: complex json column
-                            (exam.strategyConfig as any).count
-                          }{" "}
-                          Questions
-                        </span>
-                      </div>
-                    )}
-                </div>
-              </CardContent>
-              <CardFooter>
-                <ExamCardAction
-                  examId={exam.id}
-                  status={
-                    exam.computedStatus as "upcoming" | "active" | "ended"
-                  }
-                  effectiveStart={exam.effectiveStart}
-                  isSubmitted={exam.isSubmitted}
-                />
-              </CardFooter>
-            </Card>
-          ))
-        )}
-      </div>
+                </CardContent>
+                <CardFooter>
+                  <ExamCardAction
+                    examId={exam.id}
+                    status={exam.computedStatus}
+                    effectiveStart={exam.effectiveStart}
+                    isSubmitted={exam.isSubmitted}
+                  />
+                </CardFooter>
+              </Card>
+            ))
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 }
