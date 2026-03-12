@@ -131,7 +131,8 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
           if (!versionMap[rt.language]) {
             versionMap[rt.language] =
               // biome-ignore lint/style/noNonNullAssertion: We know runtimes is not null because of the check above
-              getPreferredRuntime(res.runtimes!, rt.language)?.version ?? rt.version;
+              getPreferredRuntime(res.runtimes!, rt.language)?.version ??
+              rt.version;
           }
         });
         setLanguageVersionMap(versionMap);

@@ -128,8 +128,13 @@ export function getPreferredRuntime<T extends RuntimeOption>(
   language?: string,
 ): T | undefined {
   const candidates = sortRuntimes(
-    language ? runtimes.filter((runtime) => runtime.language === language) : runtimes,
+    language
+      ? runtimes.filter((runtime) => runtime.language === language)
+      : runtimes,
   );
 
-  return candidates.find((runtime) => isStableVersion(runtime.version)) ?? candidates[0];
+  return (
+    candidates.find((runtime) => isStableVersion(runtime.version)) ??
+    candidates[0]
+  );
 }

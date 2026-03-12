@@ -215,9 +215,22 @@
     linear-gradient(to bottom, oklch(0.3 0 0 / 0.4) 1px, transparent 1px);
 }
 
-/* Smooth scroll for anchor links */
-html {
-  scroll-behavior: smooth;
+/* Lenis integration: avoid native smooth scroll conflicts and keep layout stable */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto;
+}
+
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
 }
 
 .shaku {

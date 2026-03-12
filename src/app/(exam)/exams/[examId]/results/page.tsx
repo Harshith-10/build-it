@@ -103,14 +103,20 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
 
   const scorePercent =
     totalPossibleScore > 0
-      ? Math.max(0, Math.min(100, Math.round((score / totalPossibleScore) * 100)))
+      ? Math.max(
+          0,
+          Math.min(100, Math.round((score / totalPossibleScore) * 100)),
+        )
       : 0;
 
   const attemptedPercent =
     totalQuestions > 0
       ? Math.max(
           0,
-          Math.min(100, Math.round((questionsAttempted / totalQuestions) * 100)),
+          Math.min(
+            100,
+            Math.round((questionsAttempted / totalQuestions) * 100),
+          ),
         )
       : 0;
 
@@ -119,7 +125,8 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
       ? Math.max(
           0,
           Math.floor(
-            (assignment.completedAt.getTime() - assignment.startedAt.getTime()) /
+            (assignment.completedAt.getTime() -
+              assignment.startedAt.getTime()) /
               1000,
           ),
         )
@@ -158,7 +165,9 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
             <div className="text-sm text-muted-foreground">Total Score</div>
             <div className="mt-1 text-5xl font-bold tracking-tight">
               {score}
-              <span className="text-2xl text-muted-foreground">/{totalPossibleScore}</span>
+              <span className="text-2xl text-muted-foreground">
+                /{totalPossibleScore}
+              </span>
             </div>
             <div className="mt-4 space-y-2 text-left">
               <div className="flex items-center justify-between text-sm">
@@ -173,7 +182,9 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
             <Card>
               <CardContent className="flex items-center justify-between p-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Questions Attempted</p>
+                  <p className="text-xs text-muted-foreground">
+                    Questions Attempted
+                  </p>
                   <p className="mt-1 text-xl font-semibold">
                     {questionsAttempted} / {totalQuestions}
                   </p>
