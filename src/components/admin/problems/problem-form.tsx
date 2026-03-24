@@ -17,7 +17,7 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import Markdown from "react-markdown";
@@ -71,9 +71,25 @@ const problemSchema = z.object({
 
 type ProblemFormValues = z.infer<typeof problemSchema>;
 
-const defaultDriverCode = `// Write your driver code here
+const defaultJavaDriverCode = `// Write your driver code here
 // This code will wrap the user's solution
 `;
+
+const defaultPythonDriverCode = `# Write your driver code here
+# This code will wrap the user's solution
+`;
+
+const emptyFormDefaults: ProblemFormValues = {
+  title: "",
+  difficulty: "easy",
+  problemStatement: "",
+  allowedLanguages: ["java", "python"],
+  driverCode: {
+    java: defaultJavaDriverCode,
+    python: defaultPythonDriverCode,
+  },
+  testCases: [{ input: "", expectedOutput: "", isHidden: false }],
+};
 
 // biome-ignore lint/suspicious/noExplicitAny: CodeMirror language extension types
 const languageExtensions: Record<string, () => any> = {
@@ -85,6 +101,7 @@ const languageExtensions: Record<string, () => any> = {
 // biome-ignore lint/suspicious/noExplicitAny: Form initialData accepts any shape
 export function ProblemForm({ initialData }: { initialData?: any }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -93,6 +110,8 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     toggleAllowedLanguage,
     setDriverCode,
     initialize,
+    getGeneratedDraft,
+    clearGeneratedDraft,
   } = useProblemStore();
 
   const [codeTabLang, setCodeTabLang] = useState("java");
@@ -112,14 +131,51 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
 
   const { isOnline } = useJetStore();
 
+  const [selectedTestCase, setSelectedTestCase] = useState(0);
+
+  const form = useForm<ProblemFormValues>({
+    // biome-ignore lint/suspicious/noExplicitAny: Bypass strict Zod types
+    resolver: zodResolver(problemSchema) as any,
+    defaultValues: initialData || emptyFormDefaults,
+  });
+
   useEffect(() => {
     if (initialData) {
       initialize(
         initialData.allowedLanguages || ["java"],
-        initialData.driverCode || { java: defaultDriverCode },
+        initialData.driverCode || { java: defaultJavaDriverCode, python: defaultPythonDriverCode },
       );
     } else {
-      initialize(["java"], { java: defaultDriverCode });
+      const shouldApplyGeneratedDraft = searchParams.get("generated") === "1";
+      const generatedDraft = shouldApplyGeneratedDraft
+        ? getGeneratedDraft()
+        : null;
+
+      if (generatedDraft) {
+        initialize(
+          generatedDraft.allowedLanguages,
+          generatedDraft.driverCodeMap,
+        );
+        form.reset({
+          title: generatedDraft.title,
+          difficulty: generatedDraft.difficulty,
+          problemStatement: generatedDraft.problemStatement,
+          driverCode: generatedDraft.driverCodeMap,
+          allowedLanguages: generatedDraft.allowedLanguages,
+          testCases: generatedDraft.testCases,
+        });
+        setCodeTabLang(generatedDraft.allowedLanguages[0] || "java");
+        setVerifyTabLang(generatedDraft.allowedLanguages[0] || "java");
+        setVerifyCodeMap(generatedDraft.driverCodeMap);
+        setSelectedTestCase(0);
+      } else {
+        initialize(["java"], { java: defaultJavaDriverCode });
+        form.reset(emptyFormDefaults);
+        setCodeTabLang("java");
+        setVerifyTabLang("java");
+        setVerifyCodeMap({ java: defaultJavaDriverCode });
+        setSelectedTestCase(0);
+      }
     }
 
     getRuntimes().then((res) => {
@@ -138,7 +194,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
         setLanguageVersionMap(versionMap);
       }
     });
-  }, [initialData, initialize]);
+  }, [initialData, initialize, getGeneratedDraft, form, searchParams]);
 
   // Initialize verify code map from driver code map when language changes
   useEffect(() => {
@@ -149,20 +205,6 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
       }));
     }
   }, [verifyTabLang, driverCodeMap, verifyCodeMap]);
-
-  const [selectedTestCase, setSelectedTestCase] = useState(0);
-
-  const form = useForm<ProblemFormValues>({
-    // biome-ignore lint/suspicious/noExplicitAny: Bypass strict Zod types
-    resolver: zodResolver(problemSchema) as any,
-    defaultValues: initialData || {
-      title: "",
-      difficulty: "easy",
-      problemStatement: "",
-      driverCode: {},
-      testCases: [{ input: "", expectedOutput: "", isHidden: false }],
-    },
-  });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -180,6 +222,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
       };
       const res = await upsertProblem(payload);
       if (res.success) {
+        clearGeneratedDraft();
         toast.success("Problem saved successfully");
         router.push("/admin/problems");
       } else {
@@ -734,7 +777,14 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
 
         {/* Footer actions — always at bottom */}
         <div className="shrink-0 flex justify-end gap-3 pt-2">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              clearGeneratedDraft();
+              router.back();
+            }}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>

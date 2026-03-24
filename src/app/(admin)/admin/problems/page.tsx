@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
+import { GenerateProblemDialog } from "@/components/admin/problems/generate-problem-dialog";
 import { ProblemsTable } from "@/components/admin/problems/problems-table";
 import { Button } from "@/components/ui/button";
 
@@ -13,11 +14,14 @@ export default function ProblemsPage() {
         title="Problems"
         description="Create and manage coding problems"
         actions={
-          <Link href="/admin/problems/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Create Problem
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <GenerateProblemDialog />
+            <Link href="/admin/problems/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" /> Create Problem
+              </Button>
+            </Link>
+          </div>
         }
       />
       <ProblemsTable />
