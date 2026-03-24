@@ -109,7 +109,7 @@ export function FeaturesSection() {
             <motion.div
               key={feature.title}
               variants={fadeUp}
-              className="group relative p-6 rounded-xl border border-border bg-card hover:shadow-md transition-shadow duration-200"
+              className="group relative p-6 rounded-xl border border-border bg-card hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
             >
               {/* Accent bar */}
               <div

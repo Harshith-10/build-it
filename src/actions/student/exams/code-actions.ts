@@ -78,7 +78,7 @@ export async function runCode(input: RunCodeInput): Promise<RunCodeResult> {
       input.code,
       input.language,
       input.version,
-      jetTestCases
+      jetTestCases,
     );
 
     // Check for compilation errors
@@ -152,7 +152,7 @@ export async function runWithCustomInput(
       input.language,
       input.version,
       undefined,
-      input.stdin
+      input.stdin,
     );
 
     // Check for compilation errors

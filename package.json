@@ -61,6 +61,7 @@
     "exceljs": "^4.4.0",
     "fstream": "^1.0.12",
     "glob": "^13.0.3",
+    "groq-sdk": "^1.1.1",
     "inflight": "^1.0.6",
     "input-otp": "^1.4.2",
     "inquirer": "^13.1.0",
