@@ -23,8 +23,8 @@ const generatedProblemSchema = z.object({
   description: z.string().trim().min(20),
   difficulty: z.enum(["easy", "medium", "hard"]),
   driver_code: z.object({
-    java: z.string().trim(),
     python: z.string().trim(),
+    java: z.string().trim().optional(),
     c: z.string().trim().optional(),
     cpp: z.string().trim().optional(),
     rust: z.string().trim().optional(),
@@ -42,15 +42,6 @@ const generatedProblemSchema = z.object({
     .min(5),
 });
 
-const defaultJavaDriverCode = `import java.util.*;
-
-public class Main {
-    public static void main(String[] args) {
-        // TODO: parse input, call solution method, print output
-    }
-}
-`;
-
 const defaultPythonDriverCode = `def solve() -> None:
     # TODO: parse input, call solution function, print output
     pass
@@ -67,10 +58,6 @@ const normalizeGeneratedProblem = (
     ...parsed,
     driver_code: {
       ...parsed.driver_code,
-      java:
-        parsed.driver_code.java.trim().length > 0
-          ? parsed.driver_code.java
-          : defaultJavaDriverCode,
       python:
         parsed.driver_code.python.trim().length > 0
           ? parsed.driver_code.python
@@ -95,70 +82,75 @@ const normalizeGeneratedProblem = (
 };
 
 const getSystemPrompt = () => `
-You are an expert technical interviewer. Convert a coding problem idea into valid JSON.
+You are an expert technical interviewer. Convert a coding problem idea into STRICT VALID JSON.
 
-OUTPUT FORMAT: JSON ONLY (no markdown fences, no explanations).
+CRITICAL: return JSON object only. No markdown, no comments, no prose.
 
-SCHEMA:
+The response MUST be parseable by JSON.parse exactly as returned.
+JSON validity rules:
+- Use only double-quoted keys and strings.
+- Escape newlines inside strings as \\n+ (never raw line breaks inside a JSON string).
+- No trailing commas.
+- No missing commas.
+- Do not rename keys.
+
+Output must match this exact shape and key names:
 {
-  "title": "String (3+ chars)",
-  "description": "Markdown string with title heading, examples, and constraints",
-  "difficulty": "easy" | "medium" | "hard",
+  "title": "string (min 3 chars)",
+  "description": "string",
+  "difficulty": "easy|medium|hard",
   "driver_code": {
-    "python": "String (required)",
-    "java": "String (optional)",
-    "c": "String (optional)",
-    "cpp": "String (optional)",
-    "rust": "String (optional)",
-    "zig": "String (optional)"
+    "python": "string",
+    "java": "string (optional)",
+    "c": "string (optional)",
+    "cpp": "string (optional)",
+    "rust": "string (optional)",
+    "zig": "string (optional)"
   },
   "test_cases": [
-    {"id": "tc-1", "input": "String", "expected_output": "String", "hidden": Boolean}
+    {"id":"tc-1","input":"string","expected_output":"string","hidden":false}
   ]
 }
 
+Never use keys such as "diff". Use only "difficulty".
+
 PROBLEM SCOPE (LEETCODE-STYLE ONLY):
-Generate ALGORITHMIC problems solvable via stdin/stdout with no external dependencies.
-REJECT project-based problems or those requiring:
-- GUI/UI frameworks (Tkinter, PyQt, web interfaces)
-- External databases or persistence (SQL, file I/O beyond simple parsing)
-- Networking (HTTP, sockets, APIs)
-- File system operations
-- System-level tasks
-- Third-party libraries (focus on stdlib only)
-Focus on: algorithms, data structures, logic puzzles, string/math/array manipulation.
+- Algorithmic stdin/stdout problem only.
+- No GUI, web, DB, networking, filesystem workflows, system tasks, or third-party libraries.
+- Focus on arrays, strings, math, hashing, searching, sorting, DP, graphs, trees, stacks/queues, greedy.
 
-TEST CASES:
-- Generate exactly 6 test cases (minimum requirement met).
-- Exactly 3 must be visible (hidden: false); choose to avoid revealing solutions.
-- Each must be independent; no state carried between cases.
-- Use simple, parseable formats: primitives with delimiters (spaces, commas, newlines).
-- Named operations use format: count_of_ops\nop1\nop2\n...
-- Bad: "Add a new contact: John Doe, Male, 123 Main St, 1234567890"
-- Good: "1, John Doe, Male, 123 Main St, 1234567890" (operation code first).
+TEST CASE REQUIREMENTS:
+- Exactly 6 test cases.
+- Exactly 3 visible and 3 hidden.
+- Each test case object must include all 4 fields: id, input, expected_output, hidden.
+- ids must be tc-1 through tc-6.
+- Keep input/output machine-parseable and concise.
 
-DRIVER CODE & DESCRIPTION:
-- Driver code: boilerplate only (parsing + solution call + output), no solution logic.
-- Format code across multiple lines (never single-line).
-- Description must include: title as "# Title", examples with inputs/outputs, constraints.
-- Example format:
-  ## Example 1:
-  \`\`\`
-  Input: value
-  Output: result
-  Explanation: brief reason
-  \`\`\`
-- Ensure problem is solvable in typical interview time.
-- Do NOT mention test cases in description.
+DESCRIPTION REQUIREMENTS:
+- Markdown text in one JSON string.
+- Include:
+  - # Title
+  - short problem statement
+  - ## Example 1, ## Example 2, ## Example 3
+  - ## Constraints
+- Use triple-backtick code fences in description only for examples, showing input and output clearly.
+- Use plain lines like: Input: ... / Output: ... / Explanation: ...
+- Do not mention hidden/visible test cases.
+
+DRIVER CODE REQUIREMENTS:
+- Provide python driver_code always.
+- Boilerplate only: parse input, call placeholder function, print result.
+- No solution logic in driver code.
+- Non-interactive: no prompts, no menus, no labels.
+- Print only final parseable result.
+
+Before final answer, self-check JSON syntax and required keys.
 `;
 
 const models = [
-  "llama-3.3-70b-versatile",
-  "meta-llama/llama-4-scout-17b-16e-instruct",
+  "openai/gpt-oss-120b",
   "qwen/qwen3-32b",
-  "moonshotai/kimi-k2-instruct-0905",
-  "moonshotai/kimi-k2-instruct",
-  "llama-3.1-8b-instant",
+  "meta-llama/llama-4-scout-17b-16e-instruct",
 ] as const;
 
 const mapToGeneratedDraft = (
