@@ -95,84 +95,61 @@ const normalizeGeneratedProblem = (
 };
 
 const getSystemPrompt = () => `
-You are an expert technical interviewer and software engineer.
-Convert a plain-text coding problem idea into a strict JSON object.
+You are an expert technical interviewer. Convert a coding problem idea into valid JSON.
 
-CRITICAL INSTRUCTIONS:
-1. Output ONLY valid JSON.
-2. Do not include markdown code fences.
-3. Follow this exact schema:
+OUTPUT FORMAT: JSON ONLY (no markdown fences, no explanations).
+
+SCHEMA:
 {
-  "title": "String",
-  "description": "String (Markdown with constraints and examples)",
+  "title": "String (3+ chars)",
+  "description": "Markdown string with title heading, examples, and constraints",
   "difficulty": "easy" | "medium" | "hard",
   "driver_code": {
-    "java": "String (Optional)",
-    "python": "String",
-    "c": "String (Optional)",
-    "cpp": "String (Optional)",
-    "rust": "String (Optional)",
-    "zig": "String (Optional)"
+    "python": "String (required)",
+    "java": "String (optional)",
+    "c": "String (optional)",
+    "cpp": "String (optional)",
+    "rust": "String (optional)",
+    "zig": "String (optional)"
   },
   "test_cases": [
-    {
-      "id": "String (e.g., tc-1)",
-      "input": "String",
-      "expected_output": "String",
-      "hidden": Boolean
-    }
+    {"id": "tc-1", "input": "String", "expected_output": "String", "hidden": Boolean}
   ]
 }
 
-DATA CONSTRAINTS:
-- driver_code must include at least python and should cover enough boilerplate, but not anything about the solution.
-- generate exactly 6 test cases.
-- do not include any information about the test cases in the problem description.
-- test cases should be state-free and not rely on previous test cases.
-- exactly 3 of the test cases must have hidden=false, but should be chosen as to not reveal the solution or the challenging aspects.
-- keep input format easy to parse via standard input.
-- avoid input and output formats that are difficult to parse.
-- use structured data as much as possible in test cases (e.g., primitives separated by delimiters like spaces, commas and newlines) rather than complicated text.
-- bad input example: \`Add a new contact: John Doe, Male, 123 Main St, 1234567890\`
-- good input example: \`1, John Doe, Male, 123 Main St, 1234567890\` where the first number indicates the operation type (e.g., add contact).
+PROBLEM SCOPE (LEETCODE-STYLE ONLY):
+Generate ALGORITHMIC problems solvable via stdin/stdout with no external dependencies.
+REJECT project-based problems or those requiring:
+- GUI/UI frameworks (Tkinter, PyQt, web interfaces)
+- External databases or persistence (SQL, file I/O beyond simple parsing)
+- Networking (HTTP, sockets, APIs)
+- File system operations
+- System-level tasks
+- Third-party libraries (focus on stdlib only)
+Focus on: algorithms, data structures, logic puzzles, string/math/array manipulation.
 
-ADDITIONAL GUIDANCE:
-- always ensure that the driver codes are properly formatted and not written in a single line.
-- include the problem title in the description as well, formatted as a top-level heading (e.g., \`# Two Sum\`).
-- include constraints and examples in the description.
-- ensure the problem is solvable within typical coding interview time limits.
-- follow this format for examples and constraints in the description:
-## Example 1:
+TEST CASES:
+- Generate exactly 6 test cases (minimum requirement met).
+- Exactly 3 must be visible (hidden: false); choose to avoid revealing solutions.
+- Each must be independent; no state carried between cases.
+- Use simple, parseable formats: primitives with delimiters (spaces, commas, newlines).
+- Named operations use format: count_of_ops\nop1\nop2\n...
+- Bad: "Add a new contact: John Doe, Male, 123 Main St, 1234567890"
+- Good: "1, John Doe, Male, 123 Main St, 1234567890" (operation code first).
 
-\`\`\`
-Input: n = 4, nums = [2,7,11,15], target = 9
-Output: 0 1
-Explanation: Because nums[0] + nums[1] == 9, we return 0 1.
-\`\`\`
-
-## Example 2:
-
-\`\`\`
-Input: n = 3, nums = [3,2,4], target = 6
-Output: 1 2
-\`\`\`
-
-## Constraints:
-
-- \`2 <= nums.length <= 10^4\`
-- \`-10^9 <= nums[i] <= 10^9\`
-- \`-10^9 <= target <= 10^9\`
-- Only one valid answer exists.
-
-- if you want to test multiple operations in one test case, specify the number of test cases in the first line and put the test cases on new lines.
-- for example, if the problem involves multiple operations, the input could be:
-\`\`\`
-4
-add_contact, John Doe, Male, 123 Main St, 1234567890
-add_contact, Jane Smith, Female, 456 Elm St, 9876543210
-list_contacts
-delete_contact, 1234567890
-\`\`\`
+DRIVER CODE & DESCRIPTION:
+- Driver code: boilerplate only (parsing + solution call + output), no solution logic.
+- Format code across multiple lines (never single-line).
+- Description must include: title as "# Title", examples with inputs/outputs, constraints.
+- Example format:
+  ## Example 1:
+  \`\`\`
+  Input: value
+  Output: result
+  Explanation: brief reason
+  \`\`\`
+- Ensure problem is solvable in typical interview time.
+- Do NOT mention test cases in description.
 `;
 
 const models = [
