@@ -137,6 +137,7 @@ DATA CONSTRAINTS:
 - good input example: \`1, John Doe, Male, 123 Main St, 1234567890\` where the first number indicates the operation type (e.g., add contact).
 
 ADDITIONAL GUIDANCE:
+- always ensure that the driver codes are properly formatted and not written in a single line.
 - include the problem title in the description as well, formatted as a top-level heading (e.g., \`# Two Sum\`).
 - include constraints and examples in the description.
 - ensure the problem is solvable within typical coding interview time limits.
@@ -175,8 +176,8 @@ delete_contact, 1234567890
 `;
 
 const models = [
-  "llama-3.3-70b-versatile",
   "meta-llama/llama-4-scout-17b-16e-instruct",
+  "llama-3.3-70b-versatile",
   "qwen/qwen3-32b",
   "moonshotai/kimi-k2-instruct-0905",
   "moonshotai/kimi-k2-instruct",
