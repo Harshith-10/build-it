@@ -107,7 +107,7 @@ CRITICAL INSTRUCTIONS:
   "description": "String (Markdown with constraints and examples)",
   "difficulty": "easy" | "medium" | "hard",
   "driver_code": {
-    "java": "String",
+    "java": "String (Optional)",
     "python": "String",
     "c": "String (Optional)",
     "cpp": "String (Optional)",
@@ -125,11 +125,11 @@ CRITICAL INSTRUCTIONS:
 }
 
 DATA CONSTRAINTS:
-- driver_code must include at least java and python and should cover enough boilerplate, but not anything about the solution.
-- generate at least 5 test cases, but prefer more.
+- driver_code must include at least python and should cover enough boilerplate, but not anything about the solution.
+- generate exactly 6 test cases.
 - do not include any information about the test cases in the problem description.
 - test cases should be state-free and not rely on previous test cases.
-- at least 30% of the test cases must have hidden=false, but should be chosen as to not reveal the solution or the challenging aspects.
+- exactly 3 of the test cases must have hidden=false, but should be chosen as to not reveal the solution or the challenging aspects.
 - keep input format easy to parse via standard input.
 - avoid input and output formats that are difficult to parse.
 - use structured data as much as possible in test cases (e.g., primitives separated by delimiters like spaces, commas and newlines) rather than complicated text.
@@ -176,8 +176,8 @@ delete_contact, 1234567890
 `;
 
 const models = [
-  "meta-llama/llama-4-scout-17b-16e-instruct",
   "llama-3.3-70b-versatile",
+  "meta-llama/llama-4-scout-17b-16e-instruct",
   "qwen/qwen3-32b",
   "moonshotai/kimi-k2-instruct-0905",
   "moonshotai/kimi-k2-instruct",
