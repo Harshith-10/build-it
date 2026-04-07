@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 interface BasicDetailsProps {
+  // biome-ignore lint/suspicious/noExplicitAny: parent form currently passes dynamic schema-based form instance
   form: UseFormReturn<any>;
 }
 
@@ -89,6 +90,10 @@ export function BasicDetails({ form }: BasicDetailsProps) {
             )}
           />
         </div>
+        <p className="text-xs text-muted-foreground">
+          Times are selected in your local timezone and stored as exact UTC
+          timestamps.
+        </p>
         <FormField
           control={form.control}
           name="duration"

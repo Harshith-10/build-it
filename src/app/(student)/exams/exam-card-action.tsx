@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useJetStore } from "@/components/store/use-jet-store";
 import { Button } from "@/components/ui/button";
+import { getLocalTimeZoneName } from "@/lib/date-time";
 
 interface ExamCardActionProps {
   examId: string;
@@ -128,14 +129,7 @@ export function ExamCardAction({
   }
 
   const tzName = (() => {
-    try {
-      return Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
-        .format(new Date())
-        .split(" ")
-        .pop();
-    } catch {
-      return "";
-    }
+    return getLocalTimeZoneName();
   })();
 
   return (

@@ -123,9 +123,9 @@ function CheckboxIndicator(props: CheckboxIndicatorProps) {
 
 export {
   Checkbox,
-  CheckboxIndicator,
-  useCheckbox,
-  type CheckboxProps,
-  type CheckboxIndicatorProps,
   type CheckboxContextType,
+  CheckboxIndicator,
+  type CheckboxIndicatorProps,
+  type CheckboxProps,
+  useCheckbox,
 };

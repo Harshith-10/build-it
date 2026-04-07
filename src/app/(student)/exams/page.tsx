@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { eq, inArray } from "drizzle-orm";
 import { Calendar, Clock, LayoutList, Timer, Trophy } from "lucide-react";
 import { headers } from "next/headers";
@@ -12,6 +11,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  LocalDateTimeText,
+  LocalTimeZoneText,
+} from "@/components/ui/local-date-time-text";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { db } from "@/db";
 import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
@@ -138,17 +141,6 @@ export default async function ExamsPage() {
         b.effectiveStart.getTime() - a.effectiveStart.getTime(),
     );
 
-  const tzName = (() => {
-    try {
-      return Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
-        .format(new Date())
-        .split(" ")
-        .pop();
-    } catch {
-      return "";
-    }
-  })();
-
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -195,13 +187,36 @@ export default async function ExamsPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm text-neutral-600 dark:text-neutral-400">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      <span>{format(exam.effectiveStart, "MMM d, yyyy")}</span>
+                      <span>
+                        <LocalDateTimeText
+                          value={exam.effectiveStart}
+                          options={{
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }}
+                        />
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {format(exam.effectiveStart, "HH:mm")} -{" "}
-                        {format(exam.effectiveEnd, "HH:mm")} {tzName}
+                        <LocalDateTimeText
+                          value={exam.effectiveStart}
+                          options={{
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }}
+                        />{" "}
+                        -{" "}
+                        <LocalDateTimeText
+                          value={exam.effectiveEnd}
+                          options={{
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }}
+                        />{" "}
+                        <LocalTimeZoneText value={exam.effectiveStart} />
                       </span>
                     </div>
                     <div className="flex items-center gap-2">

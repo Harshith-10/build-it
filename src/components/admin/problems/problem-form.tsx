@@ -143,7 +143,10 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     if (initialData) {
       initialize(
         initialData.allowedLanguages || ["java"],
-        initialData.driverCode || { java: defaultJavaDriverCode, python: defaultPythonDriverCode },
+        initialData.driverCode || {
+          java: defaultJavaDriverCode,
+          python: defaultPythonDriverCode,
+        },
       );
     } else {
       const shouldApplyGeneratedDraft = searchParams.get("generated") === "1";

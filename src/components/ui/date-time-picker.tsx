@@ -1,6 +1,5 @@
 "use client";
 
-import { format } from "date-fns";
 import { CalendarIcon, Clock } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -11,10 +10,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  formatLocalDateTime,
+  getLocalTimeZoneId,
+  getLocalTimeZoneName,
+} from "@/lib/date-time";
 import { cn } from "@/lib/utils";
 
 interface DateTimePickerProps {
-  value?: string; // datetime-local format: "YYYY-MM-DDTHH:mm"
+  value?: string; // Stored as an ISO UTC timestamp string.
   onChange?: (value: string) => void;
   placeholder?: string;
 }
@@ -26,55 +30,75 @@ export function DateTimePicker({
 }: DateTimePickerProps) {
   const [open, setOpen] = React.useState(false);
 
-  let dateValue: Date | undefined;
-  if (value) {
-    const d = new Date(value);
-    if (!Number.isNaN(d.getTime())) {
-      dateValue = d;
-    } else {
-      const datePart = value.split("T")[0];
-      if (datePart) {
-        const fallback = new Date(`${datePart}T00:00`);
-        if (!Number.isNaN(fallback.getTime())) {
-          dateValue = fallback;
-        }
-      }
-    }
-  }
+  const parseValueToDate = React.useCallback((rawValue?: string) => {
+    if (!rawValue) return undefined;
 
-  const timeValue = dateValue
-    ? `${dateValue.getHours().toString().padStart(2, "0")}:${dateValue.getMinutes().toString().padStart(2, "0")}`
-    : value?.includes("T")
-      ? value.slice(11, 16)
-      : "00:00";
+    const parsed = new Date(rawValue);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+
+    const datePart = rawValue.split("T")[0];
+    if (!datePart) return undefined;
+
+    const fallback = new Date(`${datePart}T00:00`);
+    if (!Number.isNaN(fallback.getTime())) return fallback;
+
+    return undefined;
+  }, []);
+
+  const dateValue = React.useMemo(
+    () => parseValueToDate(value),
+    [parseValueToDate, value],
+  );
+
+  const getTimeFromDate = React.useCallback((date: Date) => {
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  }, []);
+
+  const timeValue = React.useMemo(() => {
+    if (dateValue) return getTimeFromDate(dateValue);
+    if (value?.includes("T")) return value.slice(11, 16);
+    return "00:00";
+  }, [dateValue, getTimeFromDate, value]);
+
+  const updateDateWithTime = React.useCallback(
+    (baseDate: Date, time: string) => {
+      const [hours = 0, minutes = 0] = time.split(":").map(Number);
+      const nextDate = new Date(baseDate);
+      nextDate.setHours(hours, minutes, 0, 0);
+      return nextDate;
+    },
+    [],
+  );
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
-    const [hours = 0, minutes = 0] = timeValue.split(":").map(Number);
-    const newDate = new Date(date);
-    newDate.setHours(hours, minutes, 0, 0);
+    const newDate = updateDateWithTime(date, timeValue);
     onChange?.(newDate.toISOString());
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = e.target.value;
     const dateToUse = dateValue || new Date();
-    const [hours = 0, minutes = 0] = time.split(":").map(Number);
-    const newDate = new Date(dateToUse);
-    newDate.setHours(hours, minutes, 0, 0);
+    const newDate = updateDateWithTime(dateToUse, time);
     onChange?.(newDate.toISOString());
   };
 
-  const tzName = React.useMemo(() => {
-    try {
-      return Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
-        .format(new Date())
-        .split(" ")
-        .pop();
-    } catch {
-      return "";
-    }
-  }, []);
+  const tzName = React.useMemo(() => getLocalTimeZoneName(), []);
+  const tzId = React.useMemo(() => getLocalTimeZoneId(), []);
+
+  const formattedValue = React.useMemo(() => {
+    if (!dateValue) return "";
+    return formatLocalDateTime(dateValue, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  }, [dateValue]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -88,9 +112,7 @@ export function DateTimePicker({
         >
           <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
           <span className="truncate">
-            {dateValue
-              ? `${format(dateValue, timeValue ? "PPP 'at' HH:mm" : "PPP")} ${tzName ? `(${tzName})` : ""}`
-              : placeholder}
+            {dateValue ? formattedValue || placeholder : placeholder}
           </span>
         </Button>
       </PopoverTrigger>
@@ -109,6 +131,10 @@ export function DateTimePicker({
             onChange={handleTimeChange}
             className="w-auto"
           />
+        </div>
+        <div className="border-t px-3 py-2 text-xs text-muted-foreground">
+          Using local timezone: {tzName || "Local"}
+          {tzId ? ` (${tzId})` : ""}
         </div>
       </PopoverContent>
     </Popover>
