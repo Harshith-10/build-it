@@ -82,7 +82,7 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
               name="gradingConfig.totalMarks"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Marks For Each Question</FormLabel>
+                  <FormLabel>Total Marks</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -91,6 +91,11 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                       onChange={(e) => field.onChange(Number(e.target.value))}
                     />
                   </FormControl>
+                  {linearMarksPerQuestion !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Approx. {linearMarksPerQuestion} marks per question.
+                    </p>
+                  )}
                 </FormItem>
               )}
             />

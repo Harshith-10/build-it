@@ -1,5 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
-import { Calendar, Clock, LayoutList, Timer, Trophy } from "lucide-react";
+import { Calendar, LayoutList, Timer, Trophy } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -11,10 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  LocalDateTimeText,
-  LocalTimeZoneText,
-} from "@/components/ui/local-date-time-text";
+import { LocalDateTimeText } from "@/components/ui/local-date-time-text";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { db } from "@/db";
 import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
@@ -40,6 +37,36 @@ const statusPriority: Record<"upcoming" | "active" | "ended", number> = {
   ended: 2,
 };
 
+function getQuestionCount(exam: {
+  strategyType: string;
+  strategyConfig: unknown;
+}) {
+  if (!exam.strategyConfig || typeof exam.strategyConfig !== "object") return 0;
+
+  if (exam.strategyType === "random_n") {
+    // biome-ignore lint/suspicious/noExplicitAny: complex json column
+    const config = exam.strategyConfig as any;
+    return typeof config.count === "number" ? config.count : 0;
+  }
+
+  if (exam.strategyType === "difficulty_mix") {
+    // biome-ignore lint/suspicious/noExplicitAny: complex json column
+    const config = exam.strategyConfig as any;
+    return [config.easy, config.medium, config.hard].reduce(
+      (sum, value) => sum + (typeof value === "number" ? value : 0),
+      0,
+    );
+  }
+
+  if (exam.strategyType === "fixed_set") {
+    // biome-ignore lint/suspicious/noExplicitAny: complex json column
+    const config = exam.strategyConfig as any;
+    return Array.isArray(config.questionIds) ? config.questionIds.length : 0;
+  }
+
+  return 0;
+}
+
 export default async function ExamsPage() {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -51,18 +78,15 @@ export default async function ExamsPage() {
 
   const userId = session.user.id;
 
-  // 1. Get User's Group IDs
   const memberships = await db.query.userGroupMembers.findMany({
     where: eq(userGroupMembers.userId, userId),
   });
-  const userGroupIds = memberships.map((m) => m.groupId);
+  const userGroupIds = memberships.map((membership) => membership.groupId);
 
-  // 2. Fetch all exams
   const allExams = await db.query.exams.findMany({
     orderBy: (exams, { asc }) => [asc(exams.startTime)],
     with: {
       groups: {
-        // We want to fetch group config only if it matches user's group
         where:
           userGroupIds.length > 0
             ? inArray(examGroups.groupId, userGroupIds)
@@ -71,7 +95,6 @@ export default async function ExamsPage() {
     },
   });
 
-  // Fetch user's exam assignments to check for completed status
   const userAssignments = await db.query.examAssignments.findMany({
     where: eq(examAssignments.userId, userId),
     columns: {
@@ -80,34 +103,26 @@ export default async function ExamsPage() {
     },
   });
 
-  // Create a map of examId -> assignment status
   const assignmentStatusMap = new Map(
-    userAssignments.map((a) => [a.examId, a.status]),
+    userAssignments.map((assignment) => [assignment.examId, assignment.status]),
   );
 
   const now = new Date();
 
   const examsWithSlots = allExams
     .filter((exam) => {
-      // If user has no groups, they cannot see any group-restricted exams
       if (userGroupIds.length === 0) return false;
-      // Because we filtered the 'groups' relation in the query to only match userGroupIds,
-      // if exam.groups has entries, it means the user matches at least one group.
       return exam.groups.length > 0;
     })
     .map((exam) => {
-      // If exam has group assignments matching user, try to find a valid slot
-
       let effectiveStart = exam.startTime;
       let effectiveEnd = exam.endTime;
 
-      if (exam.groups && exam.groups.length > 0) {
-        // Check if any group slot overrides
-        // We only pulled groups relevant to the user above
-        const activeSlot = exam.groups.find((g) => {
-          const s = g.startTime ?? exam.startTime;
-          const e = g.endTime ?? exam.endTime;
-          return now >= s && now <= e;
+      if (exam.groups.length > 0) {
+        const activeSlot = exam.groups.find((groupAssignment) => {
+          const start = groupAssignment.startTime ?? exam.startTime;
+          const end = groupAssignment.endTime ?? exam.endTime;
+          return now >= start && now <= end;
         });
 
         const targetSlot = activeSlot || exam.groups[0];
@@ -116,15 +131,11 @@ export default async function ExamsPage() {
         effectiveEnd = targetSlot.endTime ?? exam.endTime;
       }
 
-      // Determine status based on EFFECTIVE times
       let status: "upcoming" | "active" | "ended" = "active";
 
-      // Override status logic based on time
       if (now < effectiveStart) status = "upcoming";
       else if (now > effectiveEnd) status = "ended";
-      else status = "active";
 
-      // Check if user has already submitted this exam
       const assignmentStatus = assignmentStatusMap.get(exam.id);
 
       return {
@@ -185,45 +196,52 @@ export default async function ExamsPage() {
                 </CardHeader>
                 <CardContent className="flex-1 space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm text-neutral-600 dark:text-neutral-400">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>
+                    <div className="col-span-2 flex items-start gap-2">
+                      <Calendar className="mt-0.5 h-4 w-4" />
+                      <div className="leading-tight">
+                        <span className="font-bold">
+                          Starts At:
+                        </span>
+                        {" "}
                         <LocalDateTimeText
                           value={exam.effectiveStart}
                           options={{
                             month: "short",
                             day: "numeric",
                             year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            timeZoneName: "short",
                           }}
                         />
-                      </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      <span>
-                        <LocalDateTimeText
-                          value={exam.effectiveStart}
-                          options={{
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }}
-                        />{" "}
-                        -{" "}
+                    <div className="col-span-2 flex items-start gap-2">
+                      <Calendar className="mt-0.5 h-4 w-4" />
+                      <div className="leading-tight">
+                        <span className="font-bold">
+                          Ends At:
+                        </span>
+                        {" "}
                         <LocalDateTimeText
                           value={exam.effectiveEnd}
                           options={{
-                            hour: "2-digit",
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
                             minute: "2-digit",
+                            timeZoneName: "short",
                           }}
-                        />{" "}
-                        <LocalTimeZoneText value={exam.effectiveStart} />
-                      </span>
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Timer className="h-4 w-4" />
                       <span>{exam.durationMinutes} mins</span>
                     </div>
-                    {exam.gradingConfig &&
+                    {exam.gradingStrategy === "linear" &&
+                      exam.gradingConfig &&
                       // biome-ignore lint/suspicious/noExplicitAny: complex json column
                       (exam.gradingConfig as any).totalMarks && (
                         <div className="flex items-center gap-2">
@@ -231,9 +249,10 @@ export default async function ExamsPage() {
                           <span>
                             {
                               // biome-ignore lint/suspicious/noExplicitAny: complex json column
-                              (exam.gradingConfig as any).totalMarks
+                              (exam.gradingConfig as any).totalMarks *
+                              Math.max(getQuestionCount(exam), 1)
                             }{" "}
-                            Marks
+                            Total Marks
                           </span>
                         </div>
                       )}
