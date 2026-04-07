@@ -65,23 +65,31 @@ export function DateTimePicker({
     onChange?.(newDate.toISOString());
   };
 
+  const tzName = React.useMemo(() => {
+    try {
+      return Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+        .format(new Date())
+        .split(" ")
+        .pop();
+    } catch {
+      return "";
+    }
+  }, []);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           className={cn(
-            "w-full justify-start text-left font-normal truncate",
+            "w-full justify-start text-left font-normal",
             !value && "text-muted-foreground",
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
           <span className="truncate">
             {dateValue
-              ? format(
-                  dateValue,
-                  timeValue ? "dd MMM yyyy, HH:mm" : "dd MMM yyyy",
-                )
+              ? `${format(dateValue, timeValue ? "PPP 'at' HH:mm" : "PPP")} ${tzName ? `(${tzName})` : ""}`
               : placeholder}
           </span>
         </Button>
