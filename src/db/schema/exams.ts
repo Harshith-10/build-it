@@ -15,7 +15,7 @@ import { examCollections } from "./question-collections";
 export const examStatusEnum = pgEnum("exam_status", [
   "upcoming",
   "active",
-  "ended",
+  "completed",
 ]);
 export const strategyTypeEnum = pgEnum("strategy_type", [
   "random_n",

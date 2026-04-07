@@ -9,6 +9,13 @@ import { examGroups, exams } from "@/db/schema/exams";
 import { examCollections } from "@/db/schema/question-collections";
 import { requireAdmin } from "@/lib/auth-access";
 
+function deriveExamStatus(startTime: Date, endTime: Date): "upcoming" | "active" | "completed" {
+  const now = new Date();
+  if (now < startTime) return "upcoming";
+  if (now > endTime) return "completed";
+  return "active";
+}
+
 export async function getExams({
   page = 1,
   limit = 10,
@@ -74,8 +81,27 @@ export async function getExams({
     db.select({ count: sql<number>`count(*)` }).from(exams).where(whereClause),
   ]);
 
+  const examsWithComputedStatus = data.map((exam) => ({
+    ...exam,
+    status: deriveExamStatus(exam.startTime, exam.endTime),
+  }));
+
+  if (sort === "status") {
+    const statusPriority: Record<"upcoming" | "active" | "completed", number> = {
+      active: 0,
+      upcoming: 1,
+      completed: 2,
+    };
+
+    examsWithComputedStatus.sort((a, b) => {
+      const left = statusPriority[a.status as "upcoming" | "active" | "completed"];
+      const right = statusPriority[b.status as "upcoming" | "active" | "completed"];
+      return order === "asc" ? left - right : right - left;
+    });
+  }
+
   return {
-    exams: data,
+    exams: examsWithComputedStatus,
     total: Number(totalCount[0]?.count || 0),
     page,
     limit,
@@ -119,9 +145,13 @@ export async function upsertExam(data: any) {
       strategyConfig: data.strategyConfig,
       gradingStrategy: data.gradingStrategy || "linear",
       gradingConfig: data.gradingConfig || {},
-      status: data.status || "upcoming",
       requiresPin,
     };
+
+    const computedStatus = deriveExamStatus(
+      commonFields.startTime,
+      commonFields.endTime,
+    );
 
     // Validate grading config
     if (commonFields.gradingStrategy === "count_based") {
@@ -139,6 +169,8 @@ export async function upsertExam(data: any) {
         .update(exams)
         .set({
           ...commonFields,
+          // biome-ignore lint/suspicious/noExplicitAny: align runtime enum value while local TS schema cache lags
+          status: computedStatus as any,
           updatedAt: new Date(),
         })
         .where(eq(exams.id, examId));
@@ -148,7 +180,14 @@ export async function upsertExam(data: any) {
         .delete(examCollections)
         .where(eq(examCollections.examId, examId));
     } else {
-      const [newExam] = await db.insert(exams).values(commonFields).returning();
+      const [newExam] = await db
+        .insert(exams)
+        .values({
+          ...commonFields,
+          // biome-ignore lint/suspicious/noExplicitAny: align runtime enum value while local TS schema cache lags
+          status: computedStatus as any,
+        })
+        .returning();
       examId = newExam.id;
     }
 

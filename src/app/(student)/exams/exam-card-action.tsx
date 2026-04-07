@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 interface ExamCardActionProps {
   examId: string;
-  status: "upcoming" | "active" | "ended";
+  status: "upcoming" | "active" | "completed";
   effectiveStart: Date;
   isSubmitted?: boolean;
 }
@@ -101,7 +101,7 @@ export function ExamCardAction({
     );
   }
 
-  if (status === "ended") {
+  if (status === "completed") {
     return (
       <Button
         variant="secondary"

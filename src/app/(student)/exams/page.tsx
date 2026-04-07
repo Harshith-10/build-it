@@ -18,23 +18,23 @@ import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { ExamCardAction } from "./exam-card-action";
 
-function getStatusColor(status: "upcoming" | "active" | "ended") {
+function getStatusColor(status: "upcoming" | "active" | "completed") {
   switch (status) {
     case "upcoming":
       return "bg-blue-500 hover:bg-blue-600 border-transparent text-white";
     case "active":
       return "bg-green-500 hover:bg-green-600 border-transparent text-white";
-    case "ended":
+    case "completed":
       return "bg-neutral-500 hover:bg-neutral-600 border-transparent text-white";
     default:
       return "bg-neutral-500";
   }
 }
 
-const statusPriority: Record<"upcoming" | "active" | "ended", number> = {
+const statusPriority: Record<"upcoming" | "active" | "completed", number> = {
   active: 0,
   upcoming: 1,
-  ended: 2,
+  completed: 2,
 };
 
 export default async function ExamsPage() {
@@ -114,11 +114,11 @@ export default async function ExamsPage() {
       }
 
       // Determine status based on EFFECTIVE times
-      let status: "upcoming" | "active" | "ended" = "active";
+      let status: "upcoming" | "active" | "completed" = "active";
 
       // Override status logic based on time
       if (now < effectiveStart) status = "upcoming";
-      else if (now > effectiveEnd) status = "ended";
+      else if (now > effectiveEnd) status = "completed";
       else status = "active";
 
       // Check if user has already submitted this exam
