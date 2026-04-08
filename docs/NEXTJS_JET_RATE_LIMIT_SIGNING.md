@@ -1,132 +1,90 @@
-# Next.js -> Jet Signed Rate-Limit Identity
+# Next.js -> Jet HMAC V2 Signing
 
-This document defines how the Next.js server should call `jet-server` so rate limiting is applied per user instead of per proxy IP.
+This document defines the current V2 request-signing contract used by Next.js when calling Jet execution surfaces.
 
-## Why This Exists
+The migration is a direct cut to V2. V1 headers are not sent by the client.
 
-`jet-server` now supports a signed identity key for rate limiting:
+## Required Next.js Configuration
 
-1. If signed headers are valid, rate limits are keyed by user identity.
-2. If signed headers are missing or invalid, Jet falls back to IP-based keying.
+Set these server-side only environment variables in Next.js:
 
-In a Server Actions architecture, falling back to IP can throttle many users together, so Next.js should always send signed identity headers.
+- `JET_SERVER_URL`: Jet base URL.
+- `JET_HMAC_SECRET`: shared secret used for HMAC verification.
+- `JET_HMAC_KEY_ID`: key identifier included in request headers.
 
-## Required Jet Configuration
+Client behavior is fail-fast: execution calls throw if required HMAC variables are missing.
 
-Set these on the Jet server host:
+## Required V2 Headers
 
-- `JET_RATE_LIMIT_HMAC_SECRET`: shared secret used to verify signatures.
-- `JET_RATE_LIMIT_TIMESTAMP_TOLERANCE_SECS`: max clock skew (seconds). Default is `300`.
+For signed requests, Next.js sends:
 
-Use the same `JET_RATE_LIMIT_HMAC_SECRET` value on Next.js (as a server-only env var).
+- `X-Jet-Auth-Version: 2`
+- `X-Jet-Key-Id: <key id>`
+- `X-Jet-User-Id: <stable user id>`
+- `X-Jet-Timestamp: <unix seconds>`
+- `X-Jet-Nonce: <hex random nonce>`
+- `X-Jet-Content-SHA256: <hex sha256(body)>`
+- `X-Jet-Signature: <hex hmac_sha256(secret, canonical_request)>`
 
-## Required Request Headers
+## Canonical Request Format
 
-For each request from Next.js to Jet:
-
-- `X-Jet-User-Id`: stable user identifier (string).
-- `X-Jet-Timestamp`: Unix epoch timestamp in seconds.
-- `X-Jet-Signature`: lowercase hex HMAC-SHA256 over:
+V2 signature input is a newline-delimited canonical request string:
 
 ```text
-{user_id}\n{timestamp}
+jet-hmac-v2
+{kid}
+{timestamp}
+{nonce}
+{method}
+{path}
+{canonical_query}
+{content_sha256}
+{content_type}
+{user_id}
 ```
 
-Important:
+Canonicalization rules:
 
-- Do not include request body in the signature format above.
-- Use the exact newline separator (`\n`) between user id and timestamp.
-- Header names are case-insensitive on HTTP, but keep the canonical names above.
+- `method`: uppercased.
+- `path`: exact request path.
+- `canonical_query`: query params sorted by key then value and URI encoded.
+- `content_sha256`: SHA-256 hex of UTF-8 body string; empty string hash for no body.
+- `content_type`: lowercased media type without parameters.
 
-## Next.js Server Process
+## Endpoint Coverage
 
-For each execution request:
+Current client signs:
 
-1. Resolve authenticated user id in the server action / route handler.
-2. Generate `timestamp = Math.floor(Date.now() / 1000)`.
-3. Build message string: `${userId}\n${timestamp}`.
-4. Compute `hmacSha256(secret, message)` and encode as lowercase hex.
-5. Send request to Jet with the 3 required headers.
-6. Never expose the shared secret to browser code.
+- `POST /jobs`
+- `GET /jobs/{id}`
 
-## TypeScript Example (Node Runtime)
+This provides consistent auth posture across execution submission and polling.
 
-```ts
-import crypto from "node:crypto";
+## Conformance Verification
 
-type JetHeadersInput = {
-  userId: string;
-  secret: string;
-  nowSeconds?: number;
-};
+Run deterministic local vectors:
 
-export function buildJetRateLimitHeaders(input: JetHeadersInput): Record<string, string> {
-  const ts = input.nowSeconds ?? Math.floor(Date.now() / 1000);
-  const timestamp = String(ts);
-  const payload = `${input.userId}\n${timestamp}`;
-
-  const signature = crypto
-    .createHmac("sha256", input.secret)
-    .update(payload, "utf8")
-    .digest("hex");
-
-  return {
-    "X-Jet-User-Id": input.userId,
-    "X-Jet-Timestamp": timestamp,
-    "X-Jet-Signature": signature,
-  };
-}
+```bash
+pnpm test:jet-hmac-v2
 ```
 
-## Example Server Action Usage
+Script location:
 
-```ts
-"use server";
-
-import { buildJetRateLimitHeaders } from "@/lib/jet-headers";
-
-export async function runCodeWithJet(body: unknown, userId: string) {
-  const jetUrl = process.env.JET_SERVER_URL;
-  const secret = process.env.JET_RATE_LIMIT_HMAC_SECRET;
-
-  if (!jetUrl) throw new Error("JET_SERVER_URL is not set");
-  if (!secret) throw new Error("JET_RATE_LIMIT_HMAC_SECRET is not set");
-
-  const rateHeaders = buildJetRateLimitHeaders({ userId, secret });
-
-  const res = await fetch(`${jetUrl}/jobs`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...rateHeaders,
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Jet request failed: ${res.status} ${text}`);
-  }
-
-  return res.json();
-}
-```
+- `scripts/test-jet-hmac-v2.ts`
 
 ## Security Checklist
 
-- Keep `JET_RATE_LIMIT_HMAC_SECRET` server-side only.
-- Rotate secret periodically.
-- Ensure clocks are synced (NTP) on both Next.js and Jet instances.
-- Use a stable user identity (do not use request-local random IDs).
-- Do not allow direct public access to Jet from the internet.
+- Keep `JET_HMAC_SECRET` server-side only.
+- Rotate keys and update `JET_HMAC_KEY_ID` in lockstep with server key map.
+- Keep clocks synced (NTP) on Next.js and Jet hosts.
+- Use a stable, trusted user id source.
+- Keep Jet behind trusted network boundaries and TLS.
 
 ## Troubleshooting
 
-If users still get grouped by a shared limit bucket:
+If Jet rejects signed requests:
 
-- Verify Next.js is always sending all 3 headers.
-- Verify signatures are computed from `"{user_id}\\n{timestamp}"` exactly.
-- Verify Jet and Next.js use the same secret.
-- Verify timestamps are current and within tolerance.
-- Confirm Jet is receiving headers unmodified by intermediate proxies.
+- Verify `JET_HMAC_SECRET` and `JET_HMAC_KEY_ID` match server-side key registry.
+- Verify timestamp skew tolerance and server clock sync.
+- Verify canonical query/body/content-type handling is identical across client and server.
+- Verify reverse proxies do not rewrite paths or strip headers.

@@ -11,7 +11,8 @@
     "db:reset": "tsx reset_db.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "seed:questions": "tsx scripts/seed-questions.ts"
+    "seed:questions": "tsx scripts/seed-questions.ts",
+    "test:jet-hmac-v2": "tsx scripts/test-jet-hmac-v2.ts"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",
