@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatLocalDateTime, getLocalTimeZoneName } from "@/lib/date-time";
 
 export type Exam = {
   id: string;
@@ -66,14 +67,17 @@ export const createColumns = (
     ),
     cell: ({ row }) => {
       const date = new Date(row.getValue("startTime") as string);
+      const localTzName = getLocalTimeZoneName(date);
       return (
         <span className="text-muted-foreground">
-          {date.toLocaleString("en-US", {
+          {formatLocalDateTime(date, {
             month: "short",
             day: "numeric",
+            year: "numeric",
             hour: "numeric",
             minute: "numeric",
           })}
+          {localTzName ? ` ${localTzName}` : ""}
         </span>
       );
     },
@@ -121,7 +125,7 @@ export const createColumns = (
       const date = new Date(row.getValue("createdAt") as string);
       return (
         <span className="text-muted-foreground">
-          {date.toLocaleDateString("en-US", {
+          {formatLocalDateTime(date, {
             month: "short",
             day: "numeric",
             year: "numeric",

@@ -76,4 +76,4 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export { chakraPetch, googleSans, geistMono };
+export { chakraPetch, geistMono, googleSans };

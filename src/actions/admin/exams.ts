@@ -5,15 +5,108 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { examAssignments } from "@/db/schema/assignments";
 import { user } from "@/db/schema/auth";
+import type { GradingConfigMap, StrategyConfig } from "@/db/schema/exams";
 import { examGroups, exams } from "@/db/schema/exams";
 import { examCollections } from "@/db/schema/question-collections";
 import { requireAdmin } from "@/lib/auth-access";
 
-function deriveExamStatus(startTime: Date, endTime: Date): "upcoming" | "active" | "completed" {
-  const now = new Date();
-  if (now < startTime) return "upcoming";
-  if (now > endTime) return "completed";
-  return "active";
+type UpsertExamAssignmentInput = {
+  groupId: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  requiresPin?: boolean;
+  pinCode?: string | null;
+};
+
+type UpsertExamInput = {
+  id?: string;
+  title: string;
+  description?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  duration?: number;
+  strategyType?: "random_n" | "fixed_set" | "difficulty_mix";
+  strategyConfig?: StrategyConfig | null;
+  gradingStrategy?: "linear" | "difficulty_based" | "count_based";
+  gradingConfig?: GradingConfigMap[keyof GradingConfigMap] | null;
+  status?: "upcoming" | "active" | "ended";
+  assignments?: UpsertExamAssignmentInput[];
+};
+
+type GradingStrategy = NonNullable<UpsertExamInput["gradingStrategy"]>;
+type GradingConfig = GradingConfigMap[keyof GradingConfigMap];
+
+function getCollectionIds(config: StrategyConfig | null | undefined) {
+  if (!config || typeof config !== "object") return [];
+  if (!("collectionIds" in config)) return [];
+
+  const maybeIds = config.collectionIds;
+  if (!Array.isArray(maybeIds)) return [];
+  return maybeIds.filter((id): id is string => typeof id === "string");
+}
+
+function normalizeGradingConfig(
+  strategy: GradingStrategy,
+  config: UpsertExamInput["gradingConfig"],
+): GradingConfig {
+  if (strategy === "linear") {
+    if (
+      config &&
+      typeof config === "object" &&
+      "totalMarks" in config &&
+      typeof config.totalMarks === "number"
+    ) {
+      return { totalMarks: config.totalMarks };
+    }
+    return { totalMarks: 100 };
+  }
+
+  if (strategy === "difficulty_based") {
+    if (
+      config &&
+      typeof config === "object" &&
+      "easyWeight" in config &&
+      "mediumWeight" in config &&
+      "hardWeight" in config &&
+      typeof config.easyWeight === "number" &&
+      typeof config.mediumWeight === "number" &&
+      typeof config.hardWeight === "number"
+    ) {
+      return {
+        easyWeight: config.easyWeight,
+        mediumWeight: config.mediumWeight,
+        hardWeight: config.hardWeight,
+      };
+    }
+
+    return {
+      easyWeight: 1,
+      mediumWeight: 2,
+      hardWeight: 3,
+    };
+  }
+
+  if (
+    config &&
+    typeof config === "object" &&
+    "thresholds" in config &&
+    Array.isArray(config.thresholds)
+  ) {
+    return { thresholds: config.thresholds };
+  }
+
+  return { thresholds: [] };
+}
+
+function parseIsoTimestampOrThrow(value: unknown, fieldName: string) {
+  if (typeof value !== "string" || value.trim().length === 0) return null;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid datetime for ${fieldName}`);
+  }
+
+  return parsed;
 }
 
 export async function getExams({
@@ -123,28 +216,44 @@ export async function getExam(id: string) {
   return exam;
 }
 
-export async function upsertExam(data: any) {
+export async function upsertExam(data: UpsertExamInput) {
   await requireAdmin();
   // data: { id?, title, startTime, endTime, duration, strategyType, strategyConfig, gradingConfig, assignments: [{ groupId, startTime?, endTime?, requiresPin? }] }
 
   try {
     let examId = data.id;
 
-    const requiresPin =
-      data.assignments?.some((a: any) => a.requiresPin) || false;
+    const parsedStartTime =
+      parseIsoTimestampOrThrow(data.startTime, "startTime") ?? new Date();
+    const parsedEndTime =
+      parseIsoTimestampOrThrow(data.endTime, "endTime") ??
+      new Date(Date.now() + 86400000);
+
+    if (parsedEndTime <= parsedStartTime) {
+      return {
+        success: false,
+        error: "End time must be after start time",
+      };
+    }
+
+    const requiresPin = data.assignments?.some((a) => a.requiresPin) || false;
+    const gradingStrategy: GradingStrategy = data.gradingStrategy || "linear";
+    const gradingConfig = normalizeGradingConfig(
+      gradingStrategy,
+      data.gradingConfig,
+    );
 
     const commonFields = {
       title: data.title,
       description: data.description,
-      startTime: data.startTime ? new Date(data.startTime) : new Date(),
-      endTime: data.endTime
-        ? new Date(data.endTime)
-        : new Date(Date.now() + 86400000), // Default 1 day
+      startTime: parsedStartTime,
+      endTime: parsedEndTime,
       durationMinutes: data.duration || 60,
       strategyType: data.strategyType,
-      strategyConfig: data.strategyConfig,
-      gradingStrategy: data.gradingStrategy || "linear",
-      gradingConfig: data.gradingConfig || {},
+      strategyConfig: data.strategyConfig ?? null,
+      gradingStrategy,
+      gradingConfig,
+      status: data.status || "upcoming",
       requiresPin,
     };
 
@@ -155,7 +264,7 @@ export async function upsertExam(data: any) {
 
     // Validate grading config
     if (commonFields.gradingStrategy === "count_based") {
-      const config = commonFields.gradingConfig as any;
+      const config = commonFields.gradingConfig as { thresholds?: unknown[] };
       if (!config.thresholds || !Array.isArray(config.thresholds)) {
         return {
           success: false,
@@ -191,29 +300,51 @@ export async function upsertExam(data: any) {
       examId = newExam.id;
     }
 
+    if (!examId) {
+      return { success: false, error: "Failed to resolve exam id" };
+    }
+
     // Handle collections if present in strategyConfig
-    const collectionIds = (data.strategyConfig as any)?.collectionIds as
-      | string[]
-      | undefined;
+    const collectionIds = getCollectionIds(data.strategyConfig);
     if (collectionIds && collectionIds.length > 0) {
       const collectionLinks = collectionIds.map((colId) => ({
-        examId: examId!,
+        examId,
         collectionId: colId,
       }));
       await db.insert(examCollections).values(collectionLinks);
     }
 
     // Re-assign groups (simplified: delete all and insert)
-    await db.delete(examGroups).where(eq(examGroups.examId, examId!));
+    await db.delete(examGroups).where(eq(examGroups.examId, examId));
 
     if (data.assignments && data.assignments.length > 0) {
-      const assignmentValues = data.assignments.map((assign: any) => ({
+      const assignmentValues = data.assignments.map((assign) => ({
         examId: examId,
         groupId: assign.groupId,
-        startTime: assign.startTime ? new Date(assign.startTime) : null,
-        endTime: assign.endTime ? new Date(assign.endTime) : null,
+        startTime: parseIsoTimestampOrThrow(
+          assign.startTime,
+          `assignments[${assign.groupId}].startTime`,
+        ),
+        endTime: parseIsoTimestampOrThrow(
+          assign.endTime,
+          `assignments[${assign.groupId}].endTime`,
+        ),
         pin: assign.requiresPin ? assign.pinCode : null,
       }));
+
+      for (const assignment of assignmentValues) {
+        if (
+          assignment.startTime &&
+          assignment.endTime &&
+          assignment.endTime <= assignment.startTime
+        ) {
+          return {
+            success: false,
+            error: "Assignment end time must be after assignment start time",
+          };
+        }
+      }
+
       await db.insert(examGroups).values(assignmentValues);
     }
 
