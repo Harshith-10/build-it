@@ -1,3 +1,4 @@
+
 import { eq, inArray } from "drizzle-orm";
 import { Calendar, LayoutList, Timer, Trophy } from "lucide-react";
 import { headers } from "next/headers";
@@ -31,6 +32,34 @@ function getStatusColor(status: "upcoming" | "active" | "completed") {
   }
 }
 
+function getQuestionCount(exam: {
+  strategyType: string;
+  strategyConfig: unknown;
+}) {
+  const config = exam.strategyConfig;
+  if (!config || typeof config !== "object") return 0;
+
+  if (exam.strategyType === "random_n") {
+    const count = (config as { count?: unknown }).count;
+    return typeof count === "number" && count > 0 ? count : 0;
+  }
+
+  if (exam.strategyType === "difficulty_mix") {
+    const typed = config as { easy?: unknown; medium?: unknown; hard?: unknown };
+    const easy = typeof typed.easy === "number" ? typed.easy : 0;
+    const medium = typeof typed.medium === "number" ? typed.medium : 0;
+    const hard = typeof typed.hard === "number" ? typed.hard : 0;
+    return easy + medium + hard;
+  }
+
+  if (exam.strategyType === "fixed_set") {
+    const questionIds = (config as { questionIds?: unknown }).questionIds;
+    return Array.isArray(questionIds) ? questionIds.length : 0;
+  }
+
+  return 0;
+}
+
 const statusPriority: Record<"upcoming" | "active" | "completed", number> = {
   active: 0,
   upcoming: 1,
@@ -48,6 +77,7 @@ export default async function ExamsPage() {
 
   const userId = session.user.id;
 
+  // 1. Get User's Group IDs
   const memberships = await db.query.userGroupMembers.findMany({
     where: eq(userGroupMembers.userId, userId),
   });
@@ -108,6 +138,7 @@ export default async function ExamsPage() {
       else if (now > effectiveEnd) status = "completed";
       else status = "active";
 
+      // Check if user has already submitted this exam
       const assignmentStatus = assignmentStatusMap.get(exam.id);
 
       return {
@@ -162,7 +193,7 @@ export default async function ExamsPage() {
                     )}
                   </div>
                   <CardTitle className="line-clamp-1">{exam.title}</CardTitle>
-                  <CardDescription className="line-clamp-2 min-h-[40px]">
+                  <CardDescription className="line-clamp-2 min-h-10">
                     {exam.description || "No description provided."}
                   </CardDescription>
                 </CardHeader>

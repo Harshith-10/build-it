@@ -18,6 +18,13 @@ type UpsertExamAssignmentInput = {
   pinCode?: string | null;
 };
 
+function deriveExamStatus(startTime: Date, endTime: Date): "upcoming" | "active" | "completed" {
+  const now = new Date();
+  if (now < startTime) return "upcoming";
+  if (now > endTime) return "completed";
+  return "active";
+}
+
 type UpsertExamInput = {
   id?: string;
   title: string;
@@ -29,7 +36,7 @@ type UpsertExamInput = {
   strategyConfig?: StrategyConfig | null;
   gradingStrategy?: "linear" | "difficulty_based" | "count_based";
   gradingConfig?: GradingConfigMap[keyof GradingConfigMap] | null;
-  status?: "upcoming" | "active" | "ended";
+  status?: "upcoming" | "active" | "completed";
   assignments?: UpsertExamAssignmentInput[];
 };
 
