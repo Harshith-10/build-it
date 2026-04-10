@@ -39,6 +39,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -456,8 +457,13 @@ export default function JetStatsPage() {
 
   const inFlightTrendData = useMemo(
     () =>
-      trendHistory.map((point) => ({
-        time: formatTrendTime(point.timestamp),
+      trendHistory.map((point, index, points) => ({
+        sampleIndex: index,
+        ageAgoSeconds: Math.max(
+          Math.round((points[points.length - 1].timestamp - point.timestamp) / 1000),
+          0,
+        ),
+        timestampLabel: formatTrendTime(point.timestamp),
         total: point.jobsInFlight,
         compile: point.compileInFlight,
         execute: point.executeInFlight,
@@ -467,8 +473,13 @@ export default function JetStatsPage() {
 
   const qualityTrendData = useMemo(
     () =>
-      trendHistory.map((point) => ({
-        time: formatTrendTime(point.timestamp),
+      trendHistory.map((point, index, points) => ({
+        sampleIndex: index,
+        ageAgoSeconds: Math.max(
+          Math.round((points[points.length - 1].timestamp - point.timestamp) / 1000),
+          0,
+        ),
+        timestampLabel: formatTrendTime(point.timestamp),
         success: point.successRate,
         failure: point.failureRate,
       })),
@@ -708,39 +719,52 @@ export default function JetStatsPage() {
               <CardContent className="space-y-3">
                 {hasTrendData ? (
                   <>
-                    <div className="h-56 rounded-md border bg-muted/20 p-2">
+                    <ChartContainer
+                      config={{
+                        total: { label: "Total" },
+                        compile: { label: "Compile" },
+                        execute: { label: "Execute" },
+                      }}
+                      className="h-56 rounded-md border bg-muted/20 p-2"
+                    >
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={inFlightTrendData} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
                           <XAxis
-                            dataKey="time"
+                            dataKey="sampleIndex"
                             minTickGap={24}
-                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
                             axisLine={{ stroke: "hsl(var(--border))" }}
                             tickLine={{ stroke: "hsl(var(--border))" }}
+                            tickFormatter={(value) => {
+                              const point = inFlightTrendData[Number(value)];
+                              return point ? `${point.ageAgoSeconds}s ago` : `${Number(value)}s ago`;
+                            }}
                           />
                           <YAxis
                             domain={[0, inFlightMax]}
                             tickFormatter={(value) => formatNumber(Number(value))}
-                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
                             axisLine={{ stroke: "hsl(var(--border))" }}
                             tickLine={{ stroke: "hsl(var(--border))" }}
                             width={46}
                           />
                           <Tooltip
-                            formatter={(value, name) => [formatNumber(Number(value ?? 0)), String(name ?? "")]} 
-                            contentStyle={{
-                              background: "hsl(var(--background))",
-                              border: "1px solid hsl(var(--border))",
-                              borderRadius: 8,
+                            labelFormatter={(label, payload) => {
+                              const item = payload?.[0]?.payload as { ageAgoSeconds?: number; timestampLabel?: string } | undefined;
+                              return item?.timestampLabel
+                                ? `${item.ageAgoSeconds ?? label}s ago • ${item.timestampLabel}`
+                                : `${item?.ageAgoSeconds ?? label}s ago`;
                             }}
+                            formatter={(value, name) => [formatNumber(Number(value ?? 0)), String(name ?? "")]} 
+                            content={<ChartTooltipContent />}
                           />
                           <Line type="monotone" dataKey="total" name="Total" stroke="#3b82f6" strokeWidth={2.4} dot={false} activeDot={{ r: 4 }} />
                           <Line type="monotone" dataKey="compile" name="Compile" stroke="#a855f7" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
                           <Line type="monotone" dataKey="execute" name="Execute" stroke="#14b8a6" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
                         </LineChart>
                       </ResponsiveContainer>
-                    </div>
+                    </ChartContainer>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-blue-500" /> Total
@@ -752,7 +776,7 @@ export default function JetStatsPage() {
                         <span className="h-2 w-2 rounded-full bg-teal-500" /> Execute
                       </span>
                       <span className="ml-auto">
-                        Scale: 0-{formatNumber(inFlightMax)}
+                        X-axis: oldest to newest, newest at right
                       </span>
                     </div>
                   </>
@@ -774,38 +798,50 @@ export default function JetStatsPage() {
               <CardContent className="space-y-3">
                 {hasTrendData ? (
                   <>
-                    <div className="h-56 rounded-md border bg-muted/20 p-2">
+                    <ChartContainer
+                      config={{
+                        success: { label: "Success" },
+                        failure: { label: "Failure" },
+                      }}
+                      className="h-56 rounded-md border bg-muted/20 p-2"
+                    >
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={qualityTrendData} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
                           <XAxis
-                            dataKey="time"
+                            dataKey="sampleIndex"
                             minTickGap={24}
-                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
                             axisLine={{ stroke: "hsl(var(--border))" }}
                             tickLine={{ stroke: "hsl(var(--border))" }}
+                            tickFormatter={(value) => {
+                              const point = qualityTrendData[Number(value)];
+                              return point ? `${point.ageAgoSeconds}s ago` : `${Number(value)}s ago`;
+                            }}
                           />
                           <YAxis
                             domain={[0, qualityMax]}
                             tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
-                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
                             axisLine={{ stroke: "hsl(var(--border))" }}
                             tickLine={{ stroke: "hsl(var(--border))" }}
                             width={46}
                           />
                           <Tooltip
-                            formatter={(value, name) => [`${Number(value ?? 0).toFixed(1)}%`, String(name ?? "")]} 
-                            contentStyle={{
-                              background: "hsl(var(--background))",
-                              border: "1px solid hsl(var(--border))",
-                              borderRadius: 8,
+                            labelFormatter={(label, payload) => {
+                              const item = payload?.[0]?.payload as { ageAgoSeconds?: number; timestampLabel?: string } | undefined;
+                              return item?.timestampLabel
+                                ? `${item.ageAgoSeconds ?? label}s ago • ${item.timestampLabel}`
+                                : `${item?.ageAgoSeconds ?? label}s ago`;
                             }}
+                            formatter={(value, name) => [`${Number(value ?? 0).toFixed(1)}%`, String(name ?? "")]} 
+                            content={<ChartTooltipContent />}
                           />
                           <Line type="monotone" dataKey="success" name="Success" stroke="#22c55e" strokeWidth={2.4} dot={false} activeDot={{ r: 4 }} />
                           <Line type="monotone" dataKey="failure" name="Failure" stroke="#ef4444" strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} />
                         </LineChart>
                       </ResponsiveContainer>
-                    </div>
+                    </ChartContainer>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-green-500" /> Success %
@@ -814,7 +850,7 @@ export default function JetStatsPage() {
                         <span className="h-2 w-2 rounded-full bg-red-500" /> Failure %
                       </span>
                       <span className="ml-auto">
-                        Scale: 0-{qualityMax.toFixed(0)}%
+                        X-axis: oldest to newest, newest at right
                       </span>
                     </div>
                   </>
