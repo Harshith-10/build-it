@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   Cog,
   FileQuestion,
   GraduationCap,
@@ -60,6 +61,11 @@ const adminNavMain = [
     title: "Exams",
     url: "/admin/exams",
     icon: GraduationCap,
+  },
+  {
+    title: "Jet Stats",
+    url: "/admin/jet-stats",
+    icon: Activity,
   },
 ];
 
