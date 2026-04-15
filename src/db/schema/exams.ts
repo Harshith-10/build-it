@@ -5,10 +5,12 @@ import {
   json,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import { user } from "./auth";
 import { userGroups } from "./groups";
 import { examCollections } from "./question-collections";
 
@@ -69,6 +71,10 @@ export type GradingConfigMap = {
 
 export const exams = pgTable("exams", {
   id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id"),
+  transferredBy: text("transferred_by"),
+  transferredAt: timestamp("transferred_at"),
+  isPrivate: boolean("is_private").default(true).notNull(),
   title: text("title").notNull(),
   description: text("description"),
   startTime: timestamp("start_time").notNull(),
@@ -104,9 +110,25 @@ export const examGroups = pgTable("exam_groups", {
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
 });
 
+export const examModerators = pgTable(
+  "exam_moderators",
+  {
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    addedBy: text("added_by").notNull(),
+    addedAt: timestamp("added_at").defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.examId, t.userId] })],
+);
+
 export const examsRelations = relations(exams, ({ many }) => ({
   groups: many(examGroups),
   collections: many(examCollections),
+  moderators: many(examModerators),
 }));
 
 export const examGroupsRelations = relations(examGroups, ({ one }) => ({
@@ -117,5 +139,16 @@ export const examGroupsRelations = relations(examGroups, ({ one }) => ({
   group: one(userGroups, {
     fields: [examGroups.groupId],
     references: [userGroups.id],
+  }),
+}));
+
+export const examModeratorsRelations = relations(examModerators, ({ one }) => ({
+  exam: one(exams, {
+    fields: [examModerators.examId],
+    references: [exams.id],
+  }),
+  user: one(user, {
+    fields: [examModerators.userId],
+    references: [user.id],
   }),
 }));

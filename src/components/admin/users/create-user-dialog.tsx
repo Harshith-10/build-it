@@ -7,7 +7,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { createUser } from "@/actions/admin/users";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +38,33 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
+const facultyPermissionSchema = z.object({
+  problems: z.object({
+    create: z.boolean(),
+    read: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
+  collections: z.object({
+    create: z.boolean(),
+    read: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
+  exams: z.object({
+    create: z.boolean(),
+    read: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
+});
+
+const defaultFacultyPermissions = {
+  problems: { create: true, read: true, update: true, delete: false },
+  collections: { create: true, read: true, update: true, delete: false },
+  exams: { create: true, read: true, update: true, delete: false },
+};
+
 const createUserSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.email("Invalid email address"),
@@ -52,17 +81,24 @@ const createUserSchema = z.object({
   section: z.string().optional().or(z.literal("")),
   dob: z.string().optional().or(z.literal("")),
   regulation: z.string().optional().or(z.literal("")),
+  facultyPermissions: facultyPermissionSchema,
 });
 
 type CreateUserValues = z.infer<typeof createUserSchema>;
+type CreateUserInputValues = z.input<typeof createUserSchema>;
+
+type PermissionEntity = "problems" | "collections" | "exams";
+type PermissionAction = "create" | "read" | "update" | "delete";
+type PermissionFieldPath =
+  `facultyPermissions.${PermissionEntity}.${PermissionAction}`;
 
 export function CreateUserDialog() {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
-  const form = useForm<CreateUserValues>({
-    resolver: zodResolver(createUserSchema) as any,
+  const form = useForm<CreateUserInputValues, unknown, CreateUserValues>({
+    resolver: zodResolver(createUserSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -75,34 +111,32 @@ export function CreateUserDialog() {
       section: "",
       dob: "",
       regulation: "",
+      facultyPermissions: defaultFacultyPermissions,
     },
   });
+
+  const selectedRole = form.watch("role");
 
   const onSubmit = async (data: CreateUserValues) => {
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/auth/admin/create-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          name: data.name,
-          role: data.role,
-          username: data.username || undefined,
-          data: {
-            username: data.username || undefined,
-            branch: data.branch || undefined,
-            gender: data.gender || undefined,
-            semester: data.semester || undefined,
-            section: data.section || undefined,
-            dob: data.dob ? new Date(data.dob).toISOString() : undefined,
-            regulation: data.regulation || undefined,
-          },
-        }),
+      const result = await createUser({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        role: data.role,
+        username: data.username || undefined,
+        branch: data.branch || undefined,
+        gender: data.gender || undefined,
+        semester: data.semester || undefined,
+        section: data.section || undefined,
+        dob: data.dob || undefined,
+        regulation: data.regulation || undefined,
+        facultyPermissions:
+          data.role === "faculty" ? data.facultyPermissions : undefined,
       });
 
-      if (res.ok) {
+      if (result.success) {
         toast.success("User created successfully");
         setOpen(false);
         form.reset();
@@ -111,8 +145,7 @@ export function CreateUserDialog() {
           new CustomEvent("entity-table-refresh", { detail: "User" }),
         );
       } else {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.message || "Failed to create user");
+        toast.error(result.error || "Failed to create user");
       }
     } catch {
       toast.error("An error occurred");
@@ -221,6 +254,69 @@ export function CreateUserDialog() {
                 </div>
 
                 <Separator />
+
+                {selectedRole === "faculty" && (
+                  <>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-1 bg-primary rounded-full" />
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                          Faculty Permissions
+                        </h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Default security policy is CRU for all entities with
+                        delete disabled.
+                      </p>
+                      <div className="space-y-3 rounded-lg border p-4">
+                        {[
+                          ["problems", "Problems"],
+                          ["collections", "Collections"],
+                          ["exams", "Exams"],
+                        ].map(([entityKey, entityLabel]) => (
+                          <div
+                            key={entityKey}
+                            className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-center"
+                          >
+                            <p className="font-medium sm:col-span-1 col-span-2">
+                              {entityLabel}
+                            </p>
+                            {[
+                              ["create", "Create"],
+                              ["read", "Read"],
+                              ["update", "Update"],
+                              ["delete", "Delete"],
+                            ].map(([actionKey, actionLabel]) => (
+                              <FormField
+                                key={`${entityKey}.${actionKey}`}
+                                control={form.control}
+                                name={
+                                  `facultyPermissions.${entityKey}.${actionKey}` as PermissionFieldPath
+                                }
+                                render={({ field }) => (
+                                  <FormItem className="flex items-center gap-2 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={(checked) =>
+                                          field.onChange(Boolean(checked))
+                                        }
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">
+                                      {actionLabel}
+                                    </FormLabel>
+                                  </FormItem>
+                                )}
+                              />
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
 
                 {/* Personal & Professional Details */}
                 <div className="space-y-4">

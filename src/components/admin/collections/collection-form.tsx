@@ -29,11 +29,12 @@ import { Input } from "@/components/ui/input";
 const collectionSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(3),
-  description: z.string().optional(),
+  description: z.string().default(""),
   questionIds: z.array(z.string()).default([]),
 });
 
-type CollectionFormValues = z.infer<typeof collectionSchema>;
+type CollectionFormInput = z.input<typeof collectionSchema>;
+type CollectionFormValues = z.output<typeof collectionSchema>;
 
 const difficultyColors: Record<string, string> = {
   easy: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10",
@@ -43,10 +44,12 @@ const difficultyColors: Record<string, string> = {
 
 export function CollectionForm({
   initialData,
+  basePath = "/admin",
 }: {
   initialData?: Partial<z.infer<typeof collectionSchema>> & {
     questions?: { questionId: string }[];
   };
+  basePath?: string;
 }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,17 +59,17 @@ export function CollectionForm({
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const form = useForm<CollectionFormValues>({
-    // biome-ignore lint/suspicious/noExplicitAny: Bypass strict Zod types
-    resolver: zodResolver(collectionSchema) as any,
+  const form = useForm<CollectionFormInput, unknown, CollectionFormValues>({
+    resolver: zodResolver(collectionSchema),
     defaultValues: {
       id: initialData?.id,
       title: initialData?.title || "",
       description: initialData?.description || "",
-      questionIds: (initialData?.questions?.map(
-        (q: { questionId: string }) => q.questionId,
-      ) || []) as string[],
-    } as any,
+      questionIds:
+        initialData?.questions?.map(
+          (q: { questionId: string }) => q.questionId,
+        ) || [],
+    },
   });
 
   // Initial load: fetch selected problems and first batch of available
@@ -106,7 +109,7 @@ export function CollectionForm({
       const res = await upsertCollection(data);
       if (res.success) {
         toast.success("Collection saved");
-        router.push("/admin/collections");
+        router.push(`${basePath}/collections`);
       } else {
         toast.error("Failed");
       }
@@ -115,10 +118,10 @@ export function CollectionForm({
     }
   };
 
-  const selectedIds = form.watch("questionIds");
+  const selectedIds = form.watch("questionIds") ?? [];
 
   const toggleProblem = (problem: Problem) => {
-    const current = form.getValues("questionIds");
+    const current = form.getValues("questionIds") ?? [];
     if (current.includes(problem.id)) {
       form.setValue(
         "questionIds",
@@ -132,7 +135,7 @@ export function CollectionForm({
   };
 
   const removeProblem = (id: string) => {
-    const current = form.getValues("questionIds");
+    const current = form.getValues("questionIds") ?? [];
     form.setValue(
       "questionIds",
       current.filter((cid) => cid !== id),
@@ -156,8 +159,7 @@ export function CollectionForm({
           <FormField
             control={form.control}
             name="title"
-            // biome-ignore lint/suspicious/noExplicitAny: Temporary fix for strict Zod types
-            render={({ field }: { field: any }) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Title</FormLabel>
                 <FormControl>
@@ -170,8 +172,7 @@ export function CollectionForm({
           <FormField
             control={form.control}
             name="description"
-            // biome-ignore lint/suspicious/noExplicitAny: Temporary fix for strict Zod types
-            render={({ field }: { field: any }) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>

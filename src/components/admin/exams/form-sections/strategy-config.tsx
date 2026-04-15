@@ -2,7 +2,6 @@
 
 import { useFormContext } from "react-hook-form";
 import { CollectionPicker } from "@/components/admin/exams/strategy-config/collection-picker";
-import { FixedSetPicker } from "@/components/admin/exams/strategy-config/fixed-set-picker";
 import {
   Card,
   CardContent,
@@ -26,9 +25,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import type { ExamFormInput, ExamFormValues } from "../exam-form";
 
 export function StrategyConfig() {
-  const form = useFormContext();
+  const form = useFormContext<ExamFormInput, unknown, ExamFormValues>();
   const strategyType = form.watch("strategyType");
 
   return (
@@ -73,7 +73,7 @@ export function StrategyConfig() {
                 <FormItem>
                   <FormLabel>Select Collections</FormLabel>
                   <CollectionPicker
-                    value={field.value}
+                    value={field.value ?? []}
                     onChange={field.onChange}
                   />
                   <FormDescription>
@@ -91,7 +91,7 @@ export function StrategyConfig() {
                   <FormControl>
                     <Input
                       type="number"
-                      {...field}
+                      value={typeof field.value === "number" ? field.value : ""}
                       onChange={(e) => field.onChange(Number(e.target.value))}
                     />
                   </FormControl>
@@ -99,22 +99,6 @@ export function StrategyConfig() {
               )}
             />
           </div>
-        )}
-
-        {strategyType === "fixed_set" && (
-          <FormField
-            control={form.control}
-            name="strategyConfig.questionIds"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Select Questions</FormLabel>
-                <FixedSetPicker
-                  value={field.value || []}
-                  onChange={field.onChange}
-                />
-              </FormItem>
-            )}
-          />
         )}
 
         {strategyType === "difficulty_mix" && (
@@ -126,7 +110,7 @@ export function StrategyConfig() {
                 <FormItem>
                   <FormLabel>Select Collections</FormLabel>
                   <CollectionPicker
-                    value={field.value}
+                    value={field.value ?? []}
                     onChange={field.onChange}
                   />
                   <FormDescription>
@@ -146,7 +130,9 @@ export function StrategyConfig() {
                     <FormControl>
                       <Input
                         type="number"
-                        {...field}
+                        value={
+                          typeof field.value === "number" ? field.value : ""
+                        }
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
@@ -162,7 +148,9 @@ export function StrategyConfig() {
                     <FormControl>
                       <Input
                         type="number"
-                        {...field}
+                        value={
+                          typeof field.value === "number" ? field.value : ""
+                        }
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
@@ -178,7 +166,9 @@ export function StrategyConfig() {
                     <FormControl>
                       <Input
                         type="number"
-                        {...field}
+                        value={
+                          typeof field.value === "number" ? field.value : ""
+                        }
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>

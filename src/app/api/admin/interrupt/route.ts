@@ -3,10 +3,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { buildJetAuthHeadersV2 } from "@/lib/jet-headers";
 
-const JET_BASE_URL = (process.env.JET_SERVER_URL || "http://localhost:4000").replace(
-  /\/+$/,
-  "",
-);
+const JET_BASE_URL = (
+  process.env.JET_SERVER_URL || "http://localhost:4000"
+).replace(/\/+$/, "");
 
 const JET_HMAC_SECRET = process.env.JET_HMAC_SECRET;
 const JET_HMAC_KEY_ID = process.env.JET_HMAC_KEY_ID;
@@ -90,9 +89,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const message =
-      error instanceof Error
-        ? error.message
-        : "Jet service is unavailable";
+      error instanceof Error ? error.message : "Jet service is unavailable";
 
     return NextResponse.json(
       {

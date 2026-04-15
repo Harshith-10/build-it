@@ -18,10 +18,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { ExamFormInput, ExamFormValues } from "../exam-form";
 
 interface BasicDetailsProps {
-  // biome-ignore lint/suspicious/noExplicitAny: parent form currently passes dynamic schema-based form instance
-  form: UseFormReturn<any>;
+  form: UseFormReturn<ExamFormInput, unknown, ExamFormValues>;
 }
 
 export function BasicDetails({ form }: BasicDetailsProps) {
@@ -31,7 +31,7 @@ export function BasicDetails({ form }: BasicDetailsProps) {
         <CardTitle>Basic Details</CardTitle>
         <CardDescription>Basic details of the exam</CardDescription>
       </CardHeader>
-      <CardContent className="overflow-y-auto space-y-4">
+      <CardContent className="space-y-4">
         <FormField
           control={form.control}
           name="title"
@@ -58,7 +58,7 @@ export function BasicDetails({ form }: BasicDetailsProps) {
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <FormField
             control={form.control}
             name="startTime"
@@ -89,24 +89,30 @@ export function BasicDetails({ form }: BasicDetailsProps) {
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="duration"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Duration (Minutes)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    value={typeof field.value === "number" ? field.value : ""}
+                    onChange={(event) =>
+                      field.onChange(Number(event.target.value))
+                    }
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
         <p className="text-xs text-muted-foreground">
           Times are selected in your local timezone and stored as exact UTC
           timestamps.
         </p>
-        <FormField
-          control={form.control}
-          name="duration"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Duration (Minutes)</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
       </CardContent>
     </Card>
   );

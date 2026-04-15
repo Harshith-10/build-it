@@ -37,6 +37,7 @@ export const createColumns = (
   onDelete: (id: string) => void,
   pageIndex: number,
   pageSize: number,
+  basePath = "/admin",
 ): ColumnDef<Problem>[] => [
   {
     id: "serialNumber",
@@ -111,7 +112,7 @@ export const createColumns = (
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link href={`/admin/problems/${problem.id}`}>
+              <Link href={`${basePath}/problems/${problem.id}`}>
                 <Pencil className="w-4 h-4 mr-2" />
                 Edit
               </Link>

@@ -23,6 +23,7 @@ export const createColumns = (
   onDelete: (id: string) => void,
   pageIndex: number,
   pageSize: number,
+  basePath = "/admin",
 ): ColumnDef<Collection>[] => [
   {
     id: "serialNumber",
@@ -89,7 +90,7 @@ export const createColumns = (
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link href={`/admin/collections/${collection.id}`}>
+              <Link href={`${basePath}/collections/${collection.id}`}>
                 <Pencil className="h-4 w-4" />
                 Edit
               </Link>

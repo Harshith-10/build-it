@@ -199,10 +199,7 @@ export default async function ExamsPage() {
                     <div className="col-span-2 flex items-start gap-2">
                       <Calendar className="mt-0.5 h-4 w-4" />
                       <div className="leading-tight">
-                        <span className="font-bold">
-                          Starts At:
-                        </span>
-                        {" "}
+                        <span className="font-bold">Starts At:</span>{" "}
                         <LocalDateTimeText
                           value={exam.effectiveStart}
                           options={{
@@ -219,10 +216,7 @@ export default async function ExamsPage() {
                     <div className="col-span-2 flex items-start gap-2">
                       <Calendar className="mt-0.5 h-4 w-4" />
                       <div className="leading-tight">
-                        <span className="font-bold">
-                          Ends At:
-                        </span>
-                        {" "}
+                        <span className="font-bold">Ends At:</span>{" "}
                         <LocalDateTimeText
                           value={exam.effectiveEnd}
                           options={{
@@ -250,7 +244,7 @@ export default async function ExamsPage() {
                             {
                               // biome-ignore lint/suspicious/noExplicitAny: complex json column
                               (exam.gradingConfig as any).totalMarks *
-                              Math.max(getQuestionCount(exam), 1)
+                                Math.max(getQuestionCount(exam), 1)
                             }{" "}
                             Total Marks
                           </span>

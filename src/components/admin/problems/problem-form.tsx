@@ -58,7 +58,7 @@ const problemSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   difficulty: z.enum(["easy", "medium", "hard"]),
   problemStatement: z.string().min(10, "Problem statement is required"),
-  driverCode: z.record(z.string(), z.string()).optional(),
+  driverCode: z.record(z.string(), z.string()).default({}),
   allowedLanguages: z.array(z.string()).default(["java"]),
   testCases: z.array(
     z.object({
@@ -69,7 +69,8 @@ const problemSchema = z.object({
   ),
 });
 
-type ProblemFormValues = z.infer<typeof problemSchema>;
+type ProblemFormInput = z.input<typeof problemSchema>;
+type ProblemFormValues = z.output<typeof problemSchema>;
 
 const defaultJavaDriverCode = `// Write your driver code here
 // This code will wrap the user's solution
@@ -98,8 +99,30 @@ const languageExtensions: Record<string, () => any> = {
   java: () => java(),
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: Form initialData accepts any shape
-export function ProblemForm({ initialData }: { initialData?: any }) {
+type VerificationResult = {
+  id: string;
+  passed: boolean;
+  expectedOutput?: string;
+  actualOutput?: string;
+};
+
+type ProblemFormInitialData = {
+  id?: string;
+  title?: string;
+  difficulty?: "easy" | "medium" | "hard";
+  problemStatement?: string;
+  driverCode?: unknown;
+  allowedLanguages?: unknown;
+  testCases?: unknown;
+};
+
+export function ProblemForm({
+  initialData,
+  basePath = "/admin",
+}: {
+  initialData?: ProblemFormInitialData;
+  basePath?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,8 +140,9 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
   const [codeTabLang, setCodeTabLang] = useState("java");
   const [verifyTabLang, setVerifyTabLang] = useState("java");
   const [isVerifying, setIsVerifying] = useState(false);
-  // biome-ignore lint/suspicious/noExplicitAny: Verify result typing
-  const [verifyResults, setVerifyResults] = useState<any[] | null>(null);
+  const [verifyResults, setVerifyResults] = useState<
+    VerificationResult[] | null
+  >(null);
   const [availableRuntimes, setAvailableRuntimes] = useState<
     { language: string; version: string }[]
   >([]);
@@ -133,21 +157,53 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
 
   const [selectedTestCase, setSelectedTestCase] = useState(0);
 
-  const form = useForm<ProblemFormValues>({
-    // biome-ignore lint/suspicious/noExplicitAny: Bypass strict Zod types
-    resolver: zodResolver(problemSchema) as any,
-    defaultValues: initialData || emptyFormDefaults,
+  const form = useForm<ProblemFormInput, unknown, ProblemFormValues>({
+    resolver: zodResolver(problemSchema),
+    defaultValues: initialData
+      ? {
+          ...emptyFormDefaults,
+          ...initialData,
+          allowedLanguages: Array.isArray(initialData.allowedLanguages)
+            ? initialData.allowedLanguages
+            : emptyFormDefaults.allowedLanguages,
+          driverCode:
+            initialData.driverCode && typeof initialData.driverCode === "object"
+              ? (initialData.driverCode as Record<string, string>)
+              : emptyFormDefaults.driverCode,
+          testCases: Array.isArray(initialData.testCases)
+            ? initialData.testCases.map((tc) => {
+                const typed = tc as {
+                  input?: string;
+                  expectedOutput?: string;
+                  isHidden?: boolean | null;
+                };
+                return {
+                  input: typed.input || "",
+                  expectedOutput: typed.expectedOutput || "",
+                  isHidden: Boolean(typed.isHidden),
+                };
+              })
+            : emptyFormDefaults.testCases,
+        }
+      : emptyFormDefaults,
   });
 
   useEffect(() => {
     if (initialData) {
-      initialize(
-        initialData.allowedLanguages || ["java"],
-        initialData.driverCode || {
-          java: defaultJavaDriverCode,
-          python: defaultPythonDriverCode,
-        },
-      );
+      const initialAllowedLanguages = Array.isArray(
+        initialData.allowedLanguages,
+      )
+        ? initialData.allowedLanguages
+        : ["java"];
+      const initialDriverCode =
+        initialData.driverCode && typeof initialData.driverCode === "object"
+          ? (initialData.driverCode as Record<string, string>)
+          : {
+              java: defaultJavaDriverCode,
+              python: defaultPythonDriverCode,
+            };
+
+      initialize(initialAllowedLanguages, initialDriverCode);
     } else {
       const shouldApplyGeneratedDraft = searchParams.get("generated") === "1";
       const generatedDraft = shouldApplyGeneratedDraft
@@ -227,7 +283,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
       if (res.success) {
         clearGeneratedDraft();
         toast.success("Problem saved successfully");
-        router.push("/admin/problems");
+        router.push(`${basePath}/problems`);
       } else {
         toast.error(`Failed to save problem: ${res.error}`);
       }
@@ -238,8 +294,7 @@ export function ProblemForm({ initialData }: { initialData?: any }) {
     }
   };
 
-  // biome-ignore lint/suspicious/noExplicitAny: Form error typing
-  const onError = (errors: any) => {
+  const onError = (errors: unknown) => {
     console.error("Form validation errors:", errors);
   };
 

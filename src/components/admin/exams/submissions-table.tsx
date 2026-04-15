@@ -2,7 +2,7 @@
 
 import { Download, GraduationCap } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { Suspense, useRef } from "react";
+import { Suspense, useRef, useState } from "react";
 import {
   deleteExamSubmission,
   getExamSubmissions,
@@ -48,14 +48,14 @@ function exportToCSV(data: Submission[]) {
     }),
   ]);
 
-  const escape = (val: unknown) => {
+  const escapeCsv = (val: unknown) => {
     const str = String(val);
     if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
     return str;
   };
 
   const csv = [headers, ...rows]
-    .map((row) => row.map(escape).join(","))
+    .map((row) => row.map(escapeCsv).join(","))
     .join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -71,6 +71,7 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
   const pathname = usePathname();
   const isSubmissionsPage = pathname.split("/").pop() === "submissions";
   const latestDataRef = useRef<Submission[]>([]);
+  const [canDelete, setCanDelete] = useState(true);
 
   const submissionsConfig: EntityTableConfig<Submission> = {
     entityName: "Submission",
@@ -84,6 +85,7 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
         examId,
       });
       latestDataRef.current = result.submissions;
+      setCanDelete(result.canDelete);
       return {
         data: result.submissions,
         total: result.total,
@@ -108,7 +110,7 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
     <AdminEntityTable
       config={submissionsConfig}
       createColumns={(onDelete, page, pageSize) =>
-        createColumns(onDelete, page, pageSize)
+        createColumns(onDelete, page, pageSize, canDelete)
       }
       actions={exportButton}
       emptyState={

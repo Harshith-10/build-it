@@ -16,11 +16,11 @@ export default async function AdminLayout({
 
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const isAdmin = session?.user?.role === "admin";
+  const role = session?.user?.role === "admin" ? "admin" : "student";
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
-      <AppSidebar isAdmin={isAdmin} />
+      <AppSidebar role={role} />
       <SidebarInset>
         <AdminHeader />
         <div className="flex flex-1 flex-col gap-6 p-6 min-h-0">{children}</div>

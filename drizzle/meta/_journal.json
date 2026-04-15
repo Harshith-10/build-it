@@ -8,6 +8,20 @@
       "when": 1771821144461,
       "tag": "0000_neat_ben_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776265958502,
+      "tag": "0001_naive_phantom_reporter",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776269689744,
+      "tag": "0002_grey_klaw",
+      "breakpoints": true
     }
   ]
 }

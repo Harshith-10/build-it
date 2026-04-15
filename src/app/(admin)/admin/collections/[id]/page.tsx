@@ -24,7 +24,7 @@ export default async function EditCollectionPage({
           id: collection.id,
           title: collection.title,
           description: collection.description || "",
-          questions: collection.questions.map((q: any) => ({
+          questions: collection.questions.map((q) => ({
             questionId: q.question.id,
           })),
         }}

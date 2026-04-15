@@ -1,10 +1,29 @@
 "use server";
 
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { questions, testCases } from "@/db/schema/questions";
-import { requireAdmin } from "@/lib/auth-access";
+import {
+  ensureEntityPermission,
+  ensureOwnership,
+  requireAdmin,
+} from "@/lib/auth-access";
+
+type UpsertProblemInput = {
+  id?: string;
+  title: string;
+  problemStatement: string;
+  difficulty: "easy" | "medium" | "hard";
+  driverCode?: Record<string, string>;
+  allowedLanguages?: string[];
+  isPrivate?: boolean;
+  testCases?: Array<{
+    input: string;
+    expectedOutput: string;
+    isHidden?: boolean;
+  }>;
+};
 
 export async function getProblems({
   page = 1,
@@ -19,15 +38,24 @@ export async function getProblems({
   sort?: string;
   order?: "asc" | "desc";
 }) {
-  await requireAdmin();
+  const access = await ensureEntityPermission({
+    entity: "problems",
+    action: "read",
+  });
   const offset = (page - 1) * limit;
 
-  const whereClause = search
+  const searchClause = search
     ? or(
         ilike(questions.title, `%${search}%`),
         ilike(sql`${questions.difficulty}::text`, `%${search}%`),
       )
     : undefined;
+
+  const ownershipClause = access.isAdmin
+    ? undefined
+    : eq(questions.ownerId, access.session.user.id);
+
+  const whereClause = and(ownershipClause, searchClause);
 
   let orderBy = desc(questions.createdAt);
   if (sort) {
@@ -76,21 +104,56 @@ export async function getProblems({
 }
 
 export async function getProblem(id: string) {
-  await requireAdmin();
+  const access = await ensureEntityPermission({
+    entity: "problems",
+    action: "read",
+  });
+
   const problem = await db.query.questions.findFirst({
     where: eq(questions.id, id),
     with: {
       testCases: true,
     },
   });
+
+  if (!problem) {
+    return null;
+  }
+
+  ensureOwnership({
+    isAdmin: access.isAdmin,
+    ownerId: problem.ownerId,
+    actorUserId: access.session.user.id,
+  });
+
   return problem;
 }
 
 export async function deleteProblem(id: string) {
-  await requireAdmin();
+  const access = await ensureEntityPermission({
+    entity: "problems",
+    action: "delete",
+  });
+
   try {
+    const current = await db.query.questions.findFirst({
+      where: eq(questions.id, id),
+      columns: { ownerId: true },
+    });
+
+    if (!current) {
+      return { success: false, error: "Problem not found" };
+    }
+
+    ensureOwnership({
+      isAdmin: access.isAdmin,
+      ownerId: current.ownerId,
+      actorUserId: access.session.user.id,
+    });
+
     await db.delete(questions).where(eq(questions.id, id));
     revalidatePath("/admin/problems");
+    revalidatePath("/faculty/problems");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete problem:", error);
@@ -98,8 +161,12 @@ export async function deleteProblem(id: string) {
   }
 }
 
-export async function upsertProblem(data: any) {
-  await requireAdmin();
+export async function upsertProblem(data: UpsertProblemInput) {
+  const isUpdate = Boolean(data.id);
+  const access = await ensureEntityPermission({
+    entity: "problems",
+    action: isUpdate ? "update" : "create",
+  });
 
   // Validate? Zod schema should be used here ideally.
   // data: { id?, title, problemStatement, difficulty, driverCode, testCases: [] }
@@ -108,6 +175,21 @@ export async function upsertProblem(data: any) {
     let problemId = data.id;
 
     if (problemId) {
+      const current = await db.query.questions.findFirst({
+        where: eq(questions.id, problemId),
+        columns: { ownerId: true },
+      });
+
+      if (!current) {
+        return { success: false, error: "Problem not found" };
+      }
+
+      ensureOwnership({
+        isAdmin: access.isAdmin,
+        ownerId: current.ownerId,
+        actorUserId: access.session.user.id,
+      });
+
       // Update
       await db
         .update(questions)
@@ -117,6 +199,7 @@ export async function upsertProblem(data: any) {
           difficulty: data.difficulty,
           driverCode: data.driverCode,
           allowedLanguages: data.allowedLanguages || ["java"], // Default
+          isPrivate: access.isAdmin ? (data.isPrivate ?? true) : true,
         })
         .where(eq(questions.id, problemId));
 
@@ -127,11 +210,13 @@ export async function upsertProblem(data: any) {
       const [newProblem] = await db
         .insert(questions)
         .values({
+          ownerId: access.session.user.id,
           title: data.title,
           problemStatement: data.problemStatement,
           difficulty: data.difficulty,
           driverCode: data.driverCode,
           allowedLanguages: data.allowedLanguages || ["java"],
+          isPrivate: access.isAdmin ? (data.isPrivate ?? true) : true,
         })
         .returning();
       problemId = newProblem.id;
@@ -139,7 +224,7 @@ export async function upsertProblem(data: any) {
 
     // Insert Test Cases
     if (data.testCases && data.testCases.length > 0) {
-      const tcValues = data.testCases.map((tc: any) => ({
+      const tcValues = data.testCases.map((tc) => ({
         questionId: problemId,
         input: tc.input,
         expectedOutput: tc.expectedOutput,
@@ -149,10 +234,33 @@ export async function upsertProblem(data: any) {
     }
 
     revalidatePath("/admin/problems");
+    revalidatePath("/faculty/problems");
     revalidatePath(`/admin/problems/${problemId}`);
+    revalidatePath(`/faculty/problems/${problemId}`);
     return { success: true, id: problemId };
   } catch (error) {
     console.error("Failed to upsert problem:", error);
     return { success: false, error: "Failed to save problem" };
+  }
+}
+
+export async function transferProblemOwnership(id: string, newOwnerId: string) {
+  const session = await requireAdmin();
+  try {
+    await db
+      .update(questions)
+      .set({
+        ownerId: newOwnerId,
+        transferredBy: session.user.id,
+        transferredAt: new Date(),
+      })
+      .where(eq(questions.id, id));
+
+    revalidatePath("/admin/problems");
+    revalidatePath("/faculty/problems");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to transfer problem ownership:", error);
+    return { success: false, error: "Failed to transfer ownership" };
   }
 }

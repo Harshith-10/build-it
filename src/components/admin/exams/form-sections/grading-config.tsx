@@ -24,13 +24,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import type { ExamFormInput, ExamFormValues } from "../exam-form";
 
 interface GradingConfigProps {
   linearMarksPerQuestion: string | number | null;
 }
 
 export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
-  const form = useFormContext();
+  const form = useFormContext<ExamFormInput, unknown, ExamFormValues>();
   const gradingStrategy = form.watch("gradingStrategy");
 
   const { fields, append, remove } = useFieldArray({
@@ -87,7 +88,7 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                     <Input
                       type="number"
                       placeholder="100"
-                      {...field}
+                      value={typeof field.value === "number" ? field.value : ""}
                       onChange={(e) => field.onChange(Number(e.target.value))}
                     />
                   </FormControl>
@@ -118,7 +119,9 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                       <Input
                         type="number"
                         placeholder="10"
-                        {...field}
+                        value={
+                          typeof field.value === "number" ? field.value : ""
+                        }
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
@@ -135,7 +138,9 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                       <Input
                         type="number"
                         placeholder="20"
-                        {...field}
+                        value={
+                          typeof field.value === "number" ? field.value : ""
+                        }
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
@@ -152,7 +157,9 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                       <Input
                         type="number"
                         placeholder="30"
-                        {...field}
+                        value={
+                          typeof field.value === "number" ? field.value : ""
+                        }
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
@@ -195,7 +202,9 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                           <Input
                             type="number"
                             placeholder="e.g. 1"
-                            {...field}
+                            value={
+                              typeof field.value === "number" ? field.value : ""
+                            }
                             onChange={(e) =>
                               field.onChange(Number(e.target.value))
                             }
@@ -217,7 +226,9 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                           <Input
                             type="number"
                             placeholder="e.g. 10"
-                            {...field}
+                            value={
+                              typeof field.value === "number" ? field.value : ""
+                            }
                             onChange={(e) =>
                               field.onChange(Number(e.target.value))
                             }

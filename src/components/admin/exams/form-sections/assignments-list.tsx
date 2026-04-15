@@ -23,10 +23,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import type { ExamFormInput, ExamFormValues } from "../exam-form";
+import type { Group } from "../group-selection-dialog";
 
 interface AssignmentsListProps {
-  form: UseFormReturn<any>;
-  fieldArray: UseFieldArrayReturn<any, "assignments", "id">;
+  form: UseFormReturn<ExamFormInput, unknown, ExamFormValues>;
+  fieldArray: UseFieldArrayReturn<ExamFormInput, "assignments", "id">;
 }
 
 export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
@@ -40,21 +42,19 @@ export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
   const handleMasterPinChange = (enabled: boolean) => {
     setMasterPinEnabled(enabled);
     if (enabled) {
-      const currentAssignments = form.getValues("assignments");
-      const updated = currentAssignments.map((a: any) => ({
-        ...a,
+      const currentAssignments = form.getValues("assignments") ?? [];
+      const updated = currentAssignments.map((assignment) => ({
+        ...assignment,
         requiresPin: true,
-        pinCode: a.pinCode || generatePin(),
+        pinCode: assignment.pinCode || generatePin(),
       }));
       form.setValue("assignments", updated);
     }
   };
 
-  const handleSelectGroups = (selectedGroups: any[]) => {
+  const handleSelectGroups = (selectedGroups: Group[]) => {
     selectedGroups.forEach((group) => {
-      // Check if already exists
-      // biome-ignore lint/suspicious/noExplicitAny: complex form type
-      if (!fields.some((f: any) => f.groupId === group.id)) {
+      if (!fields.some((field) => field.groupId === group.id)) {
         append({
           groupId: group.id,
           groupName: group.name,
@@ -65,8 +65,7 @@ export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
     });
   };
 
-  // biome-ignore lint/suspicious/noExplicitAny: complex form type
-  const selectedGroupIds = fields.map((f: any) => f.groupId);
+  const selectedGroupIds = fields.map((field) => field.groupId);
 
   const handleClick = () => {
     setOpenDialog(true);
@@ -106,8 +105,7 @@ export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
           </div>
 
           <div className="grid grid-cols-4 gap-4">
-            {/* biome-ignore lint/suspicious/noExplicitAny: complex form type */}
-            {fields.map((field: any, index) => (
+            {fields.map((field, index) => (
               <Card key={field.id} className="p-4">
                 <div className="flex justify-between items-start mb-2">
                   <h4 className="font-semibold text-2xl">{field.groupName}</h4>

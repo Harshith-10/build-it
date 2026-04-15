@@ -2,10 +2,9 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
-const JET_BASE_URL = (process.env.JET_SERVER_URL || "http://localhost:4000").replace(
-  /\/+$/,
-  "",
-);
+const JET_BASE_URL = (
+  process.env.JET_SERVER_URL || "http://localhost:4000"
+).replace(/\/+$/, "");
 
 export async function GET() {
   const session = await auth.api.getSession({

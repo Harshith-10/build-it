@@ -17,11 +17,16 @@ export default async function DashboardLayout({
   const session = await requireUser();
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const isAdmin = session?.user?.role === "admin";
+  const role =
+    session?.user?.role === "admin"
+      ? "admin"
+      : session?.user?.role === "faculty"
+        ? "faculty"
+        : "student";
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
-      <AppSidebar isAdmin={isAdmin} />
+      <AppSidebar role={role} />
       <SidebarInset>
         <DashboardHeader />
         <main className="flex-1 h-full space-y-4 p-6 overflow-hidden min-h-0">

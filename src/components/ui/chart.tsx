@@ -53,7 +53,9 @@ function ChartTooltipContent({
         className,
       )}
     >
-      {label ? <div className="mb-2 text-xs text-muted-foreground">{label}</div> : null}
+      {label ? (
+        <div className="mb-2 text-xs text-muted-foreground">{label}</div>
+      ) : null}
       <div className="space-y-1">
         {payload.map((entry) => (
           <div key={entry.name} className="flex items-center gap-2">
@@ -62,7 +64,9 @@ function ChartTooltipContent({
               style={{ backgroundColor: entry.color || "currentColor" }}
             />
             <span className="text-muted-foreground">{entry.name}</span>
-            <span className="ml-auto font-medium text-foreground">{entry.value}</span>
+            <span className="ml-auto font-medium text-foreground">
+              {entry.value}
+            </span>
           </div>
         ))}
       </div>
@@ -74,5 +78,5 @@ function ChartTooltip(props: React.ComponentProps<typeof ChartTooltipContent>) {
   return <ChartTooltipContent {...props} />;
 }
 
-export { ChartContainer, ChartTooltip, ChartTooltipContent };
 export type { ChartConfig };
+export { ChartContainer, ChartTooltip, ChartTooltipContent };

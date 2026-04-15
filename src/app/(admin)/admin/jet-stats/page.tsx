@@ -160,7 +160,9 @@ export default function JetStatsPage() {
         const body = (await response.json()) as { error?: string };
         const message = body.error || "Failed to fetch queue depth";
         if (response.status === 401) {
-          toast.error("Unauthorized: You don't have permission to access runtime controls");
+          toast.error(
+            "Unauthorized: You don't have permission to access runtime controls",
+          );
         } else {
           toast.error(message);
         }
@@ -170,7 +172,9 @@ export default function JetStatsPage() {
       const data = (await response.json()) as QueueDepthResponse;
       setQueueDepth(data.max_queue_depth);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to fetch queue depth");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to fetch queue depth",
+      );
     } finally {
       setIsLoadingQueueDepth(false);
     }
@@ -204,7 +208,9 @@ export default function JetStatsPage() {
         const body = (await response.json()) as { error?: string };
         const message = body.error || "Failed to set queue depth";
         if (response.status === 401) {
-          toast.error("Unauthorized: You don't have permission to access runtime controls");
+          toast.error(
+            "Unauthorized: You don't have permission to access runtime controls",
+          );
         } else {
           toast.error(message);
         }
@@ -216,7 +222,9 @@ export default function JetStatsPage() {
       setNewQueueDepth("");
       toast.success(`Queue depth set to ${depth}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to set queue depth");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to set queue depth",
+      );
     } finally {
       setIsSettingQueueDepth(false);
     }
@@ -237,7 +245,9 @@ export default function JetStatsPage() {
         const body = (await response.json()) as { error?: string };
         const message = body.error || "Failed to enable unlimited queue depth";
         if (response.status === 401) {
-          toast.error("Unauthorized: You don't have permission to access runtime controls");
+          toast.error(
+            "Unauthorized: You don't have permission to access runtime controls",
+          );
         } else {
           toast.error(message);
         }
@@ -248,50 +258,55 @@ export default function JetStatsPage() {
       setQueueDepth(data.max_queue_depth);
       toast.success("Queue depth set to unlimited");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to enable unlimited queue depth");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Failed to enable unlimited queue depth",
+      );
     } finally {
       setIsEnablingUnlimited(false);
     }
   }, []);
 
-  const interruptJobs = useCallback(
-    async (restart: boolean) => {
-      setIsInterrupting(true);
-      try {
-        const response = await fetch("/api/admin/interrupt", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({ restart }),
-          cache: "no-store",
-        });
+  const interruptJobs = useCallback(async (restart: boolean) => {
+    setIsInterrupting(true);
+    try {
+      const response = await fetch("/api/admin/interrupt", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ restart }),
+        cache: "no-store",
+      });
 
-        if (!response.ok) {
-          const body = (await response.json()) as { error?: string };
-          const message = body.error || "Failed to interrupt jobs";
-          if (response.status === 401) {
-            toast.error("Unauthorized: You don't have permission to access runtime controls");
-          } else {
-            toast.error(message);
-          }
-          return;
-        }
-
-        if (restart) {
-          toast.success("Jobs interrupted and restart requested");
+      if (!response.ok) {
+        const body = (await response.json()) as { error?: string };
+        const message = body.error || "Failed to interrupt jobs";
+        if (response.status === 401) {
+          toast.error(
+            "Unauthorized: You don't have permission to access runtime controls",
+          );
         } else {
-          toast.success("Jobs interrupted successfully");
+          toast.error(message);
         }
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to interrupt jobs");
-      } finally {
-        setIsInterrupting(false);
+        return;
       }
-    },
-    [],
-  );
+
+      if (restart) {
+        toast.success("Jobs interrupted and restart requested");
+      } else {
+        toast.success("Jobs interrupted successfully");
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to interrupt jobs",
+      );
+    } finally {
+      setIsInterrupting(false);
+    }
+  }, []);
 
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
@@ -460,7 +475,9 @@ export default function JetStatsPage() {
       trendHistory.map((point, index, points) => ({
         sampleIndex: index,
         ageAgoSeconds: Math.max(
-          Math.round((points[points.length - 1].timestamp - point.timestamp) / 1000),
+          Math.round(
+            (points[points.length - 1].timestamp - point.timestamp) / 1000,
+          ),
           0,
         ),
         timestampLabel: formatTrendTime(point.timestamp),
@@ -476,7 +493,9 @@ export default function JetStatsPage() {
       trendHistory.map((point, index, points) => ({
         sampleIndex: index,
         ageAgoSeconds: Math.max(
-          Math.round((points[points.length - 1].timestamp - point.timestamp) / 1000),
+          Math.round(
+            (points[points.length - 1].timestamp - point.timestamp) / 1000,
+          ),
           0,
         ),
         timestampLabel: formatTrendTime(point.timestamp),
@@ -506,7 +525,9 @@ export default function JetStatsPage() {
     }
 
     const peak = Math.max(
-      ...qualityTrendData.map((point) => Math.max(point.success, point.failure)),
+      ...qualityTrendData.map((point) =>
+        Math.max(point.success, point.failure),
+      ),
     );
 
     return Math.max(Math.ceil(peak * 1.05), 10);
@@ -528,7 +549,9 @@ export default function JetStatsPage() {
                 size="sm"
                 aria-label="Toggle auto refresh"
               />
-              <span className="text-xs text-muted-foreground">Auto refresh</span>
+              <span className="text-xs text-muted-foreground">
+                Auto refresh
+              </span>
             </div>
             <Button
               variant="outline"
@@ -573,11 +596,15 @@ export default function JetStatsPage() {
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
               <p className="text-muted-foreground">Compile</p>
-              <p className="font-semibold">{formatNumber(stats.compile_in_flight)}</p>
+              <p className="font-semibold">
+                {formatNumber(stats.compile_in_flight)}
+              </p>
             </div>
             <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
               <p className="text-muted-foreground">Execute</p>
-              <p className="font-semibold">{formatNumber(stats.execute_in_flight)}</p>
+              <p className="font-semibold">
+                {formatNumber(stats.execute_in_flight)}
+              </p>
             </div>
             <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
               <p className="text-muted-foreground">Success</p>
@@ -625,7 +652,9 @@ export default function JetStatsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-semibold tracking-tight">{metric.value}</div>
+                  <div className="text-2xl font-semibold tracking-tight">
+                    {metric.value}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -653,11 +682,15 @@ export default function JetStatsPage() {
                   <div className="rounded-md border p-3">
                     <p className="text-muted-foreground">Success Rate</p>
                     <p className="mt-1 text-lg font-semibold">
-                      {successRate === null ? "N/A" : `${successRate.toFixed(1)}%`}
+                      {successRate === null
+                        ? "N/A"
+                        : `${successRate.toFixed(1)}%`}
                     </p>
                   </div>
                   <div className="rounded-md border p-3">
-                    <p className="text-muted-foreground">Queue Wait Threshold</p>
+                    <p className="text-muted-foreground">
+                      Queue Wait Threshold
+                    </p>
                     <p className="mt-1 text-lg font-semibold">
                       {formatNumber(stats.max_queue_wait_secs)}s
                     </p>
@@ -667,11 +700,15 @@ export default function JetStatsPage() {
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="rounded-md border p-3">
                     <p className="text-muted-foreground">Compile In Flight</p>
-                    <p className="mt-1 font-semibold">{formatNumber(stats.compile_in_flight)}</p>
+                    <p className="mt-1 font-semibold">
+                      {formatNumber(stats.compile_in_flight)}
+                    </p>
                   </div>
                   <div className="rounded-md border p-3">
                     <p className="text-muted-foreground">Execute In Flight</p>
-                    <p className="mt-1 font-semibold">{formatNumber(stats.execute_in_flight)}</p>
+                    <p className="mt-1 font-semibold">
+                      {formatNumber(stats.execute_in_flight)}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -683,24 +720,36 @@ export default function JetStatsPage() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Host Architecture</span>
+                  <span className="text-muted-foreground">
+                    Host Architecture
+                  </span>
                   <span className="font-medium">{stats.host_arch}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Installed Runtimes</span>
-                  <span className="font-medium">{formatNumber(stats.installed_runtimes)}</span>
+                  <span className="text-muted-foreground">
+                    Installed Runtimes
+                  </span>
+                  <span className="font-medium">
+                    {formatNumber(stats.installed_runtimes)}
+                  </span>
                 </div>
                 <div className="space-y-2">
                   <p className="text-muted-foreground">Supported Languages</p>
                   <div className="flex flex-wrap gap-2">
                     {stats.supported_languages.length > 0 ? (
                       stats.supported_languages.map((language) => (
-                        <Badge key={language} variant="outline" className="uppercase">
+                        <Badge
+                          key={language}
+                          variant="outline"
+                          className="uppercase"
+                        >
                           {language}
                         </Badge>
                       ))
                     ) : (
-                      <span className="text-sm text-muted-foreground">No languages reported</span>
+                      <span className="text-sm text-muted-foreground">
+                        No languages reported
+                      </span>
                     )}
                   </div>
                 </div>
@@ -728,52 +777,104 @@ export default function JetStatsPage() {
                       className="h-56 rounded-md border bg-muted/20 p-2"
                     >
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={inFlightTrendData} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
+                        <LineChart
+                          data={inFlightTrendData}
+                          margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="hsl(var(--border))"
+                            opacity={0.35}
+                          />
                           <XAxis
                             dataKey="sampleIndex"
                             minTickGap={24}
-                            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+                            tick={{
+                              fill: "hsl(var(--foreground))",
+                              fontSize: 11,
+                            }}
                             axisLine={{ stroke: "hsl(var(--border))" }}
                             tickLine={{ stroke: "hsl(var(--border))" }}
                             tickFormatter={(value) => {
                               const point = inFlightTrendData[Number(value)];
-                              return point ? `${point.ageAgoSeconds}s ago` : `${Number(value)}s ago`;
+                              return point
+                                ? `${point.ageAgoSeconds}s ago`
+                                : `${Number(value)}s ago`;
                             }}
                           />
                           <YAxis
                             domain={[0, inFlightMax]}
-                            tickFormatter={(value) => formatNumber(Number(value))}
-                            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+                            tickFormatter={(value) =>
+                              formatNumber(Number(value))
+                            }
+                            tick={{
+                              fill: "hsl(var(--foreground))",
+                              fontSize: 11,
+                            }}
                             axisLine={{ stroke: "hsl(var(--border))" }}
                             tickLine={{ stroke: "hsl(var(--border))" }}
                             width={46}
                           />
                           <Tooltip
                             labelFormatter={(label, payload) => {
-                              const item = payload?.[0]?.payload as { ageAgoSeconds?: number; timestampLabel?: string } | undefined;
+                              const item = payload?.[0]?.payload as
+                                | {
+                                    ageAgoSeconds?: number;
+                                    timestampLabel?: string;
+                                  }
+                                | undefined;
                               return item?.timestampLabel
                                 ? `${item.ageAgoSeconds ?? label}s ago • ${item.timestampLabel}`
                                 : `${item?.ageAgoSeconds ?? label}s ago`;
                             }}
-                            formatter={(value, name) => [formatNumber(Number(value ?? 0)), String(name ?? "")]} 
+                            formatter={(value, name) => [
+                              formatNumber(Number(value ?? 0)),
+                              String(name ?? ""),
+                            ]}
                             content={<ChartTooltipContent />}
                           />
-                          <Line type="monotone" dataKey="total" name="Total" stroke="#3b82f6" strokeWidth={2.4} dot={false} activeDot={{ r: 4 }} />
-                          <Line type="monotone" dataKey="compile" name="Compile" stroke="#a855f7" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
-                          <Line type="monotone" dataKey="execute" name="Execute" stroke="#14b8a6" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+                          <Line
+                            type="monotone"
+                            dataKey="total"
+                            name="Total"
+                            stroke="#3b82f6"
+                            strokeWidth={2.4}
+                            dot={false}
+                            activeDot={{ r: 4 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="compile"
+                            name="Compile"
+                            stroke="#a855f7"
+                            strokeWidth={2}
+                            dot={false}
+                            activeDot={{ r: 3 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="execute"
+                            name="Execute"
+                            stroke="#14b8a6"
+                            strokeWidth={2}
+                            dot={false}
+                            activeDot={{ r: 3 }}
+                          />
                         </LineChart>
                       </ResponsiveContainer>
                     </ChartContainer>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-blue-500" /> Total
+                        <span className="h-2 w-2 rounded-full bg-blue-500" />{" "}
+                        Total
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-purple-500" /> Compile
+                        <span className="h-2 w-2 rounded-full bg-purple-500" />{" "}
+                        Compile
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-teal-500" /> Execute
+                        <span className="h-2 w-2 rounded-full bg-teal-500" />{" "}
+                        Execute
                       </span>
                       <span className="ml-auto">
                         X-axis: oldest to newest, newest at right
@@ -806,48 +907,91 @@ export default function JetStatsPage() {
                       className="h-56 rounded-md border bg-muted/20 p-2"
                     >
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={qualityTrendData} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
+                        <LineChart
+                          data={qualityTrendData}
+                          margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="hsl(var(--border))"
+                            opacity={0.35}
+                          />
                           <XAxis
                             dataKey="sampleIndex"
                             minTickGap={24}
-                            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+                            tick={{
+                              fill: "hsl(var(--foreground))",
+                              fontSize: 11,
+                            }}
                             axisLine={{ stroke: "hsl(var(--border))" }}
                             tickLine={{ stroke: "hsl(var(--border))" }}
                             tickFormatter={(value) => {
                               const point = qualityTrendData[Number(value)];
-                              return point ? `${point.ageAgoSeconds}s ago` : `${Number(value)}s ago`;
+                              return point
+                                ? `${point.ageAgoSeconds}s ago`
+                                : `${Number(value)}s ago`;
                             }}
                           />
                           <YAxis
                             domain={[0, qualityMax]}
-                            tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
-                            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+                            tickFormatter={(value) =>
+                              `${Number(value).toFixed(0)}%`
+                            }
+                            tick={{
+                              fill: "hsl(var(--foreground))",
+                              fontSize: 11,
+                            }}
                             axisLine={{ stroke: "hsl(var(--border))" }}
                             tickLine={{ stroke: "hsl(var(--border))" }}
                             width={46}
                           />
                           <Tooltip
                             labelFormatter={(label, payload) => {
-                              const item = payload?.[0]?.payload as { ageAgoSeconds?: number; timestampLabel?: string } | undefined;
+                              const item = payload?.[0]?.payload as
+                                | {
+                                    ageAgoSeconds?: number;
+                                    timestampLabel?: string;
+                                  }
+                                | undefined;
                               return item?.timestampLabel
                                 ? `${item.ageAgoSeconds ?? label}s ago • ${item.timestampLabel}`
                                 : `${item?.ageAgoSeconds ?? label}s ago`;
                             }}
-                            formatter={(value, name) => [`${Number(value ?? 0).toFixed(1)}%`, String(name ?? "")]} 
+                            formatter={(value, name) => [
+                              `${Number(value ?? 0).toFixed(1)}%`,
+                              String(name ?? ""),
+                            ]}
                             content={<ChartTooltipContent />}
                           />
-                          <Line type="monotone" dataKey="success" name="Success" stroke="#22c55e" strokeWidth={2.4} dot={false} activeDot={{ r: 4 }} />
-                          <Line type="monotone" dataKey="failure" name="Failure" stroke="#ef4444" strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} />
+                          <Line
+                            type="monotone"
+                            dataKey="success"
+                            name="Success"
+                            stroke="#22c55e"
+                            strokeWidth={2.4}
+                            dot={false}
+                            activeDot={{ r: 4 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="failure"
+                            name="Failure"
+                            stroke="#ef4444"
+                            strokeWidth={2.2}
+                            dot={false}
+                            activeDot={{ r: 4 }}
+                          />
                         </LineChart>
                       </ResponsiveContainer>
                     </ChartContainer>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-green-500" /> Success %
+                        <span className="h-2 w-2 rounded-full bg-green-500" />{" "}
+                        Success %
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-red-500" /> Failure %
+                        <span className="h-2 w-2 rounded-full bg-red-500" />{" "}
+                        Failure %
                       </span>
                       <span className="ml-auto">
                         X-axis: oldest to newest, newest at right
@@ -874,7 +1018,9 @@ export default function JetStatsPage() {
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">
                       {metric.label}
                     </p>
-                    <p className="mt-1 text-base font-semibold">{metric.value}</p>
+                    <p className="mt-1 text-base font-semibold">
+                      {metric.value}
+                    </p>
                   </div>
                 ))}
               </CardContent>
@@ -888,19 +1034,22 @@ export default function JetStatsPage() {
                 <div className="rounded-md border p-3">
                   <p className="text-muted-foreground">Strict Limiter</p>
                   <p className="mt-1 font-semibold">
-                    {stats.strict_rate_limit_burst} burst / {stats.strict_rate_limit_token_interval_secs}s token
+                    {stats.strict_rate_limit_burst} burst /{" "}
+                    {stats.strict_rate_limit_token_interval_secs}s token
                   </p>
                 </div>
                 <div className="rounded-md border p-3">
                   <p className="text-muted-foreground">General Limiter</p>
                   <p className="mt-1 font-semibold">
-                    {stats.general_rate_limit_burst} burst / {stats.general_rate_limit_token_interval_ms}ms token
+                    {stats.general_rate_limit_burst} burst /{" "}
+                    {stats.general_rate_limit_token_interval_ms}ms token
                   </p>
                 </div>
                 <div className="rounded-md border p-3">
                   <p className="text-muted-foreground">Poll Limiter</p>
                   <p className="mt-1 font-semibold">
-                    {stats.poll_rate_limit_burst} burst / {stats.poll_rate_limit_token_interval_ms}ms token
+                    {stats.poll_rate_limit_burst} burst /{" "}
+                    {stats.poll_rate_limit_token_interval_ms}ms token
                   </p>
                 </div>
               </CardContent>
@@ -1004,7 +1153,9 @@ export default function JetStatsPage() {
 
               <div className="space-y-4 rounded-md border bg-muted/20 p-4">
                 <div>
-                  <h3 className="mb-1 font-semibold">In-Flight Job Management</h3>
+                  <h3 className="mb-1 font-semibold">
+                    In-Flight Job Management
+                  </h3>
                   <p className="text-sm text-muted-foreground">
                     Force all in-flight jobs to fail with reason
                     <code className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs">
@@ -1022,7 +1173,9 @@ export default function JetStatsPage() {
                       disabled={isInterrupting}
                       aria-label="Restart workers after interrupt"
                     />
-                    <span className="text-xs text-muted-foreground">Restart after interrupt</span>
+                    <span className="text-xs text-muted-foreground">
+                      Restart after interrupt
+                    </span>
                   </div>
 
                   <Button
@@ -1039,18 +1192,24 @@ export default function JetStatsPage() {
                     ) : (
                       <>
                         <StopCircle className="mr-2 h-4 w-4" />
-                        {restartOnInterrupt ? "Interrupt & Restart" : "Interrupt Jobs"}
+                        {restartOnInterrupt
+                          ? "Interrupt & Restart"
+                          : "Interrupt Jobs"}
                       </>
                     )}
                   </Button>
                 </div>
 
-                <AlertDialog open={interruptDialogOpen} onOpenChange={setInterruptDialogOpen}>
+                <AlertDialog
+                  open={interruptDialogOpen}
+                  onOpenChange={setInterruptDialogOpen}
+                >
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Confirm interruption</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This immediately fails all running jobs. Any in-flight execution will stop and be marked with
+                        This immediately fails all running jobs. Any in-flight
+                        execution will stop and be marked with
                         <span className="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">
                           interrupted_by_admin
                         </span>
@@ -1058,7 +1217,9 @@ export default function JetStatsPage() {
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel disabled={isInterrupting}>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel disabled={isInterrupting}>
+                        Cancel
+                      </AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         disabled={isInterrupting}
@@ -1067,7 +1228,9 @@ export default function JetStatsPage() {
                           handleInterrupt();
                         }}
                       >
-                        {restartOnInterrupt ? "Interrupt & Restart" : "Interrupt Jobs"}
+                        {restartOnInterrupt
+                          ? "Interrupt & Restart"
+                          : "Interrupt Jobs"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -1075,7 +1238,10 @@ export default function JetStatsPage() {
 
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span>Warning: this action is immediate and affects all running jobs.</span>
+                  <span>
+                    Warning: this action is immediate and affects all running
+                    jobs.
+                  </span>
                 </div>
               </div>
             </CardContent>
