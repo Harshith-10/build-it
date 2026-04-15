@@ -33,6 +33,15 @@ type BulkImportConfig = {
   passwordFromDob?: boolean;
 };
 
+type AppRole = "admin" | "faculty" | "student";
+type AuthCreateUserRole = "user" | "admin";
+
+function toAuthCreateUserRole(role: AppRole): AuthCreateUserRole {
+  // Better Auth role inference can fall back to "user" | "admin" on clean installs.
+  // Runtime accepts custom roles, so we normalize through this adapter.
+  return role as unknown as AuthCreateUserRole;
+}
+
 export async function bulkImportUsers({
   users,
   config,
@@ -125,7 +134,7 @@ export async function bulkImportUsers({
         email: userData.email,
         password: password,
         name: userData.name,
-        role: userData.role || "student",
+        role: toAuthCreateUserRole((userData.role || "student") as AppRole),
         data: {
           username: userData.username,
           branch: userData.branch,
@@ -295,7 +304,7 @@ export async function createUser(data: {
         email: data.email,
         password: data.password,
         name: data.name,
-        role: data.role,
+        role: toAuthCreateUserRole(data.role),
         data: {
           username: data.username || undefined,
           branch: data.branch || undefined,
