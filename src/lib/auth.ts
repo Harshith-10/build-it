@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username } from "better-auth/plugins";
 import { admin } from "better-auth/plugins/admin";
+import { defaultRoles } from "better-auth/plugins/admin/access";
 import { db } from "@/db";
 
 export const auth = betterAuth({
@@ -20,7 +21,12 @@ export const auth = betterAuth({
     username(),
     admin({
       defaultRole: "student",
-      adminRole: "admin",
+      adminRoles: ["admin"],
+      roles: {
+        admin: defaultRoles.admin,
+        student: defaultRoles.user,
+        faculty: defaultRoles.user,
+      },
     }),
   ],
   advanced: {

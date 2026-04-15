@@ -100,7 +100,7 @@ export const createColumns = (
       const role = row.getValue("role") as string | null;
       return (
         <Badge variant={roleVariant(role)} className="capitalize">
-          {role || "user"}
+          {role || "student"}
         </Badge>
       );
     },
