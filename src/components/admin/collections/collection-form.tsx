@@ -2,7 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { InferSelectModel } from "drizzle-orm";
-import { Loader2, Plus, Save, Search, X } from "lucide-react";
+import { Loader2, Pencil, Plus, Save, Search, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -279,25 +280,51 @@ export function CollectionForm({
                           (p) => p.id === id,
                         );
                         return (
-                          <button
+                          <div
                             key={id}
-                            type="button"
-                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
+                            role="button"
+                            tabIndex={0}
                             onClick={() => removeProblem(id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                removeProblem(id);
+                              }
+                            }}
+                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors cursor-pointer"
                           >
-                            <div className="flex-1 text-sm font-medium text-left truncate">
+                            <div className="flex-1 min-w-0 text-sm font-medium text-left truncate">
                               {problem?.title || "Unknown Problem"}
                             </div>
                             {problem && (
+                              <Link
+                                href={`${basePath}/problems/${id}`}
+                                onClick={(event) => event.stopPropagation()}
+                                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            )}
+                            {problem && (
                               <Badge
                                 variant="outline"
-                                className={`text-[10px] shrink-0 group-hover:hidden ${difficultyColors[problem.difficulty] || ""}`}
+                                className={`text-[10px] shrink-0 ${difficultyColors[problem.difficulty] || ""}`}
                               >
                                 {problem.difficulty}
                               </Badge>
                             )}
-                            <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
-                          </button>
+                            <button
+                              type="button"
+                              className="ml-auto shrink-0"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeProblem(id);
+                              }}
+                              aria-label={`Remove ${problem?.title || "problem"}`}
+                            >
+                              <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
+                            </button>
+                          </div>
                         );
                       })}
                   </div>

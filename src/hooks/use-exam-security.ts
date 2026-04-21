@@ -25,6 +25,7 @@ interface UseExamSecurityProps {
 interface UseExamSecurityReturn {
   warnings: number;
   violationState: "idle" | "warning" | "severe_blocking";
+  violationType: ViolationType | null;
   requestFullscreen: () => Promise<void>;
   resetViolationState: () => void;
 }
@@ -43,12 +44,16 @@ export const useExamSecurity = ({
   // Track internal clipboard content for "smart paste"
   const internalClipboard = useRef<string>("");
 
+  // Track whether the first external paste warning has already been shown
+  const externalPasteWarned = useRef<boolean>(false);
+
   // Debounce refs
   const lastViolationTime = useRef<number>(0);
 
   // State to track if we expect the user to be in fullscreen
   // We assume yes initially if they are in the exam session
   const [expectFullscreen, _setExpectFullscreen] = useState(true);
+  const [violationType, setViolationType] = useState<ViolationType | null>(null);
 
   const reportViolation = useCallback(
     async (type: ViolationType, isSevere: boolean, details?: string) => {
@@ -64,6 +69,7 @@ export const useExamSecurity = ({
       if (isSevere) {
         setWarnings((prev) => prev + 1);
         setViolationState("severe_blocking");
+        setViolationType(type);
       } else {
         setViolationState("warning");
       }
@@ -143,11 +149,19 @@ export const useExamSecurity = ({
         pastedText.trim() !== internalClipboard.current.trim()
       ) {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        const isSevere = externalPasteWarned.current;
         reportViolation(
           "external_paste",
-          false,
+          isSevere,
           `Attempted paste length: ${pastedText.length}`,
         );
+
+        if (!externalPasteWarned.current) {
+          externalPasteWarned.current = true;
+        }
       }
       // If internal matches, allow it implicitly
     };
@@ -182,7 +196,7 @@ export const useExamSecurity = ({
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("copy", handleCopy);
     document.addEventListener("cut", handleCut);
-    document.addEventListener("paste", handlePaste);
+    document.addEventListener("paste", handlePaste, true);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     window.addEventListener("blur", handleWindowBlur);
@@ -198,7 +212,7 @@ export const useExamSecurity = ({
       document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("copy", handleCopy);
       document.removeEventListener("cut", handleCut);
-      document.removeEventListener("paste", handlePaste);
+      document.removeEventListener("paste", handlePaste, true);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       window.removeEventListener("blur", handleWindowBlur);
@@ -207,8 +221,11 @@ export const useExamSecurity = ({
 
   const requestFullscreen = async () => {
     try {
-      await document.documentElement.requestFullscreen();
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
       setViolationState("idle");
+      setViolationType(null);
     } catch (err) {
       console.error("Fullscreen Request Failed", err);
       toast.error("Could not enter fullscreen. Please try again.");
@@ -217,11 +234,13 @@ export const useExamSecurity = ({
 
   const resetViolationState = () => {
     setViolationState("idle");
+    setViolationType(null);
   };
 
   return {
     warnings,
     violationState,
+    violationType,
     requestFullscreen,
     resetViolationState,
   };

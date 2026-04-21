@@ -283,7 +283,7 @@ export function ProblemForm({
       if (res.success) {
         clearGeneratedDraft();
         toast.success("Problem saved successfully");
-        router.push(`${basePath}/problems`);
+        router.back();
       } else {
         toast.error(`Failed to save problem: ${res.error}`);
       }
