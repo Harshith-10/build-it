@@ -94,15 +94,35 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
     deleteFn: deleteExamSubmission,
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      // Fetch all submissions for this exam, overriding pagination
+      const result = await getExamSubmissions({
+        examId,
+        page: 1,
+        limit: 10000, 
+      });
+      exportToCSV(result.submissions);
+    } catch (error) {
+      console.error("Failed to export all submissions", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const exportButton = isSubmissionsPage ? (
     <Button
       variant="outline"
       size="sm"
       className="gap-1.5"
-      onClick={() => exportToCSV(latestDataRef.current)}
+      onClick={handleExport}
+      disabled={isExporting}
     >
       <Download className="h-4 w-4" />
-      Export
+      {isExporting ? "Exporting..." : "Export All"}
     </Button>
   ) : undefined;
 

@@ -27,6 +27,7 @@ export interface Question {
   id: string;
   title: string;
   problemStatement: string;
+  difficulty: "easy" | "medium" | "hard";
   driverCode: Record<string, string> | null;
   testCases: TestCase[];
 }
@@ -71,11 +72,11 @@ export function IDEShell({
   return (
     <SidebarProvider>
       <ExamSidebar
-        examTitle={examTitle}
-        questions={questions}
-        activeId={activeQuestionId || activeQuestion.id}
-        onSelect={setActiveQuestionId}
-        completedQuestionIds={completedQuestionIds}
+      examTitle={examTitle}
+      questions={questions}
+      activeId={activeQuestionId || activeQuestion.id}
+      onSelect={setActiveQuestionId}
+      completedQuestionIds={completedQuestionIds}
       />
       <SidebarInset className="h-screen overflow-hidden flex flex-col">
         <ExamHeader
