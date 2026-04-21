@@ -2,7 +2,14 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username } from "better-auth/plugins";
 import { admin } from "better-auth/plugins/admin";
+import { defaultRoles } from "better-auth/plugins/admin/access";
 import { db } from "@/db";
+
+type AppAdminRoles = {
+  admin: typeof defaultRoles.admin;
+  student: typeof defaultRoles.user;
+  faculty: typeof defaultRoles.user;
+};
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -18,9 +25,18 @@ export const auth = betterAuth({
   },
   plugins: [
     username(),
-    admin({
+    admin<{
+      defaultRole: "student";
+      adminRoles: ["admin"];
+      roles: AppAdminRoles;
+    }>({
       defaultRole: "student",
-      adminRole: "admin",
+      adminRoles: ["admin"],
+      roles: {
+        admin: defaultRoles.admin,
+        student: defaultRoles.user,
+        faculty: defaultRoles.user,
+      },
     }),
   ],
   advanced: {

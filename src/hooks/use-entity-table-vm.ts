@@ -111,15 +111,32 @@ export function useEntityTableVM<T extends { id: string }>(
   // Delete workflow
   const handleDelete = useCallback(async () => {
     if (!deleteId) return;
-    const result = await config.deleteFn(deleteId);
-    if (result.success) {
-      toast.success(`${config.entityName} deleted`);
-      fetchData();
-    } else {
-      toast.error(
-        result.error || `Failed to delete ${config.entityName.toLowerCase()}`,
-      );
+    try {
+      const result = await config.deleteFn(deleteId);
+      if (result.success) {
+        toast.success(`${config.entityName} deleted`);
+        fetchData();
+      } else {
+        toast.error(
+          result.error || `Failed to delete ${config.entityName.toLowerCase()}`,
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const normalized = message.toLowerCase();
+
+      if (
+        normalized.includes("missing faculty permission") ||
+        normalized.includes("forbidden")
+      ) {
+        toast.error(
+          `You don't have permission to delete this ${config.entityName.toLowerCase()}`,
+        );
+      } else {
+        toast.error(`Failed to delete ${config.entityName.toLowerCase()}`);
+      }
     }
+
     setDeleteId(null);
   }, [deleteId, config, fetchData]);
 

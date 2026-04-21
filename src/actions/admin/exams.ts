@@ -1,14 +1,21 @@
 "use server";
 
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { examAssignments } from "@/db/schema/assignments";
 import { user } from "@/db/schema/auth";
 import type { GradingConfigMap, StrategyConfig } from "@/db/schema/exams";
-import { examGroups, exams } from "@/db/schema/exams";
+import { examGroups, examModerators, exams } from "@/db/schema/exams";
 import { examCollections } from "@/db/schema/question-collections";
-import { requireAdmin } from "@/lib/auth-access";
+import {
+  ensureEntityPermission,
+  ensureExamReadAccess,
+  ensureOwnership,
+  getFacultyPermissions,
+  requireAdmin,
+  requireFacultyOrAdmin,
+} from "@/lib/auth-access";
 
 type UpsertExamAssignmentInput = {
   groupId: string;
@@ -29,6 +36,7 @@ type UpsertExamInput = {
   id?: string;
   title: string;
   description?: string | null;
+  isPrivate?: boolean;
   startTime?: string | null;
   endTime?: string | null;
   duration?: number;
@@ -38,10 +46,18 @@ type UpsertExamInput = {
   gradingConfig?: GradingConfigMap[keyof GradingConfigMap] | null;
   status?: "upcoming" | "active" | "completed";
   assignments?: UpsertExamAssignmentInput[];
+  moderatorIds?: string[];
 };
 
 type GradingStrategy = NonNullable<UpsertExamInput["gradingStrategy"]>;
 type GradingConfig = GradingConfigMap[keyof GradingConfigMap];
+
+type ExamModeratorUser = {
+  id: string;
+  name: string;
+  email: string;
+  username: string | null;
+};
 
 function getCollectionIds(config: StrategyConfig | null | undefined) {
   if (!config || typeof config !== "object") return [];
@@ -116,6 +132,121 @@ function parseIsoTimestampOrThrow(value: unknown, fieldName: string) {
   return parsed;
 }
 
+function normalizeModeratorUsers(
+  exam:
+    | {
+        moderators?: Array<{
+          user: {
+            id: string;
+            name: string;
+            email: string;
+            username: string | null;
+          } | null;
+        }>;
+      }
+    | null
+    | undefined,
+) {
+  return (
+    exam?.moderators
+      ?.map((moderatorLink) => moderatorLink.user)
+      .filter((entry): entry is ExamModeratorUser => Boolean(entry)) ?? []
+  );
+}
+
+async function ensureExamManageAccess(
+  examId: string,
+  action: "update" | "delete" = "update",
+) {
+  const access = await ensureEntityPermission({
+    entity: "exams",
+    action,
+  });
+
+  const examRecord = await db.query.exams.findFirst({
+    where: eq(exams.id, examId),
+    columns: {
+      id: true,
+      ownerId: true,
+    },
+  });
+
+  if (!examRecord) {
+    return {
+      access,
+      examRecord: null,
+      canManage: false,
+    };
+  }
+
+  ensureOwnership({
+    isAdmin: access.isAdmin,
+    ownerId: examRecord.ownerId,
+    actorUserId: access.session.user.id,
+  });
+
+  return {
+    access,
+    examRecord,
+    canManage: true,
+  };
+}
+
+function revalidateExamPaths(examId?: string) {
+  revalidatePath("/admin/exams");
+  revalidatePath("/faculty/exams");
+  if (examId) {
+    revalidatePath(`/admin/exams/${examId}/edit`);
+    revalidatePath(`/faculty/exams/${examId}/edit`);
+    revalidatePath(`/faculty/exams/${examId}`);
+    revalidatePath(`/faculty/exams/${examId}/submissions`);
+  }
+}
+
+async function syncExamModerators(params: {
+  examId: string;
+  moderatorIds: string[];
+  actorUserId: string;
+  ownerId: string;
+}) {
+  const uniqueModeratorIds = Array.from(new Set(params.moderatorIds)).filter(
+    (id) => id !== params.ownerId,
+  );
+
+  if (uniqueModeratorIds.length === 0) {
+    await db
+      .delete(examModerators)
+      .where(eq(examModerators.examId, params.examId));
+    return;
+  }
+
+  const facultyUsers = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(and(eq(user.role, "faculty"), inArray(user.id, uniqueModeratorIds)));
+
+  if (facultyUsers.length !== uniqueModeratorIds.length) {
+    throw new Error("Only faculty users can be added as moderators");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(examModerators)
+      .where(eq(examModerators.examId, params.examId));
+
+    await tx
+      .insert(examModerators)
+      .values(
+        uniqueModeratorIds.map((moderatorId) => ({
+          examId: params.examId,
+          userId: moderatorId,
+          addedBy: params.actorUserId,
+        })),
+      )
+      .onConflictDoNothing();
+  });
+}
+
 export async function getExams({
   page = 1,
   limit = 10,
@@ -129,12 +260,31 @@ export async function getExams({
   sort?: string;
   order?: "asc" | "desc";
 }) {
-  await requireAdmin();
+  const session = await requireFacultyOrAdmin();
+  const isAdmin = session.user.role === "admin";
+  const canReadOwnExams = isAdmin
+    ? true
+    : (await getFacultyPermissions(session.user.id)).exams.read;
+
   const offset = (page - 1) * limit;
 
-  const whereClause = search
+  const searchClause = search
     ? or(ilike(exams.title, `%${search}%`))
     : undefined;
+
+  const ownershipClause = isAdmin
+    ? undefined
+    : or(
+        canReadOwnExams ? eq(exams.ownerId, session.user.id) : undefined,
+        sql`exists (
+          select 1
+          from ${examModerators}
+          where ${examModerators.examId} = ${exams.id}
+            and ${examModerators.userId} = ${session.user.id}
+        )`,
+      );
+
+  const whereClause = and(ownershipClause, searchClause);
 
   let orderBy = desc(exams.createdAt);
   if (sort) {
@@ -201,7 +351,14 @@ export async function getExams({
   }
 
   return {
-    exams: examsWithComputedStatus,
+    exams: data.map((exam) => {
+      const isOwner = isAdmin || exam.ownerId === session.user.id;
+      return {
+        ...exam,
+        canManage: isOwner,
+        isModerator: !isAdmin && !isOwner,
+      };
+    }),
     total: Number(totalCount[0]?.count || 0),
     page,
     limit,
@@ -209,7 +366,12 @@ export async function getExams({
 }
 
 export async function getExam(id: string) {
-  await requireAdmin();
+  const access = await ensureExamReadAccess(id);
+
+  if (!access.examRecord) {
+    return null;
+  }
+
   const exam = await db.query.exams.findFirst({
     where: eq(exams.id, id),
     with: {
@@ -218,13 +380,93 @@ export async function getExam(id: string) {
           group: true,
         },
       },
+      collections: {
+        with: {
+          collection: true,
+        },
+      },
+      moderators: {
+        with: {
+          user: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+            },
+          },
+        },
+      },
     },
   });
-  return exam;
+
+  if (!exam) {
+    return null;
+  }
+
+  return {
+    ...exam,
+    canManage: access.isAdmin || access.isOwner,
+    isModerator: access.isModerator,
+    moderatorsList: normalizeModeratorUsers(exam),
+  };
+}
+
+export async function getExamForEdit(id: string) {
+  const manageAccess = await ensureExamManageAccess(id, "update");
+
+  if (!manageAccess.examRecord) {
+    return null;
+  }
+
+  const exam = await db.query.exams.findFirst({
+    where: eq(exams.id, id),
+    with: {
+      groups: {
+        with: {
+          group: true,
+        },
+      },
+      collections: {
+        with: {
+          collection: true,
+        },
+      },
+      moderators: {
+        with: {
+          user: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!exam) {
+    return null;
+  }
+
+  return {
+    ...exam,
+    canManage: true,
+    isModerator: false,
+    moderatorsList: normalizeModeratorUsers(exam),
+  };
 }
 
 export async function upsertExam(data: UpsertExamInput) {
-  await requireAdmin();
+  const isUpdate = Boolean(data.id);
+  const access = isUpdate
+    ? (await ensureExamManageAccess(data.id as string, "update")).access
+    : await ensureEntityPermission({
+        entity: "exams",
+        action: "create",
+      });
   // data: { id?, title, startTime, endTime, duration, strategyType, strategyConfig, gradingConfig, assignments: [{ groupId, startTime?, endTime?, requiresPin? }] }
 
   try {
@@ -281,12 +523,16 @@ export async function upsertExam(data: UpsertExamInput) {
     }
 
     if (examId) {
+      const current = await ensureExamManageAccess(examId, "update");
+      if (!current.examRecord) {
+        return { success: false, error: "Exam not found" };
+      }
+
       await db
         .update(exams)
         .set({
           ...commonFields,
-          // biome-ignore lint/suspicious/noExplicitAny: align runtime enum value while local TS schema cache lags
-          status: computedStatus as any,
+          isPrivate: access.isAdmin ? (data.isPrivate ?? true) : true,
           updatedAt: new Date(),
         })
         .where(eq(exams.id, examId));
@@ -300,8 +546,8 @@ export async function upsertExam(data: UpsertExamInput) {
         .insert(exams)
         .values({
           ...commonFields,
-          // biome-ignore lint/suspicious/noExplicitAny: align runtime enum value while local TS schema cache lags
-          status: computedStatus as any,
+          ownerId: access.session.user.id,
+          isPrivate: access.isAdmin ? (data.isPrivate ?? true) : true,
         })
         .returning();
       examId = newExam.id;
@@ -355,8 +601,23 @@ export async function upsertExam(data: UpsertExamInput) {
       await db.insert(examGroups).values(assignmentValues);
     }
 
-    revalidatePath("/admin/exams");
-    revalidatePath(`/admin/exams/${examId}/edit`);
+    const currentExam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+      columns: { ownerId: true },
+    });
+
+    if (!currentExam) {
+      return { success: false, error: "Exam not found" };
+    }
+
+    await syncExamModerators({
+      examId,
+      moderatorIds: data.moderatorIds || [],
+      actorUserId: access.session.user.id,
+      ownerId: currentExam.ownerId || access.session.user.id,
+    });
+
+    revalidateExamPaths(examId);
     return { success: true, id: examId };
   } catch (error) {
     console.error("Failed to upsert exam:", error);
@@ -365,10 +626,15 @@ export async function upsertExam(data: UpsertExamInput) {
 }
 
 export async function deleteExam(id: string) {
-  await requireAdmin();
+  await ensureExamManageAccess(id, "delete");
   try {
+    const current = await db.query.exams.findFirst({ where: eq(exams.id, id) });
+    if (!current) {
+      return { success: false, error: "Exam not found" };
+    }
+
     await db.delete(exams).where(eq(exams.id, id));
-    revalidatePath("/admin/exams");
+    revalidateExamPaths(id);
     return { success: true };
   } catch (_error) {
     return { success: false, error: "Failed to delete" };
@@ -390,7 +656,18 @@ export async function getExamSubmissions({
   sort?: string;
   order?: "asc" | "desc";
 }) {
-  await requireAdmin();
+  const access = await ensureExamReadAccess(examId);
+
+  if (!access.examRecord) {
+    return {
+      submissions: [],
+      total: 0,
+      page,
+      limit,
+      canDelete: false,
+    };
+  }
+
   const offset = (page - 1) * limit;
 
   // We filter by examId and optionally by user name/email if search is provided
@@ -471,22 +748,215 @@ export async function getExamSubmissions({
     total: Number(totalCount[0]?.count || 0),
     page,
     limit,
+    canDelete: access.isAdmin || access.isOwner,
   };
 }
 
-export async function deleteExamSubmission(assignmentId: string) {
-  await requireAdmin();
-  try {
-    const [deleted] = await db
-      .delete(examAssignments)
-      .where(eq(examAssignments.id, assignmentId))
-      .returning({ id: examAssignments.id });
+export async function getFacultyModeratorCandidates({
+  search = "",
+  limit = 50,
+}: {
+  search?: string;
+  limit?: number;
+}) {
+  const session = await requireFacultyOrAdmin();
 
-    if (!deleted) {
+  const whereClause = and(
+    eq(user.role, "faculty"),
+    ne(user.id, session.user.id),
+    search
+      ? or(
+          ilike(user.name, `%${search}%`),
+          ilike(user.email, `%${search}%`),
+          ilike(user.username, `%${search}%`),
+        )
+      : undefined,
+  );
+
+  const rows = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+    })
+    .from(user)
+    .where(whereClause)
+    .limit(limit)
+    .orderBy(user.name);
+
+  return { users: rows };
+}
+
+export async function addExamModerators(params: {
+  examId: string;
+  userIds: string[];
+}) {
+  const { examId, userIds } = params;
+  if (!userIds.length) {
+    return { success: true, moderators: [] as ExamModeratorUser[] };
+  }
+
+  const manageAccess = await ensureExamManageAccess(examId, "update");
+  if (!manageAccess.examRecord) {
+    return { success: false, error: "Exam not found" };
+  }
+
+  const uniqueIds = Array.from(new Set(userIds));
+  const filteredIds = uniqueIds.filter(
+    (id) => id !== manageAccess.examRecord?.ownerId,
+  );
+
+  if (!filteredIds.length) {
+    return {
+      success: false,
+      error: "Owner cannot be added as moderator",
+    };
+  }
+
+  const facultyUsers = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(and(eq(user.role, "faculty"), inArray(user.id, filteredIds)));
+
+  if (facultyUsers.length !== filteredIds.length) {
+    return {
+      success: false,
+      error: "Only faculty users can be added as moderators",
+    };
+  }
+
+  await db
+    .insert(examModerators)
+    .values(
+      filteredIds.map((targetId) => ({
+        examId,
+        userId: targetId,
+        addedBy: manageAccess.access.session.user.id,
+      })),
+    )
+    .onConflictDoNothing();
+
+  const updatedExam = await db.query.exams.findFirst({
+    where: eq(exams.id, examId),
+    with: {
+      moderators: {
+        with: {
+          user: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  revalidateExamPaths(examId);
+  return {
+    success: true,
+    moderators: normalizeModeratorUsers(updatedExam),
+  };
+}
+
+export async function removeExamModerator(params: {
+  examId: string;
+  userId: string;
+}) {
+  const { examId, userId } = params;
+  const manageAccess = await ensureExamManageAccess(examId, "update");
+  if (!manageAccess.examRecord) {
+    return { success: false, error: "Exam not found" };
+  }
+
+  await db
+    .delete(examModerators)
+    .where(
+      and(eq(examModerators.examId, examId), eq(examModerators.userId, userId)),
+    );
+
+  const updatedExam = await db.query.exams.findFirst({
+    where: eq(exams.id, examId),
+    with: {
+      moderators: {
+        with: {
+          user: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  revalidateExamPaths(examId);
+  return {
+    success: true,
+    moderators: normalizeModeratorUsers(updatedExam),
+  };
+}
+
+export async function transferExamOwnership(id: string, newOwnerId: string) {
+  const session = await requireAdmin();
+  try {
+    await db
+      .update(exams)
+      .set({
+        ownerId: newOwnerId,
+        transferredBy: session.user.id,
+        transferredAt: new Date(),
+      })
+      .where(eq(exams.id, id));
+
+    revalidateExamPaths(id);
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to transfer exam ownership:", error);
+    return { success: false, error: "Failed to transfer ownership" };
+  }
+}
+
+export async function deleteExamSubmission(assignmentId: string) {
+  const access = await ensureEntityPermission({
+    entity: "exams",
+    action: "update",
+  });
+
+  try {
+    const assignment = await db.query.examAssignments.findFirst({
+      where: eq(examAssignments.id, assignmentId),
+      columns: { examId: true },
+    });
+
+    if (!assignment) {
       return { success: false, error: "Submission not found" };
     }
 
-    revalidatePath("/admin/exams");
+    if (!access.isAdmin) {
+      const currentExam = await db.query.exams.findFirst({
+        where: eq(exams.id, assignment.examId),
+        columns: { ownerId: true },
+      });
+
+      ensureOwnership({
+        isAdmin: false,
+        ownerId: currentExam?.ownerId,
+        actorUserId: access.session.user.id,
+      });
+    }
+
+    await db
+      .delete(examAssignments)
+      .where(eq(examAssignments.id, assignmentId));
+
+    revalidateExamPaths(assignment.examId);
     return { success: true };
   } catch (error) {
     console.error("Failed to delete exam submission:", error);

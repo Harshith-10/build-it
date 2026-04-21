@@ -24,6 +24,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Protects all routes under /exams and /dashboard
-  matcher: ["/exams/:path*", "/dashboard/:path*"],
+  // Protects all routes under /exams, /dashboard, and /faculty
+  matcher: ["/exams/:path*", "/dashboard/:path*", "/faculty/:path*"],
 };

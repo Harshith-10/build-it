@@ -1,0 +1,23 @@
+export type JetStatsResponse = {
+  uptime_seconds: number;
+  jobs_submitted: number;
+  jobs_completed: number;
+  jobs_failed: number;
+  jobs_in_flight: number;
+  compile_in_flight: number;
+  execute_in_flight: number;
+  max_queue_depth: number;
+  installed_runtimes: number;
+  supported_languages: string[];
+  worker_concurrency: number;
+  compile_concurrency: number;
+  execute_concurrency: number;
+  max_queue_wait_secs: number;
+  host_arch: string;
+  strict_rate_limit_token_interval_secs: number;
+  strict_rate_limit_burst: number;
+  general_rate_limit_token_interval_ms: number;
+  general_rate_limit_burst: number;
+  poll_rate_limit_token_interval_ms: number;
+  poll_rate_limit_burst: number;
+};

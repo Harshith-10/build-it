@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
-interface Group {
+export interface Group {
   id: string;
   name: string;
   description?: string | null;
@@ -128,10 +128,11 @@ export function GroupSelectionDialog({
                   const isSelected = selectedIds.has(group.id);
 
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={group.id}
                       className={cn(
-                        "flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer",
+                        "flex w-full items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer text-left",
                         isAlreadySelected
                           ? "bg-muted opacity-50 cursor-not-allowed"
                           : isSelected
@@ -170,7 +171,7 @@ export function GroupSelectionDialog({
                           {isSelected && <Check className="h-3 w-3" />}
                         </div>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>

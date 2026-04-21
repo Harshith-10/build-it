@@ -27,6 +27,21 @@ export type User = {
   section: string | null;
   dob: Date | string | null;
   regulation: string | null;
+  facultyPermissions?: {
+    problems: {
+      create: boolean;
+      read: boolean;
+      update: boolean;
+      delete: boolean;
+    };
+    collections: {
+      create: boolean;
+      read: boolean;
+      update: boolean;
+      delete: boolean;
+    };
+    exams: { create: boolean; read: boolean; update: boolean; delete: boolean };
+  } | null;
   createdAt: Date | string;
 };
 
@@ -85,7 +100,7 @@ export const createColumns = (
       const role = row.getValue("role") as string | null;
       return (
         <Badge variant={roleVariant(role)} className="capitalize">
-          {role || "user"}
+          {role || "student"}
         </Badge>
       );
     },

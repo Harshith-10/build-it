@@ -13,6 +13,10 @@ export const difficultyEnum = pgEnum("difficulty", ["easy", "medium", "hard"]);
 
 export const questions = pgTable("questions", {
   id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id"),
+  transferredBy: text("transferred_by"),
+  transferredAt: timestamp("transferred_at"),
+  isPrivate: boolean("is_private").default(true).notNull(),
   title: text("title").notNull(),
   problemStatement: text("problem_statement").notNull(),
   difficulty: difficultyEnum("difficulty").notNull(),

@@ -9,6 +9,7 @@ import {
   getSubmissions,
   type SubmissionHistoryItem,
 } from "@/actions/student/exams/history-actions";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -58,15 +59,42 @@ export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
                 <Markdown
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    h1: ({ className, ...props }) => (
-                      <h1
-                        className={cn(
-                          "mt-2 scroll-m-20 text-4xl font-bold tracking-tight",
-                          className,
-                        )}
-                        {...props}
-                      />
-                    ),
+                    h1: ({ className, children, ...props }) => {
+                      const difficultyStyles = (d: string) => {
+                        switch (d?.toLowerCase()) {
+                          case "easy":
+                            return "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+                          case "medium":
+                            return "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20";
+                          case "hard":
+                            return "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20";
+                          default:
+                            return "bg-muted text-muted-foreground border-border";
+                        }
+                      };
+                      return (
+                        <div className="flex w-full items-start justify-between gap-4 mb-6 mt-2">
+                          <h1
+                            className={cn(
+                              "scroll-m-20 text-4xl font-bold tracking-tight",
+                              className,
+                            )}
+                            {...props}
+                          >
+                            {children}
+                          </h1>
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "capitalize shrink-0 px-3 py-1 text-sm leading-none mt-1.5",
+                              difficultyStyles(question.difficulty)
+                            )}
+                          >
+                            {question.difficulty}
+                          </Badge>
+                        </div>
+                      );
+                    },
                     h2: ({ className, ...props }) => (
                       <h2
                         className={cn(

@@ -11,7 +11,8 @@
     "db:reset": "tsx reset_db.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "seed:questions": "tsx scripts/seed-questions.ts"
+    "seed:questions": "tsx scripts/seed-questions.ts",
+    "test:jet-hmac-v2": "tsx scripts/test-jet-hmac-v2.ts"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",
@@ -82,6 +83,7 @@
     "react-hook-form": "^7.69.0",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4",
+    "recharts": "^3.8.1",
     "remark-gfm": "^4.0.1",
     "rimraf": "^6.1.2",
     "sonner": "^2.0.7",

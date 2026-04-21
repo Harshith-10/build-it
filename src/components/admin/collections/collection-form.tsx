@@ -2,7 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { InferSelectModel } from "drizzle-orm";
-import { Loader2, Plus, Save, Search, X } from "lucide-react";
+import { Loader2, Pencil, Plus, Save, Search, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -29,11 +30,12 @@ import { Input } from "@/components/ui/input";
 const collectionSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(3),
-  description: z.string().optional(),
+  description: z.string().default(""),
   questionIds: z.array(z.string()).default([]),
 });
 
-type CollectionFormValues = z.infer<typeof collectionSchema>;
+type CollectionFormInput = z.input<typeof collectionSchema>;
+type CollectionFormValues = z.output<typeof collectionSchema>;
 
 const difficultyColors: Record<string, string> = {
   easy: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10",
@@ -43,10 +45,12 @@ const difficultyColors: Record<string, string> = {
 
 export function CollectionForm({
   initialData,
+  basePath = "/admin",
 }: {
   initialData?: Partial<z.infer<typeof collectionSchema>> & {
     questions?: { questionId: string }[];
   };
+  basePath?: string;
 }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,17 +60,17 @@ export function CollectionForm({
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const form = useForm<CollectionFormValues>({
-    // biome-ignore lint/suspicious/noExplicitAny: Bypass strict Zod types
-    resolver: zodResolver(collectionSchema) as any,
+  const form = useForm<CollectionFormInput, unknown, CollectionFormValues>({
+    resolver: zodResolver(collectionSchema),
     defaultValues: {
       id: initialData?.id,
       title: initialData?.title || "",
       description: initialData?.description || "",
-      questionIds: (initialData?.questions?.map(
-        (q: { questionId: string }) => q.questionId,
-      ) || []) as string[],
-    } as any,
+      questionIds:
+        initialData?.questions?.map(
+          (q: { questionId: string }) => q.questionId,
+        ) || [],
+    },
   });
 
   // Initial load: fetch selected problems and first batch of available
@@ -106,7 +110,7 @@ export function CollectionForm({
       const res = await upsertCollection(data);
       if (res.success) {
         toast.success("Collection saved");
-        router.push("/admin/collections");
+        router.push(`${basePath}/collections`);
       } else {
         toast.error("Failed");
       }
@@ -115,10 +119,10 @@ export function CollectionForm({
     }
   };
 
-  const selectedIds = form.watch("questionIds");
+  const selectedIds = form.watch("questionIds") ?? [];
 
   const toggleProblem = (problem: Problem) => {
-    const current = form.getValues("questionIds");
+    const current = form.getValues("questionIds") ?? [];
     if (current.includes(problem.id)) {
       form.setValue(
         "questionIds",
@@ -132,7 +136,7 @@ export function CollectionForm({
   };
 
   const removeProblem = (id: string) => {
-    const current = form.getValues("questionIds");
+    const current = form.getValues("questionIds") ?? [];
     form.setValue(
       "questionIds",
       current.filter((cid) => cid !== id),
@@ -156,8 +160,7 @@ export function CollectionForm({
           <FormField
             control={form.control}
             name="title"
-            // biome-ignore lint/suspicious/noExplicitAny: Temporary fix for strict Zod types
-            render={({ field }: { field: any }) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Title</FormLabel>
                 <FormControl>
@@ -170,8 +173,7 @@ export function CollectionForm({
           <FormField
             control={form.control}
             name="description"
-            // biome-ignore lint/suspicious/noExplicitAny: Temporary fix for strict Zod types
-            render={({ field }: { field: any }) => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
@@ -278,25 +280,51 @@ export function CollectionForm({
                           (p) => p.id === id,
                         );
                         return (
-                          <button
+                          <div
                             key={id}
-                            type="button"
-                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
+                            role="button"
+                            tabIndex={0}
                             onClick={() => removeProblem(id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                removeProblem(id);
+                              }
+                            }}
+                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors cursor-pointer"
                           >
-                            <div className="flex-1 text-sm font-medium text-left truncate">
+                            <div className="flex-1 min-w-0 text-sm font-medium text-left truncate">
                               {problem?.title || "Unknown Problem"}
                             </div>
                             {problem && (
+                              <Link
+                                href={`${basePath}/problems/${id}`}
+                                onClick={(event) => event.stopPropagation()}
+                                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            )}
+                            {problem && (
                               <Badge
                                 variant="outline"
-                                className={`text-[10px] shrink-0 group-hover:hidden ${difficultyColors[problem.difficulty] || ""}`}
+                                className={`text-[10px] shrink-0 ${difficultyColors[problem.difficulty] || ""}`}
                               >
                                 {problem.difficulty}
                               </Badge>
                             )}
-                            <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
-                          </button>
+                            <button
+                              type="button"
+                              className="ml-auto shrink-0"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeProblem(id);
+                              }}
+                              aria-label={`Remove ${problem?.title || "problem"}`}
+                            >
+                              <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
+                            </button>
+                          </div>
                         );
                       })}
                   </div>

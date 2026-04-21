@@ -20,9 +20,9 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${chakraPetch.variable} ${googleSans.variable} ${geistMono.variable} antialiased`}
+      className={`${chakraPetch.variable} ${googleSans.variable} ${geistMono.variable} antialiased h-screen`}
     >
-      <body>
+      <body className="h-screen">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

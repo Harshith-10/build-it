@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { setUserPassword, updateUser } from "@/actions/admin/users";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,33 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
+const defaultFacultyPermissions = {
+  problems: { create: true, read: true, update: true, delete: false },
+  collections: { create: true, read: true, update: true, delete: false },
+  exams: { create: true, read: true, update: true, delete: false },
+};
+
+const facultyPermissionSchema = z.object({
+  problems: z.object({
+    create: z.boolean(),
+    read: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
+  collections: z.object({
+    create: z.boolean(),
+    read: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
+  exams: z.object({
+    create: z.boolean(),
+    read: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
+});
+
 const editUserSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   username: z.string().optional().or(z.literal("")),
@@ -46,9 +74,16 @@ const editUserSchema = z.object({
   section: z.string().optional().or(z.literal("")),
   dob: z.string().optional().or(z.literal("")),
   regulation: z.string().optional().or(z.literal("")),
+  facultyPermissions: facultyPermissionSchema,
 });
 
 type EditUserValues = z.infer<typeof editUserSchema>;
+type EditUserInputValues = z.input<typeof editUserSchema>;
+
+type PermissionEntity = "problems" | "collections" | "exams";
+type PermissionAction = "create" | "read" | "update" | "delete";
+type PermissionFieldPath =
+  `facultyPermissions.${PermissionEntity}.${PermissionAction}`;
 
 export interface EditableUser {
   id: string;
@@ -63,6 +98,7 @@ export interface EditableUser {
   section: string | null;
   dob: Date | string | null;
   regulation: string | null;
+  facultyPermissions?: typeof defaultFacultyPermissions | null;
 }
 
 interface EditUserDialogProps {
@@ -91,8 +127,8 @@ export function EditUserDialog({
   const [passwordError, setPasswordError] = useState("");
   const router = useRouter();
 
-  const form = useForm<EditUserValues>({
-    resolver: zodResolver(editUserSchema) as any,
+  const form = useForm<EditUserInputValues, unknown, EditUserValues>({
+    resolver: zodResolver(editUserSchema),
     defaultValues: {
       name: "",
       username: "",
@@ -103,8 +139,11 @@ export function EditUserDialog({
       section: "",
       dob: "",
       regulation: "",
+      facultyPermissions: defaultFacultyPermissions,
     },
   });
+
+  const selectedRole = form.watch("role");
 
   // Reset form when user changes
   useEffect(() => {
@@ -119,6 +158,8 @@ export function EditUserDialog({
         section: editUser.section || "",
         dob: formatDateForInput(editUser.dob),
         regulation: editUser.regulation || "",
+        facultyPermissions:
+          editUser.facultyPermissions || defaultFacultyPermissions,
       });
       // Reset password fields
       setNewPassword("");
@@ -142,6 +183,8 @@ export function EditUserDialog({
         section: data.section || undefined,
         dob: data.dob || undefined,
         regulation: data.regulation || undefined,
+        facultyPermissions:
+          data.role === "faculty" ? data.facultyPermissions : undefined,
       });
 
       if (result.success) {
@@ -409,6 +452,68 @@ export function EditUserDialog({
                 </div>
 
                 <Separator />
+
+                {selectedRole === "faculty" && (
+                  <>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-1 bg-primary rounded-full" />
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                          Faculty Permissions
+                        </h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Admin-controlled CRUD grants for faculty-owned content.
+                      </p>
+                      <div className="space-y-3 rounded-lg border p-4">
+                        {[
+                          ["problems", "Problems"],
+                          ["collections", "Collections"],
+                          ["exams", "Exams"],
+                        ].map(([entityKey, entityLabel]) => (
+                          <div
+                            key={entityKey}
+                            className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-center"
+                          >
+                            <p className="font-medium sm:col-span-1 col-span-2">
+                              {entityLabel}
+                            </p>
+                            {[
+                              ["create", "Create"],
+                              ["read", "Read"],
+                              ["update", "Update"],
+                              ["delete", "Delete"],
+                            ].map(([actionKey, actionLabel]) => (
+                              <FormField
+                                key={`${entityKey}.${actionKey}`}
+                                control={form.control}
+                                name={
+                                  `facultyPermissions.${entityKey}.${actionKey}` as PermissionFieldPath
+                                }
+                                render={({ field }) => (
+                                  <FormItem className="flex items-center gap-2 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={(checked) =>
+                                          field.onChange(Boolean(checked))
+                                        }
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">
+                                      {actionLabel}
+                                    </FormLabel>
+                                  </FormItem>
+                                )}
+                              />
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
 
                 {/* Security / Password */}
                 <div className="space-y-4">

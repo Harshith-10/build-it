@@ -17,11 +17,15 @@ interface ExamProtectionProps {
 }
 
 export function ExamProtection({ assignmentId }: ExamProtectionProps) {
-  const { violationState, requestFullscreen } = useExamSecurity({
+  const { violationState, violationType, requestFullscreen } = useExamSecurity({
     assignmentId,
   });
 
   const isBlocking = violationState === "severe_blocking";
+  const violationMessage =
+    violationType === "external_paste"
+      ? "An external paste was detected. Your exam session has recorded a malpractice incident."
+      : "You must remain in fullscreen mode and keep the exam window focused at all times.";
 
   return (
     <AlertDialog open={isBlocking}>
@@ -32,18 +36,15 @@ export function ExamProtection({ assignmentId }: ExamProtectionProps) {
             <AlertDialogTitle>Action Required</AlertDialogTitle>
           </div>
           <AlertDialogDescription className="space-y-3 pt-2">
-            <p className="font-semibold text-foreground">
+            <div className="font-semibold text-foreground">
               Security Violation Detected
-            </p>
-            <p>
-              You must remain in fullscreen mode and keep the exam window
-              focused at all times.
-            </p>
-            <p className="text-xs text-muted-foreground bg-muted p-3 rounded-md border">
+            </div>
+            <div>{violationMessage}</div>
+            <div className="text-xs text-muted-foreground bg-muted p-3 rounded-md border">
               <Lock className="h-3 w-3 inline mr-1 mb-0.5" />
               This incident has been recorded. Repeated violations may lead to
               automatic termination of your exam session.
-            </p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

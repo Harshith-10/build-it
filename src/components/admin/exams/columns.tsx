@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Pencil, Trash2, Users } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +17,14 @@ import { formatLocalDateTime, getLocalTimeZoneName } from "@/lib/date-time";
 
 export type Exam = {
   id: string;
+  ownerId: string | null;
   title: string;
   startTime: Date | string;
   strategyType: string;
   status: string;
   createdAt: Date | string;
+  canManage?: boolean;
+  isModerator?: boolean;
 };
 
 const statusVariant = (status: string) => {
@@ -41,6 +44,7 @@ export const createColumns = (
   onDelete: (id: string) => void,
   pageIndex: number,
   pageSize: number,
+  basePath = "/admin",
 ): ColumnDef<Exam>[] => [
   {
     id: "serialNumber",
@@ -143,6 +147,7 @@ export const createColumns = (
     ),
     cell: ({ row }) => {
       const exam = row.original;
+      const canManage = exam.canManage ?? true;
       const router = useRouter();
       return (
         <DropdownMenu>
@@ -153,25 +158,40 @@ export const createColumns = (
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/admin/exams/${exam.id}/edit`}>
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit
-              </Link>
-            </DropdownMenuItem>
+            {basePath === "/faculty" && (
+              <DropdownMenuItem asChild>
+                <Link href={`${basePath}/exams/${exam.id}`}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  View Details
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
-              onClick={() => router.push(`/admin/exams/${exam.id}/submissions`)}
+              onClick={() =>
+                router.push(`${basePath}/exams/${exam.id}/submissions`)
+              }
             >
               <Users className="w-4 h-4 mr-2" />
               View Submissions
             </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => onDelete(exam.id)}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
+
+            {canManage && (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href={`${basePath}/exams/${exam.id}/edit`}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onDelete(exam.id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       );

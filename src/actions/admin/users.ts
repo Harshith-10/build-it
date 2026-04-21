@@ -7,14 +7,48 @@ import { user } from "@/db/schema/auth";
 import { userGroupMembers, userGroups } from "@/db/schema/groups";
 import { auth } from "@/lib/auth";
 import { requireAdmin } from "@/lib/auth-access";
+import {
+  DEFAULT_FACULTY_PERMISSIONS,
+  normalizeFacultyPermissions,
+} from "@/lib/faculty-permissions";
+
+type FacultyPermissionsInput = typeof DEFAULT_FACULTY_PERMISSIONS;
+
+type BulkImportUser = {
+  name: string;
+  email: string;
+  username?: string;
+  role?: "admin" | "faculty" | "student";
+  branch?: string;
+  semester?: string;
+  section?: string;
+  gender?: string;
+  regulation?: string;
+  dob?: string;
+  groupName?: string;
+};
+
+type BulkImportConfig = {
+  defaultPassword: string;
+  passwordFromDob?: boolean;
+};
+
+type AppRole = "admin" | "faculty" | "student";
+type AuthCreateUserRole = "user" | "admin";
+
+function toAuthCreateUserRole(role: AppRole): AuthCreateUserRole {
+  // Better Auth role inference can fall back to "user" | "admin" on clean installs.
+  // Runtime accepts custom roles, so we normalize through this adapter.
+  return role as unknown as AuthCreateUserRole;
+}
 
 export async function bulkImportUsers({
   users,
   config,
   revalidate = true,
 }: {
-  users: any[];
-  config: any;
+  users: BulkImportUser[];
+  config: BulkImportConfig;
   revalidate?: boolean;
 }) {
   await requireAdmin();
@@ -100,7 +134,7 @@ export async function bulkImportUsers({
         email: userData.email,
         password: password,
         name: userData.name,
-        role: userData.role || "student",
+        role: toAuthCreateUserRole((userData.role || "student") as AppRole),
         data: {
           username: userData.username,
           branch: userData.branch,
@@ -113,13 +147,25 @@ export async function bulkImportUsers({
       },
     });
 
+    if (userData.role === "faculty" && newUser?.user?.id) {
+      await db
+        .update(user)
+        .set({
+          facultyPermissions: DEFAULT_FACULTY_PERMISSIONS,
+        })
+        .where(eq(user.id, newUser.user.id));
+    }
+
     // Link Group
     if (
       userData.groupName &&
       groupCache.has(userData.groupName) &&
       newUser?.user?.id
     ) {
-      const groupId = groupCache.get(userData.groupName)!;
+      const groupId = groupCache.get(userData.groupName);
+      if (!groupId) {
+        return;
+      }
       // Check membership
       const existingMember = await db.query.userGroupMembers.findFirst({
         where: and(
@@ -237,6 +283,76 @@ export async function getUsers({
   };
 }
 
+export async function createUser(data: {
+  email: string;
+  password: string;
+  name: string;
+  role: "admin" | "faculty" | "student";
+  username?: string;
+  gender?: string;
+  branch?: string;
+  semester?: string;
+  section?: string;
+  dob?: string;
+  regulation?: string;
+  facultyPermissions?: FacultyPermissionsInput;
+}) {
+  await requireAdmin();
+  try {
+    const created = await auth.api.createUser({
+      body: {
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        role: toAuthCreateUserRole(data.role),
+        data: {
+          username: data.username || undefined,
+          branch: data.branch || undefined,
+          gender: data.gender || undefined,
+          semester: data.semester || undefined,
+          section: data.section || undefined,
+          dob: data.dob ? new Date(data.dob) : undefined,
+          regulation: data.regulation || undefined,
+        },
+      },
+    });
+
+    if (!created?.user?.id) {
+      return { success: false, error: "Failed to create user" };
+    }
+
+    if (data.username !== undefined) {
+      await db
+        .update(user)
+        .set({
+          username: data.username || null,
+          displayUsername: data.username || null,
+        })
+        .where(eq(user.id, created.user.id));
+    }
+
+    if (data.role === "faculty") {
+      await db
+        .update(user)
+        .set({
+          facultyPermissions: normalizeFacultyPermissions(
+            data.facultyPermissions || DEFAULT_FACULTY_PERMISSIONS,
+          ),
+        })
+        .where(eq(user.id, created.user.id));
+    }
+
+    revalidatePath("/admin/users");
+    return { success: true, id: created.user.id };
+  } catch (error) {
+    console.error("Failed to create user:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create user",
+    };
+  }
+}
+
 export async function updateUser(
   userId: string,
   data: {
@@ -249,6 +365,7 @@ export async function updateUser(
     section?: string;
     dob?: string;
     regulation?: string;
+    facultyPermissions?: FacultyPermissionsInput;
   },
 ) {
   await requireAdmin();
@@ -278,6 +395,24 @@ export async function updateUser(
         .set({
           username: data.username || null,
           displayUsername: data.username || null,
+        })
+        .where(eq(user.id, userId));
+    }
+
+    if (data.role === "faculty") {
+      await db
+        .update(user)
+        .set({
+          facultyPermissions: normalizeFacultyPermissions(
+            data.facultyPermissions || DEFAULT_FACULTY_PERMISSIONS,
+          ),
+        })
+        .where(eq(user.id, userId));
+    } else if (data.role) {
+      await db
+        .update(user)
+        .set({
+          facultyPermissions: null,
         })
         .where(eq(user.id, userId));
     }

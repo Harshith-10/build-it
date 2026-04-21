@@ -24,7 +24,27 @@ export function CollectionsTable() {
     <AdminEntityTable
       config={collectionsConfig}
       createColumns={(onDelete, page, pageSize) =>
-        createColumns(onDelete, page, pageSize)
+        createColumns(onDelete, page, pageSize, "/admin")
+      }
+      emptyState={
+        <div className="flex flex-col items-center gap-2">
+          <Library className="h-8 w-8 text-muted-foreground" />
+          <p className="text-muted-foreground">No collections yet</p>
+          <p className="text-sm text-muted-foreground">
+            Create your first collection to organize problems
+          </p>
+        </div>
+      }
+    />
+  );
+}
+
+export function CollectionsTableForPath({ basePath }: { basePath: string }) {
+  return (
+    <AdminEntityTable
+      config={collectionsConfig}
+      createColumns={(onDelete, page, pageSize) =>
+        createColumns(onDelete, page, pageSize, basePath)
       }
       emptyState={
         <div className="flex flex-col items-center gap-2">

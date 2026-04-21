@@ -25,7 +25,27 @@ export function ExamsTableContent() {
     <AdminEntityTable
       config={examsConfig}
       createColumns={(onDelete, page, pageSize) =>
-        createColumns(onDelete, page, pageSize)
+        createColumns(onDelete, page, pageSize, "/admin")
+      }
+      emptyState={
+        <div className="flex flex-col items-center gap-2">
+          <GraduationCap className="h-8 w-8 text-muted-foreground" />
+          <p className="text-muted-foreground">No exams yet</p>
+          <p className="text-sm text-muted-foreground">
+            Create your first exam to get started
+          </p>
+        </div>
+      }
+    />
+  );
+}
+
+export function ExamsTableContentForPath({ basePath }: { basePath: string }) {
+  return (
+    <AdminEntityTable
+      config={examsConfig}
+      createColumns={(onDelete, page, pageSize) =>
+        createColumns(onDelete, page, pageSize, basePath)
       }
       emptyState={
         <div className="flex flex-col items-center gap-2">
@@ -44,6 +64,14 @@ export function ExamsTable() {
   return (
     <Suspense fallback={<div>Loading exams...</div>}>
       <ExamsTableContent />
+    </Suspense>
+  );
+}
+
+export function ExamsTableForPath({ basePath }: { basePath: string }) {
+  return (
+    <Suspense fallback={<div>Loading exams...</div>}>
+      <ExamsTableContentForPath basePath={basePath} />
     </Suspense>
   );
 }

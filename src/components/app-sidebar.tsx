@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   Cog,
   FileQuestion,
   GraduationCap,
@@ -61,6 +62,11 @@ const adminNavMain = [
     url: "/admin/exams",
     icon: GraduationCap,
   },
+  {
+    title: "Jet Stats",
+    url: "/admin/jet-stats",
+    icon: Activity,
+  },
 ];
 
 const studentNavMain = [
@@ -86,6 +92,29 @@ const studentNavMain = [
   },
 ];
 
+const facultyNavMain = [
+  {
+    title: "Dashboard",
+    url: "/faculty",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Problems",
+    url: "/faculty/problems",
+    icon: FileQuestion,
+  },
+  {
+    title: "Collections",
+    url: "/faculty/collections",
+    icon: Library,
+  },
+  {
+    title: "Exams",
+    url: "/faculty/exams",
+    icon: GraduationCap,
+  },
+];
+
 const _navAccount = [
   {
     title: "Profile",
@@ -100,12 +129,26 @@ const _navAccount = [
 ];
 
 export function AppSidebar({
-  isAdmin,
+  role,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { isAdmin: boolean }) {
+}: React.ComponentProps<typeof Sidebar> & {
+  role: "admin" | "faculty" | "student";
+}) {
   const pathname = usePathname();
 
-  const navMain = isAdmin ? adminNavMain : studentNavMain;
+  const navMain =
+    role === "admin"
+      ? adminNavMain
+      : role === "faculty"
+        ? facultyNavMain
+        : studentNavMain;
+
+  const roleLabel =
+    role === "admin"
+      ? "Admin Portal"
+      : role === "faculty"
+        ? "Faculty Portal"
+        : "Student Portal";
 
   return (
     <Sidebar variant="sidebar" collapsible="icon" {...props}>
@@ -121,9 +164,7 @@ export function AppSidebar({
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">BuildIT</span>
-            <span className="truncate text-xs">
-              {isAdmin ? "Admin Portal" : "Student Portal"}
-            </span>
+            <span className="truncate text-xs">{roleLabel}</span>
           </div>
         </div>
       </SidebarHeader>
@@ -140,7 +181,9 @@ export function AppSidebar({
                     isActive={
                       item.url === "/admin" || item.url === "/dashboard"
                         ? pathname === item.url
-                        : pathname.startsWith(item.url)
+                        : item.url === "/faculty"
+                          ? pathname === item.url
+                          : pathname.startsWith(item.url)
                     }
                     tooltip={item.title}
                   >

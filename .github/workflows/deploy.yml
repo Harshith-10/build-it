@@ -49,6 +49,7 @@ jobs:
           BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
           JET_SERVER_URL: ${{ secrets.JET_SERVER_URL }}
           JET_HMAC_SECRET: ${{ secrets.JET_HMAC_SECRET }}
+          JET_HMAC_KEY_ID: ${{ secrets.JET_HMAC_KEY_ID }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 
       - name: Copy build artifacts to server

@@ -1,5 +1,25 @@
 import { relations } from "drizzle-orm";
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  json,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
+
+export type CrudPermission = {
+  create: boolean;
+  read: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
+export type FacultyPermissions = {
+  problems: CrudPermission;
+  collections: CrudPermission;
+  exams: CrudPermission;
+};
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -21,6 +41,7 @@ export const user = pgTable("user", {
   dob: timestamp("dob"),
   regulation: text("regulation"),
   role: text("role").default("student"),
+  facultyPermissions: json("faculty_permissions").$type<FacultyPermissions>(),
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires"),

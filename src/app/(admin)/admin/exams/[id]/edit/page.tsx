@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getExam } from "@/actions/admin/exams";
+import { getExamForEdit } from "@/actions/admin/exams";
 import { ExamForm } from "@/components/admin/exams/exam-form";
 import { PageHeader } from "@/components/admin/page-header";
 
@@ -9,7 +9,7 @@ export default async function EditExamPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const exam = await getExam(id);
+  const exam = await getExamForEdit(id);
   if (!exam) return notFound();
 
   return (
@@ -19,7 +19,7 @@ export default async function EditExamPage({
         description={exam.title}
         backHref="/admin/exams"
       />
-      <ExamForm initialData={exam as any} />
+      <ExamForm initialData={exam} />
     </div>
   );
 }

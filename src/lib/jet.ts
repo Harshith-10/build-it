@@ -7,7 +7,7 @@
  * @see API_SPEC.md for the full Jet Server API specification.
  */
 
-import { buildJetRateLimitHeaders } from "@/lib/jet-headers";
+import { buildJetAuthHeadersV2 } from "@/lib/jet-headers";
 
 // ============================================
 // Types - Request
@@ -119,13 +119,8 @@ const JET_BASE_URL = (
   process.env.JET_SERVER_URL || "http://localhost:4000"
 ).replace(/\/+$/, "");
 
-const JET_HMAC_SECRET =
-  process.env.JET_HMAC_SECRET || "some_unsecure_default_secret";
-if (JET_HMAC_SECRET === "some_unsecure_default_secret") {
-  console.warn(
-    "Warning: JET_HMAC_SECRET environment variable is not set. Rate-limited endpoints may fail.",
-  );
-}
+const JET_HMAC_SECRET = process.env.JET_HMAC_SECRET;
+const JET_HMAC_KEY_ID = process.env.JET_HMAC_KEY_ID;
 
 const DEFAULT_TIMEOUTS = {
   run: 5000,
@@ -163,15 +158,21 @@ async function submitJob(
   request: JobRequest,
   userId: string,
 ): Promise<SubmitJobResponse> {
-  const rateHeaders = buildJetRateLimitHeaders({
+  const requestBody = JSON.stringify(request);
+  const rateHeaders = buildJetAuthHeadersV2({
     userId,
-    secret: JET_HMAC_SECRET,
+    keyId: getRequiredEnv(JET_HMAC_KEY_ID, "JET_HMAC_KEY_ID"),
+    secret: getRequiredEnv(JET_HMAC_SECRET, "JET_HMAC_SECRET"),
+    method: "POST",
+    path: "/jobs",
+    body: requestBody,
+    contentType: "application/json",
   });
 
   const response = await fetch(`${JET_BASE_URL}/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...rateHeaders },
-    body: JSON.stringify(request),
+    body: requestBody,
   });
 
   if (!response.ok) {
@@ -186,10 +187,21 @@ async function submitJob(
   return response.json();
 }
 
-async function getJobResult(jobId: string): Promise<JobStateRecord> {
+async function getJobResult(
+  jobId: string,
+  userId: string,
+): Promise<JobStateRecord> {
+  const rateHeaders = buildJetAuthHeadersV2({
+    userId,
+    keyId: getRequiredEnv(JET_HMAC_KEY_ID, "JET_HMAC_KEY_ID"),
+    secret: getRequiredEnv(JET_HMAC_SECRET, "JET_HMAC_SECRET"),
+    method: "GET",
+    path: `/jobs/${jobId}`,
+  });
+
   const response = await fetch(`${JET_BASE_URL}/jobs/${jobId}`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: rateHeaders,
   });
 
   if (!response.ok) {
@@ -204,9 +216,12 @@ async function getJobResult(jobId: string): Promise<JobStateRecord> {
   return response.json();
 }
 
-async function pollUntilComplete(jobId: string): Promise<JobStateRecord> {
+async function pollUntilComplete(
+  jobId: string,
+  userId: string,
+): Promise<JobStateRecord> {
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    const state = await getJobResult(jobId);
+    const state = await getJobResult(jobId, userId);
 
     if (state.status === "completed" || state.status === "failed") {
       return state;
@@ -259,7 +274,7 @@ export async function executeCode(
   };
 
   const submission = await submitJob(request, userId);
-  const finalState = await pollUntilComplete(submission.job_id);
+  const finalState = await pollUntilComplete(submission.job_id, userId);
 
   if (finalState.status === "failed") {
     throw new JetError(
@@ -342,6 +357,13 @@ const FILENAME_MAP: Record<string, string> = {
 
 function getFilename(language: string): string {
   return FILENAME_MAP[language.toLowerCase()] || `main.${language}`;
+}
+
+function getRequiredEnv(value: string | undefined, name: string): string {
+  if (value) {
+    return value;
+  }
+  throw new JetError(`${name} is required for Jet V2 authentication`);
 }
 
 /**

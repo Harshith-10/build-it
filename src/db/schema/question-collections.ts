@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  boolean,
   json,
   pgTable,
   primaryKey,
@@ -12,6 +13,10 @@ import { questions } from "./questions";
 
 export const questionCollections = pgTable("question_collections", {
   id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id"),
+  transferredBy: text("transferred_by"),
+  transferredAt: timestamp("transferred_at"),
+  isPrivate: boolean("is_private").default(true).notNull(),
   title: text("title").notNull(),
   description: text("description"),
   tags: json("tags").$type<string[]>().default([]),
