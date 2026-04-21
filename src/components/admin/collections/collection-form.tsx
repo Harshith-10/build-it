@@ -252,11 +252,6 @@ export function CollectionForm({
             <div className="flex-1 flex flex-col min-h-0">
               <div className="px-3 py-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider shrink-0 border-b flex justify-between">
                 <span>Selected ({selectedIds.length})</span>
-                {selectedIds.length > 0 && (
-                  <span className="text-muted-foreground normal-case font-normal tracking-normal">
-                    Click to remove
-                  </span>
-                )}
               </div>
               <div className="flex-1 overflow-y-auto min-h-0">
                 {selectedIds.length === 0 ? (
@@ -282,48 +277,37 @@ export function CollectionForm({
                         return (
                           <div
                             key={id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => removeProblem(id)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                removeProblem(id);
-                              }
-                            }}
-                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors cursor-pointer"
+                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md hover:border-primary transition-colors cursor-pointer"
                           >
                             <div className="flex-1 min-w-0 text-sm font-medium text-left truncate">
                               {problem?.title || "Unknown Problem"}
                             </div>
-                            {problem && (
-                              <Link
-                                href={`${basePath}/problems/${id}`}
-                                onClick={(event) => event.stopPropagation()}
-                                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Link>
-                            )}
+                            
                             {problem && (
                               <Badge
                                 variant="outline"
-                                className={`text-[10px] shrink-0 ${difficultyColors[problem.difficulty] || ""}`}
+                                className={`text-xs shrink-0 ${difficultyColors[problem.difficulty] || ""}`}
                               >
                                 {problem.difficulty}
                               </Badge>
                             )}
-                            <button
-                              type="button"
-                              className="ml-auto shrink-0"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                removeProblem(id);
-                              }}
+                            {problem && (
+                              <Link
+                                href={`${basePath}/problems/${id}`}
+                              >
+                                <Button variant="outline" size="icon-sm">
+                                  <Pencil />
+                                </Button>
+                              </Link>
+                            )}
+                            <Button
+                              variant="destructive"
+                              size="icon-sm"
+                              onClick={() => removeProblem(id)}
                               aria-label={`Remove ${problem?.title || "problem"}`}
                             >
-                              <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
-                            </button>
+                              <X />
+                            </Button>
                           </div>
                         );
                       })}
