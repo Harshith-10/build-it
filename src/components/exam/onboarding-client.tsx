@@ -41,6 +41,7 @@ interface OnboardingClientProps {
     title: string;
     description: string | null;
     durationMinutes: number;
+    questionCount: number;
     startTime: Date;
     endTime: Date;
     requiresPin: boolean;
@@ -53,15 +54,36 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
     requiresPin: exam.requiresPin,
   });
 
+  const [showInstructionsDialog, setShowInstructionsDialog] = useState(true);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [instructionsAcknowledged, setInstructionsAcknowledged] = useState(false);
+
+  const questionCountLabel =
+    exam.questionCount === 1
+      ? "1 Question"
+      : `${exam.questionCount} Questions`;
+  const questionCountText =
+    exam.questionCount === 1
+      ? "1 question"
+      : `${exam.questionCount} questions`;
+
+  const handleInstructionsAcknowledged = () => {
+    setInstructionsAcknowledged(true);
+    setShowInstructionsDialog(false);
+  };
 
   const handleButtonClick = () => {
-    if (exam.requiresPin) {
-      setPin(""); // reset PIN each time dialog opens
-      setPinDialogOpen(true);
-    } else {
-      handleStartExam();
+    if (!instructionsAcknowledged) {
+      return;
     }
+
+    if (exam.requiresPin) {
+      setPin("");
+      setPinDialogOpen(true);
+      return;
+    }
+
+    handleStartExam();
   };
 
   const handlePinConfirm = () => {
@@ -71,23 +93,103 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
 
   return (
     <>
+      <Dialog
+        open={showInstructionsDialog}
+        onOpenChange={(open) => {
+          if (open) {
+            setShowInstructionsDialog(true);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl" showCloseButton={false}>
+          <DialogHeader className="items-center text-center">
+            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <DialogTitle className="text-2xl">Mandatory Exam Rules</DialogTitle>
+            <DialogDescription>
+              Read these rules carefully. You must acknowledge them before the
+              start option becomes available.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+            <div className="rounded-lg border bg-muted/40 p-4">
+              <p className="text-sm font-semibold">Exam Overview</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {exam.durationMinutes} minutes · {questionCountLabel}
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <p className="text-sm font-semibold">Do</p>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li>
+                  Disable notifications on your device before starting the exam.
+                </li>
+                <li>
+                  Keep a stable internet connection throughout the entire exam.
+                </li>
+                <li>
+                  Stay focused on the exam window and remain in fullscreen mode
+                  for the duration of the test.
+                </li>
+                <li>
+                  Click the Submit button when you are finished. The exam will
+                  not be evaluated unless it is submitted.
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <p className="text-sm font-semibold">Don't</p>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li>
+                  Do not switch tabs or windows, minimize the browser, or leave
+                  fullscreen.
+                </li>
+                <li>
+                  Do not use external copy and paste. Internal copy and paste
+                  inside the exam is allowed, but anything from outside the exam
+                  is blocked.
+                </li>
+                <li>
+                  Do not spam the Run or Submit buttons. Use them only when you
+                  intentionally want to execute or finalize your answer.
+                </li>
+                <li>
+                  Do not rely on the browser back button or refresh to manage
+                  your attempt.
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button className="w-full" onClick={handleInstructionsAcknowledged}>
+              I Have Read and Understand the Rules
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-zinc-950">
         <Card className="w-full max-w-4xl shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold">{exam.title}</CardTitle>
             <CardDescription className="text-lg">
-              Please read the rules carefully before starting.
+              This exam contains {questionCountText} and lasts {exam.durationMinutes} minutes.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex justify-center gap-6 text-sm text-muted-foreground">
+            <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 <span>{exam.durationMinutes} Minutes</span>
               </div>
               <div className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
-                <span>6 Questions</span>
+                <span>{questionCountLabel}</span>
               </div>
               {exam.requiresPin && (
                 <div className="flex items-center gap-2 text-amber-500 dark:text-amber-400">
@@ -106,11 +208,10 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               </AlertDescription>
             </Alert>
 
-            <div className="grid gap-4 md:grid-cols-2 items-start">
-              {/* Left: Rules */}
+            <div className="grid items-start gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-3">
                 <div className="flex items-start gap-3 rounded-lg border p-4">
-                  <Monitor className="mt-1 h-5 w-5 text-primary shrink-0" />
+                  <Monitor className="mt-1 h-5 w-5 shrink-0 text-primary" />
                   <div>
                     <h4 className="font-semibold">Fullscreen Mode</h4>
                     <p className="text-sm text-muted-foreground">
@@ -120,7 +221,7 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-lg border p-4">
-                  <Shield className="mt-1 h-5 w-5 text-primary shrink-0" />
+                  <Shield className="mt-1 h-5 w-5 shrink-0 text-primary" />
                   <div>
                     <h4 className="font-semibold">No Distractions</h4>
                     <p className="text-sm text-muted-foreground">
@@ -131,18 +232,17 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
                 </div>
               </div>
 
-              {/* Right: Instructions */}
               {exam.description ? (
-                <div className="rounded-lg bg-muted p-4 h-full">
-                  <h4 className="mb-2 font-semibold">Instructions</h4>
+                <div className="h-full rounded-lg bg-muted p-4">
+                  <h4 className="mb-2 font-semibold">Exam Description</h4>
                   <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                     {exam.description}
                   </p>
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed p-4 h-full flex items-center justify-center">
-                  <p className="text-sm text-muted-foreground text-center">
-                    No additional instructions provided.
+                <div className="flex h-full items-center justify-center rounded-lg border border-dashed p-4">
+                  <p className="text-center text-sm text-muted-foreground">
+                    No additional exam description provided.
                   </p>
                 </div>
               )}
@@ -152,16 +252,19 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
             <Button
               size="lg"
               onClick={handleButtonClick}
-              disabled={isLoading}
+              disabled={isLoading || !instructionsAcknowledged}
               className="w-full max-w-sm text-lg"
             >
-              {isLoading ? "Initializing..." : "I Understand, Start Exam"}
+              {isLoading
+                ? "Initializing..."
+                : exam.requiresPin
+                  ? "Continue to PIN"
+                  : "Start Exam"}
             </Button>
           </CardFooter>
         </Card>
       </div>
 
-      {/* PIN Dialog */}
       <Dialog open={pinDialogOpen} onOpenChange={setPinDialogOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader className="items-center text-center">

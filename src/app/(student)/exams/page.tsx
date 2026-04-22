@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { db } from "@/db";
 import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getExamQuestionCount } from "@/lib/exam";
 import { ExamCardAction } from "./exam-card-action";
 
 function getStatusColor(status: "upcoming" | "active" | "ended") {
@@ -36,36 +37,6 @@ const statusPriority: Record<"upcoming" | "active" | "ended", number> = {
   upcoming: 1,
   ended: 2,
 };
-
-function getQuestionCount(exam: {
-  strategyType: string;
-  strategyConfig: unknown;
-}) {
-  if (!exam.strategyConfig || typeof exam.strategyConfig !== "object") return 0;
-
-  if (exam.strategyType === "random_n") {
-    // biome-ignore lint/suspicious/noExplicitAny: complex json column
-    const config = exam.strategyConfig as any;
-    return typeof config.count === "number" ? config.count : 0;
-  }
-
-  if (exam.strategyType === "difficulty_mix") {
-    // biome-ignore lint/suspicious/noExplicitAny: complex json column
-    const config = exam.strategyConfig as any;
-    return [config.easy, config.medium, config.hard].reduce(
-      (sum, value) => sum + (typeof value === "number" ? value : 0),
-      0,
-    );
-  }
-
-  if (exam.strategyType === "fixed_set") {
-    // biome-ignore lint/suspicious/noExplicitAny: complex json column
-    const config = exam.strategyConfig as any;
-    return Array.isArray(config.questionIds) ? config.questionIds.length : 0;
-  }
-
-  return 0;
-}
 
 export default async function ExamsPage() {
   const session = await auth.api.getSession({
@@ -244,7 +215,7 @@ export default async function ExamsPage() {
                             {
                               // biome-ignore lint/suspicious/noExplicitAny: complex json column
                               (exam.gradingConfig as any).totalMarks *
-                                Math.max(getQuestionCount(exam), 1)
+                                Math.max(getExamQuestionCount(exam), 1)
                             }{" "}
                             Total Marks
                           </span>
