@@ -23,7 +23,7 @@ export function getExamQuestionCount(exam: ExamQuestionCountSource): number {
   }
 
   if (exam.strategyType === "difficulty_mix") {
-    return [config.easy, config.medium, config.hard].reduce(
+    return ([config.easy, config.medium, config.hard] as const).reduce<number>(
       (sum, value) => sum + (typeof value === "number" ? value : 0),
       0,
     );
