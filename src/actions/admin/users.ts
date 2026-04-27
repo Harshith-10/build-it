@@ -26,6 +26,7 @@ type BulkImportUser = {
   regulation?: string;
   dob?: string;
   groupName?: string;
+  facultyPermissions?: FacultyPermissionsInput;
 };
 
 type BulkImportConfig = {
@@ -151,35 +152,36 @@ export async function bulkImportUsers({
       await db
         .update(user)
         .set({
-          facultyPermissions: DEFAULT_FACULTY_PERMISSIONS,
+          facultyPermissions: normalizeFacultyPermissions(
+            userData.facultyPermissions,
+          ),
         })
         .where(eq(user.id, newUser.user.id));
     }
 
-    // Link Group
-    if (
-      userData.groupName &&
-      groupCache.has(userData.groupName) &&
-      newUser?.user?.id
-    ) {
-      const groupId = groupCache.get(userData.groupName);
-      if (!groupId) {
-        return;
-      }
-      // Check membership
-      const existingMember = await db.query.userGroupMembers.findFirst({
-        where: and(
-          eq(userGroupMembers.userId, newUser.user.id),
-          eq(userGroupMembers.groupId, groupId),
-        ),
+    // Add user to "All" group
+    if (newUser.user.id) {
+      let allGroup = await db.query.userGroups.findFirst({
+        where: eq(userGroups.name, "All"),
       });
-      if (!existingMember) {
-        await db.insert(userGroupMembers).values({
-          userId: newUser.user.id,
-          groupId: groupId,
-        });
+
+      if (!allGroup) {
+        [allGroup] = await db
+          .insert(userGroups)
+          .values({ name: "All", description: "All users" })
+          .returning();
+      }
+
+      if (allGroup) {
+        await db
+          .insert(userGroupMembers)
+          .values({ userId: newUser.user.id, groupId: allGroup.id })
+          .onConflictDoNothing();
       }
     }
+
+    revalidatePath("/admin/users");
+    return { success: true };
   });
 
   const results = await Promise.allSettled(userPromises);
@@ -340,6 +342,27 @@ export async function createUser(data: {
           ),
         })
         .where(eq(user.id, created.user.id));
+    }
+
+    // Add user to "All" group
+    if (created.user.id) {
+      let allGroup = await db.query.userGroups.findFirst({
+        where: eq(userGroups.name, "All"),
+      });
+
+      if (!allGroup) {
+        [allGroup] = await db
+          .insert(userGroups)
+          .values({ name: "All", description: "All users" })
+          .returning();
+      }
+
+      if (allGroup) {
+        await db
+          .insert(userGroupMembers)
+          .values({ userId: created.user.id, groupId: allGroup.id })
+          .onConflictDoNothing();
+      }
     }
 
     revalidatePath("/admin/users");
