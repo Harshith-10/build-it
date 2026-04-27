@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { db } from "@/db";
 import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getExamQuestionCount } from "@/lib/exam";
 import { ExamCardAction } from "./exam-card-action";
 
 function getStatusColor(status: "upcoming" | "active" | "completed") {
@@ -247,7 +248,7 @@ export default async function ExamsPage() {
                             {
                               // biome-ignore lint/suspicious/noExplicitAny: complex json column
                               (exam.gradingConfig as any).totalMarks *
-                                Math.max(getQuestionCount(exam), 1)
+                                Math.max(getExamQuestionCount(exam), 1)
                             }{" "}
                             Total Marks
                           </span>

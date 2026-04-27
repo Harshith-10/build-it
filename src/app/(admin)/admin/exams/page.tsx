@@ -1,5 +1,3 @@
-"use client";
-
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { ExamsTable } from "@/components/admin/exams/exams-table";

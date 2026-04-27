@@ -5,6 +5,7 @@ import OnboardingClient from "@/components/exam/onboarding-client";
 import { db } from "@/db";
 import { examAssignments, exams } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getExamQuestionCount } from "@/lib/exam";
 
 interface PageProps {
   params: Promise<{
@@ -45,6 +46,7 @@ export default async function OnboardingPage({ params }: PageProps) {
   // upsertExam already sets this to true when any group assignment has a PIN.
   // If the student already has an active session (resuming), we skip the PIN.
   const requiresPin = exam.requiresPin && !existingAssignment;
+  const questionCount: number = getExamQuestionCount(exam);
 
-  return <OnboardingClient exam={{ ...exam, requiresPin }} />;
+  return <OnboardingClient exam={{ ...exam, questionCount, requiresPin }} />;
 }
