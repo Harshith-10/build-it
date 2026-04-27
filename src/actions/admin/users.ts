@@ -63,6 +63,11 @@ export async function bulkImportUsers({
     new Set(users.map((u) => u.groupName).filter(Boolean)),
   ) as string[];
 
+  // Ensure "All" group is processed
+  if (!uniqueGroupNames.includes("All")) {
+    uniqueGroupNames.push("All");
+  }
+
   // Fetch or create groups in parallel
   await Promise.all(
     uniqueGroupNames.map(async (groupName) => {
@@ -78,7 +83,10 @@ export async function bulkImportUsers({
             .insert(userGroups)
             .values({
               name: groupName,
-              description: "Imported via Admin Portal",
+              description:
+                groupName === "All"
+                  ? "All users"
+                  : "Imported via Admin Portal",
             })
             .returning();
           groupCache.set(groupName, newGroup.id);
@@ -94,6 +102,8 @@ export async function bulkImportUsers({
       }
     }),
   );
+
+  const allGroupId = groupCache.get("All");
 
   // 2. Process Users concurrently
   const userPromises = users.map(async (userData) => {
@@ -159,23 +169,29 @@ export async function bulkImportUsers({
         .where(eq(user.id, newUser.user.id));
     }
 
-    // Add user to "All" group
-    if (newUser.user.id) {
-      let allGroup = await db.query.userGroups.findFirst({
-        where: eq(userGroups.name, "All"),
-      });
+    if (newUser?.user?.id) {
+      const memberships: { userId: string; groupId: string }[] = [];
 
-      if (!allGroup) {
-        [allGroup] = await db
-          .insert(userGroups)
-          .values({ name: "All", description: "All users" })
-          .returning();
+      // Add to "All" group
+      if (allGroupId) {
+        memberships.push({ userId: newUser.user.id, groupId: allGroupId });
       }
 
-      if (allGroup) {
+      // Add to user-specific group if provided
+      if (userData.groupName && groupCache.has(userData.groupName)) {
+        const specificGroupId = groupCache.get(userData.groupName);
+        if (specificGroupId && specificGroupId !== allGroupId) {
+          memberships.push({
+            userId: newUser.user.id,
+            groupId: specificGroupId,
+          });
+        }
+      }
+
+      if (memberships.length > 0) {
         await db
           .insert(userGroupMembers)
-          .values({ userId: newUser.user.id, groupId: allGroup.id })
+          .values(memberships)
           .onConflictDoNothing();
       }
     }
