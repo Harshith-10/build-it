@@ -72,11 +72,11 @@ export function IDEShell({
   return (
     <SidebarProvider>
       <ExamSidebar
-      examTitle={examTitle}
-      questions={questions}
-      activeId={activeQuestionId || activeQuestion.id}
-      onSelect={setActiveQuestionId}
-      completedQuestionIds={completedQuestionIds}
+        examTitle={examTitle}
+        questions={questions}
+        activeId={activeQuestionId || activeQuestion.id}
+        onSelect={setActiveQuestionId}
+        completedQuestionIds={completedQuestionIds}
       />
       <SidebarInset className="h-screen overflow-hidden flex flex-col">
         <ExamHeader

@@ -248,7 +248,7 @@ export default async function ExamsPage() {
                             {
                               // biome-ignore lint/suspicious/noExplicitAny: complex json column
                               (exam.gradingConfig as any).totalMarks *
-                                Math.max(getExamQuestionCount(exam), 1)
+                              Math.max(getExamQuestionCount(exam), 1)
                             }{" "}
                             Total Marks
                           </span>
