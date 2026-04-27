@@ -37,7 +37,6 @@ type UpsertExamInput = {
   strategyConfig?: StrategyConfig | null;
   gradingStrategy?: "linear" | "difficulty_based" | "count_based";
   gradingConfig?: GradingConfigMap[keyof GradingConfigMap] | null;
-  status?: "upcoming" | "active" | "ended";
   assignments?: UpsertExamAssignmentInput[];
   moderatorIds?: string[];
 };
@@ -51,6 +50,16 @@ type ExamModeratorUser = {
   email: string;
   username: string | null;
 };
+
+function deriveExamStatus(
+  startTime: Date | null,
+  endTime: Date | null,
+): "upcoming" | "active" | "ended" {
+  const now = new Date();
+  if (!startTime || now < startTime) return "upcoming";
+  if (!endTime || now <= endTime) return "active";
+  return "ended";
+}
 
 function getCollectionIds(config: StrategyConfig | null | undefined) {
   if (!config || typeof config !== "object") return [];
@@ -299,10 +308,11 @@ export async function getExams({
             : sql`${exams.strategyType} desc`;
         break;
       case "status":
+        // Status is derived from startTime/endTime, so sort by startTime instead
         orderBy =
           order === "asc"
-            ? sql`${exams.status} asc`
-            : sql`${exams.status} desc`;
+            ? sql`${exams.startTime} asc`
+            : sql`${exams.startTime} desc`;
         break;
       case "createdAt":
         orderBy =
@@ -329,6 +339,7 @@ export async function getExams({
       const isOwner = isAdmin || exam.ownerId === session.user.id;
       return {
         ...exam,
+        status: deriveExamStatus(exam.startTime, exam.endTime),
         canManage: isOwner,
         isModerator: !isAdmin && !isOwner,
       };
@@ -380,6 +391,7 @@ export async function getExam(id: string) {
 
   return {
     ...exam,
+    status: deriveExamStatus(exam.startTime, exam.endTime),
     canManage: access.isAdmin || access.isOwner,
     isModerator: access.isModerator,
     moderatorsList: normalizeModeratorUsers(exam),
@@ -427,6 +439,7 @@ export async function getExamForEdit(id: string) {
 
   return {
     ...exam,
+    status: deriveExamStatus(exam.startTime, exam.endTime),
     canManage: true,
     isModerator: false,
     moderatorsList: normalizeModeratorUsers(exam),
@@ -441,7 +454,6 @@ export async function upsertExam(data: UpsertExamInput) {
         entity: "exams",
         action: "create",
       });
-  // data: { id?, title, startTime, endTime, duration, strategyType, strategyConfig, gradingConfig, assignments: [{ groupId, startTime?, endTime?, requiresPin? }] }
 
   try {
     let examId = data.id;
@@ -476,7 +488,6 @@ export async function upsertExam(data: UpsertExamInput) {
       strategyConfig: data.strategyConfig ?? null,
       gradingStrategy,
       gradingConfig,
-      status: data.status || "upcoming",
       requiresPin,
     };
 
@@ -506,7 +517,6 @@ export async function upsertExam(data: UpsertExamInput) {
         })
         .where(eq(exams.id, examId));
 
-      // Re-link collections (delete all and insert)
       await db
         .delete(examCollections)
         .where(eq(examCollections.examId, examId));
@@ -526,7 +536,6 @@ export async function upsertExam(data: UpsertExamInput) {
       return { success: false, error: "Failed to resolve exam id" };
     }
 
-    // Handle collections if present in strategyConfig
     const collectionIds = getCollectionIds(data.strategyConfig);
     if (collectionIds && collectionIds.length > 0) {
       const collectionLinks = collectionIds.map((colId) => ({
@@ -536,7 +545,6 @@ export async function upsertExam(data: UpsertExamInput) {
       await db.insert(examCollections).values(collectionLinks);
     }
 
-    // Re-assign groups (simplified: delete all and insert)
     await db.delete(examGroups).where(eq(examGroups.examId, examId));
 
     if (data.assignments && data.assignments.length > 0) {
@@ -639,7 +647,6 @@ export async function getExamSubmissions({
 
   const offset = (page - 1) * limit;
 
-  // We filter by examId and optionally by user name/email if search is provided
   const whereClause = and(
     eq(examAssignments.examId, examId),
     search
