@@ -59,16 +59,6 @@ type ExamModeratorUser = {
   username: string | null;
 };
 
-function deriveExamStatus(
-  startTime: Date | null,
-  endTime: Date | null,
-): "upcoming" | "active" | "ended" {
-  const now = new Date();
-  if (!startTime || now < startTime) return "upcoming";
-  if (!endTime || now <= endTime) return "active";
-  return "ended";
-}
-
 function getCollectionIds(config: StrategyConfig | null | undefined) {
   if (!config || typeof config !== "object") return [];
   if (!("collectionIds" in config)) return [];
