@@ -4,6 +4,7 @@ export const FACULTY_PERMISSION_ENTITIES = [
   "problems",
   "collections",
   "exams",
+  "labs",
 ] as const;
 
 export const FACULTY_PERMISSION_ACTIONS = [
@@ -22,6 +23,7 @@ export const DEFAULT_FACULTY_PERMISSIONS: FacultyPermissions = {
   problems: { create: true, read: true, update: true, delete: false },
   collections: { create: true, read: true, update: true, delete: false },
   exams: { create: true, read: true, update: true, delete: false },
+  labs: { create: true, read: true, update: true, delete: false },
 };
 
 export function normalizeFacultyPermissions(
@@ -36,6 +38,7 @@ export function normalizeFacultyPermissions(
     problems: { ...DEFAULT_FACULTY_PERMISSIONS.problems },
     collections: { ...DEFAULT_FACULTY_PERMISSIONS.collections },
     exams: { ...DEFAULT_FACULTY_PERMISSIONS.exams },
+    labs: { ...DEFAULT_FACULTY_PERMISSIONS.labs },
   };
 
   for (const entity of FACULTY_PERMISSION_ENTITIES) {

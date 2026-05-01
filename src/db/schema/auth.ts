@@ -19,6 +19,7 @@ export type FacultyPermissions = {
   problems: CrudPermission;
   collections: CrudPermission;
   exams: CrudPermission;
+  labs: CrudPermission;
 };
 
 export const user = pgTable("user", {
