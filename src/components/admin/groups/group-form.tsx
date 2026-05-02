@@ -67,6 +67,8 @@ export function GroupForm({ group }: GroupFormProps) {
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isVirtualGroup = group?.id === "all-users-virtual";
+
   const form = useForm<GroupFormValues>({
     resolver: zodResolver(groupSchema),
     defaultValues: {
@@ -74,6 +76,7 @@ export function GroupForm({ group }: GroupFormProps) {
       name: group?.name || "",
       description: group?.description || "",
     },
+    disabled: isVirtualGroup,
   });
 
   // Initial load of users
@@ -205,136 +208,179 @@ export function GroupForm({ group }: GroupFormProps) {
           />
         </div>
 
-        {/* Users Picker */}
-        <div className="flex-1 min-h-0 border rounded-lg flex flex-col overflow-hidden">
-          {/* Search bar */}
-          <div className="px-4 py-3 border-b bg-muted/10 shrink-0">
-            <div className="relative max-w-md">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search users by name or email..."
-                value={search}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-8"
-              />
-              {isSearching && (
-                <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-              )}
+        {isVirtualGroup && (
+          <div className="flex-1 min-h-0 border rounded-lg flex flex-col overflow-hidden">
+            <div className="p-4 bg-muted text-muted-foreground text-sm">
+              This is a virtual group containing all users. Membership is
+              managed automatically.
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <h3 className="font-semibold mb-2">
+                Members ({selectedMembers.length})
+              </h3>
+              <div className="space-y-2">
+                {selectedMembers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-2 border rounded-md"
+                  >
+                    <div>
+                      <div className="font-medium">
+                        {user.name || "Unnamed User"}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {user.email}
+                      </div>
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className="capitalize"
+                    >
+                      {user.role}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+        )}
 
-          <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* Available Users */}
-            <div className="flex-1 flex flex-col min-h-0 border-r">
-              <div className="px-3 py-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider shrink-0 border-b">
-                Available Users
-              </div>
-              <div className="flex-1 overflow-y-auto min-h-0">
-                <div className="p-2 space-y-0.5">
-                  {filteredAvailable.map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      className="flex w-full items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-muted transition-colors group"
-                      onClick={() => toggleUser(user)}
-                    >
-                      <Plus className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {user.name || "Unnamed User"}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {user.email}
-                        </div>
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] shrink-0"
-                      >
-                        {user.role}
-                      </Badge>
-                    </button>
-                  ))}
-                  {filteredAvailable.length === 0 && !isSearching && (
-                    <div className="text-center py-8 text-sm text-muted-foreground">
-                      {search
-                        ? "No users match your search"
-                        : "No users available"}
-                    </div>
+        {!isVirtualGroup && (
+          <>
+            {/* Users Picker */}
+            <div className="flex-1 min-h-0 border rounded-lg flex flex-col overflow-hidden">
+              {/* Search bar */}
+              <div className="px-4 py-3 border-b bg-muted/10 shrink-0">
+                <div className="relative max-w-md">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search users by name or email..."
+                    value={search}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                  {isSearching && (
+                    <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                   )}
                 </div>
               </div>
-            </div>
 
-            {/* Selected Members */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="px-3 py-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider shrink-0 border-b flex justify-between">
-                <span>Group Members ({selectedMembers.length})</span>
-                {selectedMembers.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-muted-foreground normal-case font-normal tracking-normal cursor-pointer hover:text-destructive transition-colors bg-transparent border-none p-0 text-xs"
-                    onClick={() => setSelectedMembers([])}
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-              <div className="flex-1 overflow-y-auto min-h-0">
-                {selectedMembers.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                    No members selected
+              <div className="flex-1 flex min-h-0 overflow-hidden">
+                {/* Available Users */}
+                <div className="flex-1 flex flex-col min-h-0 border-r">
+                  <div className="px-3 py-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider shrink-0 border-b">
+                    Available Users
                   </div>
-                ) : (
-                  <div className="p-2 space-y-0.5">
-                    {selectedMembers
-                      .filter(
-                        (m) =>
-                          !search ||
-                          m.name
-                            ?.toLowerCase()
-                            .includes(search.toLowerCase()) ||
-                          m.email.toLowerCase().includes(search.toLowerCase()),
-                      )
-                      .map((user) => {
-                        const isNew = !initialMembers.some(
-                          (m) => m.id === user.id,
-                        );
-                        return (
-                          <button
-                            key={user.id}
-                            type="button"
-                            className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
-                            onClick={() => removeMember(user.id)}
-                          >
-                            <div className="flex-1 text-left min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium truncate">
-                                  {user.name || "Unnamed User"}
-                                </span>
-                                {isNew && group && (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] text-green-600 border-green-200 bg-green-50"
-                                  >
-                                    New
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="text-xs text-muted-foreground truncate group-hover:text-destructive/70">
-                                {user.email}
-                              </div>
+                  <div className="flex-1 overflow-y-auto min-h-0">
+                    <div className="p-2 space-y-0.5">
+                      {filteredAvailable.map((user) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-muted transition-colors group"
+                          onClick={() => toggleUser(user)}
+                        >
+                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {user.name || "Unnamed User"}
                             </div>
-                            <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
-                          </button>
-                        );
-                      })}
+                            <div className="text-xs text-muted-foreground truncate">
+                              {user.email}
+                            </div>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] shrink-0"
+                          >
+                            {user.role}
+                          </Badge>
+                        </button>
+                      ))}
+                      {filteredAvailable.length === 0 && !isSearching && (
+                        <div className="text-center py-8 text-sm text-muted-foreground">
+                          {search
+                            ? "No users match your search"
+                            : "No users available"}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
+
+                {/* Selected Members */}
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="px-3 py-2 bg-muted/20 text-xs font-semibold uppercase tracking-wider shrink-0 border-b flex justify-between">
+                    <span>Group Members ({selectedMembers.length})</span>
+                    {selectedMembers.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-muted-foreground normal-case font-normal tracking-normal cursor-pointer hover:text-destructive transition-colors bg-transparent border-none p-0 text-xs"
+                        onClick={() => setSelectedMembers([])}
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-y-auto min-h-0">
+                    {selectedMembers.length === 0 ? (
+                      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                        No members selected
+                      </div>
+                    ) : (
+                      <div className="p-2 space-y-0.5">
+                        {selectedMembers
+                          .filter(
+                            (m) =>
+                              !search ||
+                              m.name
+                                ?.toLowerCase()
+                                .includes(search.toLowerCase()) ||
+                              m.email
+                                .toLowerCase()
+                                .includes(search.toLowerCase()),
+                          )
+                          .map((user) => {
+                            const isNew = !initialMembers.some(
+                              (m) => m.id === user.id,
+                            );
+                            return (
+                              <button
+                                key={user.id}
+                                type="button"
+                                className="flex w-full border my-2 items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group transition-colors"
+                                onClick={() => removeMember(user.id)}
+                              >
+                                <div className="flex-1 text-left min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium truncate">
+                                      {user.name || "Unnamed User"}
+                                    </span>
+                                    {isNew && group && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] text-green-600 border-green-200 bg-green-50"
+                                      >
+                                        New
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground truncate group-hover:text-destructive/70">
+                                    {user.email}
+                                  </div>
+                                </div>
+                                <X className="h-4 w-4 shrink-0 hidden group-hover:block" />
+                              </button>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
         <div className="shrink-0 flex justify-end gap-3 pt-2">
           <Button
@@ -344,7 +390,7 @@ export function GroupForm({ group }: GroupFormProps) {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting || isVirtualGroup}>
             {isSubmitting ? (
               <Loader2 className="animate-spin mr-2" />
             ) : (
