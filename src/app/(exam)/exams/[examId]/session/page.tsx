@@ -4,6 +4,7 @@ import { IDEShell } from "@/components/exam/ide-shell";
 import { db } from "@/db";
 import { examAssignments, exams, questions, submissions } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { buildExamTimingSnapshot } from "@/lib/exam";
 
 export default async function SessionPage({
   params,
@@ -70,14 +71,18 @@ export default async function SessionPage({
     },
   });
 
-  // Calculate strict end time based on assignment start time or exam duration
-  // For now, using assignment.startedAt + duration would be best if we had startedAt.
-  // Falling back to current time + duration for demo purposes if startedAt is missing, or duration.
-  const durationMs = (exam?.durationMinutes || 90) * 60 * 1000;
-  const assignmentStartedAt = assignment.startedAt
-    ? new Date(assignment.startedAt)
-    : new Date();
-  const endTime = new Date(assignmentStartedAt.getTime() + durationMs);
+  const timingSnapshot = buildExamTimingSnapshot({
+    startedAt: assignment.startedAt ?? new Date(),
+    durationMinutes: exam?.durationMinutes || 90,
+  });
+
+  if (!timingSnapshot) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        Error: Exam timing unavailable. Please contact admin.
+      </div>
+    );
+  }
 
   // Fetch passed submissions for this assignment to mark questions as completed
   const passedSubmissions = await db.query.submissions.findMany({
@@ -96,7 +101,7 @@ export default async function SessionPage({
     <IDEShell
       questions={questionList}
       user={{ name: session.user.name, image: session.user.image || undefined }}
-      endTime={endTime}
+      timingSnapshot={timingSnapshot}
       examTitle={exam?.title || "Exam Session"}
       assignmentId={assignment.id}
       completedQuestionIds={completedQuestionIds}

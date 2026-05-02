@@ -2,6 +2,7 @@
 
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
+import { getExamTimingSnapshot } from "@/actions/student/exams/exam-lifecycle";
 import {
   SidebarInset,
   SidebarProvider,
@@ -11,6 +12,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import type { ExamTimingSnapshot } from "@/lib/exam";
 
 import { CodePlayground } from "./code-playground";
 import { ExamHeader } from "./exam-header";
@@ -38,16 +40,27 @@ interface IDEShellProps {
     name: string;
     image?: string;
   };
-  endTime?: Date;
+  timingSnapshot: ExamTimingSnapshot;
   examTitle: string;
   assignmentId: string;
   completedQuestionIds: string[];
 }
 
+function formatCountdown(ms: number): string {
+  const safeMs = Math.max(0, ms);
+  const hours = Math.floor(safeMs / (1000 * 60 * 60));
+  const minutes = Math.floor((safeMs % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((safeMs % (1000 * 60)) / 1000);
+
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
 export function IDEShell({
   questions,
   user,
-  endTime,
+  timingSnapshot,
   examTitle,
   assignmentId,
   completedQuestionIds,
@@ -57,7 +70,55 @@ export function IDEShell({
   });
 
   const [_isMounted, setIsMounted] = useState(false);
+  const [timing, setTiming] = useState(timingSnapshot);
+  const [serverOffsetMs, setServerOffsetMs] = useState(
+    timingSnapshot.serverNowMs - Date.now(),
+  );
+  const [syncedNowMs, setSyncedNowMs] = useState(
+    Date.now() + (timingSnapshot.serverNowMs - Date.now()),
+  );
+
   useEffect(() => setIsMounted(true), []);
+
+  useEffect(() => {
+    setTiming(timingSnapshot);
+    setServerOffsetMs(timingSnapshot.serverNowMs - Date.now());
+  }, [timingSnapshot]);
+
+  useEffect(() => {
+    setSyncedNowMs(Date.now() + serverOffsetMs);
+
+    const interval = setInterval(() => {
+      setSyncedNowMs(Date.now() + serverOffsetMs);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [serverOffsetMs]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const syncTiming = async () => {
+      const result = await getExamTimingSnapshot(assignmentId);
+
+      if (!disposed && result.success && result.timing) {
+        setTiming(result.timing.timing);
+        setServerOffsetMs(result.timing.timing.serverNowMs - Date.now());
+      }
+    };
+
+    syncTiming();
+    const interval = setInterval(syncTiming, 60000);
+
+    return () => {
+      disposed = true;
+      clearInterval(interval);
+    };
+  }, [assignmentId]);
+
+  const hardDeadlineReached = syncedNowMs >= timing.deadlineMs;
+  const graceExpired = syncedNowMs > timing.graceDeadlineMs;
+  const timeLeft = formatCountdown(timing.deadlineMs - syncedNowMs);
 
   const activeQuestion =
     questions.find((q) => q.id === activeQuestionId) || questions[0];
@@ -72,16 +133,18 @@ export function IDEShell({
   return (
     <SidebarProvider>
       <ExamSidebar
-      examTitle={examTitle}
-      questions={questions}
-      activeId={activeQuestionId || activeQuestion.id}
-      onSelect={setActiveQuestionId}
-      completedQuestionIds={completedQuestionIds}
+        examTitle={examTitle}
+        questions={questions}
+        activeId={activeQuestionId || activeQuestion.id}
+        onSelect={setActiveQuestionId}
+        completedQuestionIds={completedQuestionIds}
       />
       <SidebarInset className="h-screen overflow-hidden flex flex-col">
         <ExamHeader
           user={user}
-          endTime={endTime}
+          timeLeft={timeLeft}
+          hardDeadlineReached={hardDeadlineReached}
+          graceExpired={graceExpired}
           examTitle={examTitle}
           assignmentId={assignmentId}
         />
@@ -100,6 +163,7 @@ export function IDEShell({
               <CodePlayground
                 question={activeQuestion}
                 assignmentId={assignmentId}
+                isCodingLocked={hardDeadlineReached}
               />
             </ResizablePanel>
           </ResizablePanelGroup>

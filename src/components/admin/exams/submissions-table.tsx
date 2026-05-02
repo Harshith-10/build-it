@@ -103,7 +103,7 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
       const result = await getExamSubmissions({
         examId,
         page: 1,
-        limit: 10000, 
+        limit: 10000,
       });
       exportToCSV(result.submissions);
     } catch (error) {

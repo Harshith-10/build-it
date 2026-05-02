@@ -244,6 +244,7 @@ export default async function ExamsPage() {
                     status={exam.computedStatus}
                     effectiveStart={exam.effectiveStart}
                     isSubmitted={exam.isSubmitted}
+                    serverNowMs={now.getTime()}
                   />
                 </CardFooter>
               </Card>
