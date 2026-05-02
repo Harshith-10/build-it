@@ -6,7 +6,7 @@ import {
   labSubmissions,
   exerciseMarks,
 } from "@/db/schema/labs";
-import { eq, count, inArray } from "drizzle-orm";
+import { eq, countDistinct, inArray } from "drizzle-orm";
 import { ensureEntityPermission } from "@/lib/auth-access";
 
 // ---------------------------------------------------------------------------
@@ -83,7 +83,7 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
             let submissionCount = 0;
             if (programIds.length > 0) {
               const [row] = await db
-                .select({ value: count(labSubmissions.userId) })
+                .select({ value: countDistinct(labSubmissions.userId) })
                 .from(labSubmissions)
                 .where(inArray(labSubmissions.programId, programIds));
               submissionCount = row?.value ?? 0;

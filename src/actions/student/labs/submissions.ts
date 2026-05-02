@@ -7,6 +7,18 @@ import { labSubmissions, exerciseGroups, labPrograms, exercises, labs } from "@/
 import { userGroupMembers } from "@/db/schema/groups";
 import { requireUser } from "@/lib/auth-access";
 
+// ─── Get the lab for the logged-in student based on their semester ────────────
+
+export async function getMyLab() {
+  const session = await requireUser();
+
+  const lab = await db.query.labs.findFirst({
+    where: eq(labs.semester, Number(session.user.semester)),
+  });
+
+  return lab ?? null;
+}
+
 export async function getMyExercises(labId: string) {
   const session = await requireUser();
   const now = new Date();

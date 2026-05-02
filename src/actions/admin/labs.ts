@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, lte, gte } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -300,53 +300,4 @@ export async function removeExerciseGroup(exerciseId: string, groupId: string) {
     console.error("Failed to remove exercise group:", error);
     return { success: false, error: "Failed to remove time window" };
   }
-}
-
-// ─── Student-facing ───────────────────────────────────────────────────────────
-// Get the lab for the logged-in student based on their semester
-
-export async function getMyLab() {
-  const session = await requireUser();
-
-  const lab = await db.query.labs.findFirst({
-    where: eq(labs.semester, Number(session.user.semester)),
-  });
-
-  return lab ?? null;
-}
-
-// Get exercises available to the student based on their group's time window
-
-export async function getMyExercises(labId: string) {
-  const session = await requireUser();
-
-  const now = new Date();
-
-  // Get all groups the student belongs to
-  const { userGroupMembers } = await import("@/db/schema/groups");
-  const studentGroups = await db.query.userGroupMembers.findMany({
-    where: eq(userGroupMembers.userId, session.user.id),
-  });
-
-  const groupIds = studentGroups.map((g) => g.groupId);
-
-  if (groupIds.length === 0) return [];
-
-  // Get all exercises for this lab that have an active window for the student's groups
-  const activeGroups = await db.query.exerciseGroups.findMany({
-    where: and(
-      inArray(exerciseGroups.groupId, groupIds),
-      lte(exerciseGroups.startTime, now),
-      gte(exerciseGroups.endTime, now)
-    ),
-    with: { exercise: true },
-  });
-
-  // Filter to only exercises belonging to this lab
-  const activeExercises = activeGroups
-    .map((g) => g.exercise)
-    .filter((e) => e.labId === labId)
-    .sort((a, b) => a.exerciseNo - b.exerciseNo);
-
-  return activeExercises;
 }
