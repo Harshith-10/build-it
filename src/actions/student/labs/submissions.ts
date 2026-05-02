@@ -19,6 +19,8 @@ export async function getMyLab() {
   return lab ?? null;
 }
 
+// ─── Get exercises available to the student based on their group's time window ─
+
 export async function getMyExercises(labId: string) {
   const session = await requireUser();
   const now = new Date();
