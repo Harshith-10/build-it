@@ -2,8 +2,10 @@
 
 import {
   Activity,
+  BarChart2,
   Cog,
   FileQuestion,
+  FlaskConical,
   GraduationCap,
   Group,
   LayoutDashboard,
@@ -70,11 +72,11 @@ const adminNavMain = [
 ];
 
 const studentNavMain = [
-  // {
-  //   title: "Dashboard",
-  //   url: "/dashboard",
-  //   icon: LayoutDashboard,
-  // },
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
   // {
   //   title: "Problems",
   //   url: "/problems",
@@ -85,11 +87,22 @@ const studentNavMain = [
     url: "/playground",
     icon: Terminal,
   },
-  {
+   {
     title: "Exams",
     url: "/exams",
     icon: GraduationCap,
   },
+  {
+    title: "Labs",
+    url: "/labs",
+    icon: FlaskConical,
+  },
+  {
+    title: "Analytics",
+    url: "/analytics",
+    icon: BarChart2,
+  },
+ 
 ];
 
 const facultyNavMain = [
