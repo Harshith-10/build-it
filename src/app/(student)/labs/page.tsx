@@ -1,12 +1,18 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { FlaskConical } from "lucide-react";
+import { headers } from "next/headers";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { getMyLab } from "@/actions/admin/labs";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { auth } from "@/lib/auth";
 
 const SEM_COLORS: Record<number, string> = {
   1: "bg-purple-100 text-purple-700 border-purple-200",
@@ -66,9 +72,7 @@ export default async function LabsPage() {
             </CardHeader>
             <CardContent>
               <Button className="w-full" asChild>
-                <Link href={`/labs/${result.id}`}>
-                  View Exercises
-                </Link>
+                <Link href={`/labs/${result.id}`}>View Exercises</Link>
               </Button>
             </CardContent>
           </Card>

@@ -1,10 +1,10 @@
 "use server";
 
-import { and, eq, inArray, lte, gte } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { labSubmissions, exerciseGroups, labPrograms } from "@/db/schema/labs";
 import { userGroupMembers } from "@/db/schema/groups";
+import { exerciseGroups, labPrograms, labSubmissions } from "@/db/schema/labs";
 import { requireUser } from "@/lib/auth-access";
 
 // ─── Mark a program as solved ─────────────────────────────────────────────────
@@ -43,7 +43,7 @@ export async function markProgramSolved(programId: string) {
         eq(exerciseGroups.exerciseId, program.exerciseId),
         inArray(exerciseGroups.groupId, groupIds),
         lte(exerciseGroups.startTime, now),
-        gte(exerciseGroups.endTime, now)
+        gte(exerciseGroups.endTime, now),
       ),
     });
 
@@ -89,7 +89,7 @@ export async function getMySubmissions(exerciseId: string) {
   const submissions = await db.query.labSubmissions.findMany({
     where: and(
       eq(labSubmissions.userId, session.user.id),
-      inArray(labSubmissions.programId, programIds)
+      inArray(labSubmissions.programId, programIds),
     ),
   });
 

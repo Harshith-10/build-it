@@ -87,7 +87,7 @@ const studentNavMain = [
     url: "/playground",
     icon: Terminal,
   },
-   {
+  {
     title: "Exams",
     url: "/exams",
     icon: GraduationCap,
@@ -102,7 +102,6 @@ const studentNavMain = [
     url: "/analytics",
     icon: BarChart2,
   },
- 
 ];
 
 const facultyNavMain = [

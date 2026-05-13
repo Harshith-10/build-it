@@ -1,17 +1,10 @@
 "use server";
 
+import { count, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import {
-  labs,
-  exercises,
-  labPrograms,
-  labSubmissions,
-  exerciseMarks,
-} from "@/db/schema/labs";
-import { eq, and, count, inArray } from "drizzle-orm";
-import { user } from "@/db/schema"; // adjust import to your users table
+import { exerciseMarks, exercises, labSubmissions } from "@/db/schema/labs";
+import { auth } from "@/lib/auth";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,7 +77,7 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
         exercises: await Promise.all(
           lab.exercises.map(async (ex) => {
             // count distinct students who submitted at least one program for this exercise
-            const programIds = ex.programs.map(p => p.id);
+            const programIds = ex.programs.map((p) => p.id);
             let submissionCount = 0;
             if (programIds.length > 0) {
               const [row] = await db
@@ -102,9 +95,9 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
               programCount: ex.programs.length,
               submissionCount: submissionCount,
             };
-          })
+          }),
         ),
-      }))
+      })),
     );
 
     return { success: true, data };
@@ -119,7 +112,7 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
 // ---------------------------------------------------------------------------
 
 export async function getExerciseSubmissions(
-  exerciseId: string
+  exerciseId: string,
 ): Promise<ExerciseSubmissionsResult> {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -139,14 +132,15 @@ export async function getExerciseSubmissions(
 
     // Load all submissions for this exercise (via its programs)
     const programIds = exercise.programs.map((p) => p.id);
-    const submissions = programIds.length > 0 
-      ? await db.query.labSubmissions.findMany({
-          where: inArray(labSubmissions.programId, programIds),
-          with: {
-            user: true,
-          },
-        })
-      : [];
+    const submissions =
+      programIds.length > 0
+        ? await db.query.labSubmissions.findMany({
+            where: inArray(labSubmissions.programId, programIds),
+            with: {
+              user: true,
+            },
+          })
+        : [];
 
     // Load all marks for this exercise
     const marks = await db.query.exerciseMarks.findMany({
@@ -176,7 +170,7 @@ export async function getExerciseSubmissions(
           marks: null,
         });
       }
-      studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
+      studentMap.get(sid)?.solvedProgramIds.push(sub.programId);
     }
 
     // Attach marks

@@ -1,18 +1,18 @@
+import { BookOpen, FlaskConical, Users } from "lucide-react";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { FlaskConical, BookOpen, Users } from "lucide-react";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { getFacultyLabOverview } from "./labs";
+import { redirect } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { auth } from "@/lib/auth";
+import { getFacultyLabOverview } from "./labs";
 
 const SEM_COLORS: Record<number, string> = {
   1: "bg-purple-100 text-purple-700 border-purple-200",
@@ -103,9 +103,7 @@ export default async function FacultyLabsPage() {
                               <Users className="h-3.5 w-3.5" />
                               {exercise.submissionCount ?? 0} submissions
                             </span>
-                            <span>
-                              {exercise.programCount ?? 0} programs
-                            </span>
+                            <span>{exercise.programCount ?? 0} programs</span>
                           </div>
                         </CardContent>
                       </Card>

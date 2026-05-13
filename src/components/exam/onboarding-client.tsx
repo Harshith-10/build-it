@@ -56,16 +56,13 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
 
   const [showInstructionsDialog, setShowInstructionsDialog] = useState(true);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
-  const [instructionsAcknowledged, setInstructionsAcknowledged] = useState(false);
+  const [instructionsAcknowledged, setInstructionsAcknowledged] =
+    useState(false);
 
   const questionCountLabel =
-    exam.questionCount === 1
-      ? "1 Question"
-      : `${exam.questionCount} Questions`;
+    exam.questionCount === 1 ? "1 Question" : `${exam.questionCount} Questions`;
   const questionCountText =
-    exam.questionCount === 1
-      ? "1 question"
-      : `${exam.questionCount} questions`;
+    exam.questionCount === 1 ? "1 question" : `${exam.questionCount} questions`;
 
   const handleInstructionsAcknowledged = () => {
     setInstructionsAcknowledged(true);
@@ -178,7 +175,8 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold">{exam.title}</CardTitle>
             <CardDescription className="text-lg">
-              This exam contains {questionCountText} and lasts {exam.durationMinutes} minutes.
+              This exam contains {questionCountText} and lasts{" "}
+              {exam.durationMinutes} minutes.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

@@ -1,14 +1,13 @@
 "use server";
 
-import { and, eq, inArray, desc } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
   exerciseMarks,
-  labSubmissions,
-  labPrograms,
   exercises,
-  labs,
+  labPrograms,
+  labSubmissions,
 } from "@/db/schema/labs";
 import { ensureEntityPermission, requireUser } from "@/lib/auth-access";
 
@@ -24,7 +23,9 @@ export async function getMyMarks() {
   });
 
   // Overall mark = average of best 10 exercises
-  const sorted = [...allMarks].sort((a, b) => Number(b.marks) - Number(a.marks));
+  const sorted = [...allMarks].sort(
+    (a, b) => Number(b.marks) - Number(a.marks),
+  );
   const best10 = sorted.slice(0, 10);
   const overall =
     best10.length > 0

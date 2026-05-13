@@ -1,14 +1,9 @@
 "use server";
 
-import { and, eq, inArray, lte, gte } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import {
-  labs,
-  exercises,
-  labPrograms,
-  exerciseGroups,
-} from "@/db/schema/labs";
+import { exerciseGroups, exercises, labPrograms, labs } from "@/db/schema/labs";
 import {
   ensureEntityPermission,
   requireAdmin,
@@ -111,7 +106,10 @@ export async function createExercise(data: {
     });
 
     if (existing.length >= 12) {
-      return { success: false, error: "A lab can have a maximum of 12 exercises" };
+      return {
+        success: false,
+        error: "A lab can have a maximum of 12 exercises",
+      };
     }
 
     const [newExercise] = await db.insert(exercises).values(data).returning();
@@ -193,7 +191,10 @@ export async function createProgram(data: {
     });
 
     if (existing.length >= 8) {
-      return { success: false, error: "An exercise can have a maximum of 8 programs" };
+      return {
+        success: false,
+        error: "An exercise can have a maximum of 8 programs",
+      };
     }
 
     const [newProgram] = await db.insert(labPrograms).values(data).returning();
@@ -289,8 +290,8 @@ export async function removeExerciseGroup(exerciseId: string, groupId: string) {
       .where(
         and(
           eq(exerciseGroups.exerciseId, exerciseId),
-          eq(exerciseGroups.groupId, groupId)
-        )
+          eq(exerciseGroups.groupId, groupId),
+        ),
       );
 
     revalidatePath("/admin/labs");
@@ -337,7 +338,7 @@ export async function getMyExercises(labId: string) {
     where: and(
       inArray(exerciseGroups.groupId, groupIds),
       lte(exerciseGroups.startTime, now),
-      gte(exerciseGroups.endTime, now)
+      gte(exerciseGroups.endTime, now),
     ),
     with: { exercise: true },
   });

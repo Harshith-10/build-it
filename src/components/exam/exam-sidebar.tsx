@@ -1,5 +1,4 @@
 "use client";
-import { Badge } from "@/components/ui/badge";
 
 import { CheckCircle2, Circle, Code2 } from "lucide-react";
 import {
@@ -14,6 +13,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/animate-ui/components/radix/sidebar";
+import { Badge } from "@/components/ui/badge";
 import type { Question } from "./ide-shell";
 
 interface ExamSidebarProps {
@@ -89,8 +89,8 @@ export function ExamSidebar({
                       <span className="flex-1 truncate">
                         {idx + 1}. {q.title}
                       </span>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={`capitalize text-[10px] leading-none py-0.5 px-1.5 ml-2 mt-0.5 ${getDifficultyColor(q.difficulty)}`}
                       >
                         {q.difficulty}
