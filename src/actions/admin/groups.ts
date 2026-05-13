@@ -45,7 +45,7 @@ export async function getGroups({
     }
   }
 
-  const [data, totalCount] = await Promise.all([
+  const [data, totalCountResult] = await Promise.all([
     db
       .select()
       .from(userGroups)
@@ -59,9 +59,22 @@ export async function getGroups({
       .where(whereClause),
   ]);
 
+  const total = Number(totalCountResult[0]?.count || 0);
+
+  // Manually add the "All Users" group
+  const allUsersGroup = {
+    id: "all-users-virtual",
+    name: "All Users",
+    description: "A group containing all users in the system.",
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+  };
+
+  const groups = [allUsersGroup, ...data];
+
   return {
-    groups: data,
-    total: Number(totalCount[0]?.count || 0),
+    groups: groups,
+    total: total + 1, // Add 1 for the virtual group
     page,
     limit,
   };
@@ -69,6 +82,25 @@ export async function getGroups({
 
 export async function getGroup(id: string) {
   await requireAdmin();
+
+  if (id === "all-users-virtual") {
+    const allUsers = await db.select().from(user);
+    return {
+      id: "all-users-virtual",
+      name: "All Users",
+      description: "A group containing all users in the system.",
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+      members: allUsers.map((u) => ({
+        id: `virtual-member-${u.id}`,
+        groupId: "all-users-virtual",
+        userId: u.id,
+        joinedAt: u.createdAt ?? new Date(0),
+        user: u,
+      })),
+    };
+  }
+
   const group = await db.query.userGroups.findFirst({
     where: eq(userGroups.id, id),
     with: {
@@ -88,6 +120,16 @@ export async function upsertGroup(data: {
   description?: string;
 }) {
   await requireAdmin();
+
+  if (data.id === "all-users-virtual") {
+    throw new Error("The 'All Users' group is virtual and cannot be modified.");
+  }
+  if (data.name.toLowerCase() === "all users") {
+    throw new Error(
+      "The group name 'All Users' is reserved for the virtual group.",
+    );
+  }
+
   try {
     let groupId = data.id;
     if (data.id) {
@@ -121,6 +163,12 @@ export async function upsertGroup(data: {
 
 export async function deleteGroup(id: string) {
   await requireAdmin();
+  if (id === "all-users-virtual") {
+    return {
+      success: false,
+      error: "The 'All Users' group is virtual and cannot be deleted.",
+    };
+  }
   try {
     await db.delete(userGroups).where(eq(userGroups.id, id));
     revalidatePath("/admin/groups");
@@ -132,6 +180,12 @@ export async function deleteGroup(id: string) {
 
 export async function addGroupMember(groupId: string, email: string) {
   await requireAdmin();
+  if (groupId === "all-users-virtual") {
+    return {
+      success: false,
+      error: "Cannot add members to the virtual 'All Users' group.",
+    };
+  }
   // Find user by email
   const targetUser = await db.query.user.findFirst({
     where: eq(user.email, email),
@@ -164,6 +218,12 @@ export async function addGroupMember(groupId: string, email: string) {
 
 export async function removeGroupMember(groupId: string, userId: string) {
   await requireAdmin();
+  if (groupId === "all-users-virtual") {
+    return {
+      success: false,
+      error: "Cannot remove members from the virtual 'All Users' group.",
+    };
+  }
   await db
     .delete(userGroupMembers)
     .where(
