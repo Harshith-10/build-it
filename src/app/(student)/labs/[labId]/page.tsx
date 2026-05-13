@@ -1,12 +1,12 @@
-import { headers } from "next/headers";
-import { redirect, notFound } from "next/navigation";
 import { BookOpen, Clock, Lock } from "lucide-react";
+import { headers } from "next/headers";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 import { getMyExercises } from "@/actions/student/labs/submissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LocalDateTimeText } from "@/components/ui/local-date-time-text";
+import { auth } from "@/lib/auth";
 
 function getWindowStatus(startTime: Date | null, endTime: Date | null) {
   if (!startTime || !endTime) return "locked";
@@ -119,12 +119,22 @@ export default async function ExercisesPage({
                       <Clock className="h-3 w-3" />
                       <LocalDateTimeText
                         value={exercise.startTime}
-                        options={{ month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }}
+                        options={{
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        }}
                       />
                       {" → "}
                       <LocalDateTimeText
                         value={exercise.endTime}
-                        options={{ month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }}
+                        options={{
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        }}
                       />
                     </div>
                   )}
@@ -133,14 +143,16 @@ export default async function ExercisesPage({
                 <div className="shrink-0">
                   {isAccessible ? (
                     <Button size="sm" asChild>
-                      <Link href={`/labs/${labId}/${exercise.id}`}>
-                        Open
-                      </Link>
+                      <Link href={`/labs/${labId}/${exercise.id}`}>Open</Link>
                     </Button>
                   ) : (
                     <Button size="sm" variant="outline" disabled>
                       <Lock className="h-3.5 w-3.5 mr-1.5" />
-                      {status === "upcoming" ? "Not started" : status === "ended" ? "Closed" : "Locked"}
+                      {status === "upcoming"
+                        ? "Not started"
+                        : status === "ended"
+                          ? "Closed"
+                          : "Locked"}
                     </Button>
                   )}
                 </div>

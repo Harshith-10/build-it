@@ -11,7 +11,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -78,18 +78,18 @@ type View = "labs" | "exercises" | "programs";
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  semester: z.coerce.number().min(1).max(4),
+  semester: z.number().min(1).max(4),
   description: z.string().optional(),
 });
 
 const exerciseSchema = z.object({
-  exerciseNo: z.coerce.number().min(1).max(12),
+  exerciseNo: z.number().min(1).max(12),
   title: z.string().min(2, "Title must be at least 2 characters"),
   description: z.string().optional(),
 });
 
 const programSchema = z.object({
-  programNo: z.coerce.number().min(1).max(8),
+  programNo: z.number().min(1).max(8),
   title: z.string().min(2, "Title must be at least 2 characters"),
   description: z.string().optional(),
 });
@@ -122,17 +122,13 @@ function LabFormDialog({
   initial?: Lab;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const form = useForm<
-    z.input<typeof labSchema>,
-    unknown,
-    z.output<typeof labSchema>
-  >({
+  const form = useForm({
     resolver: zodResolver(labSchema),
     defaultValues: {
       name: initial?.name ?? "",
       semester: initial?.semester ?? 1,
       description: initial?.description ?? "",
-    } as z.infer<typeof labSchema>,
+    },
   });
 
   useEffect(() => {
@@ -141,7 +137,7 @@ function LabFormDialog({
       semester: initial?.semester ?? 1,
       description: initial?.description ?? "",
     });
-  }, [initial, form.reset]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initial, form.reset]);
 
   const onSubmit = async (data: z.infer<typeof labSchema>) => {
     setIsSubmitting(true);
@@ -190,7 +186,7 @@ function LabFormDialog({
                 <FormItem>
                   <FormLabel>Semester</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(val) => field.onChange(Number(val))}
                     defaultValue={String(field.value)}
                   >
                     <FormControl>
@@ -257,17 +253,13 @@ function ExerciseFormDialog({
   initial?: Exercise;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const form = useForm<
-    z.input<typeof exerciseSchema>,
-    unknown,
-    z.output<typeof exerciseSchema>
-  >({
+  const form = useForm({
     resolver: zodResolver(exerciseSchema),
     defaultValues: {
       exerciseNo: initial?.exerciseNo ?? 1,
       title: initial?.title ?? "",
       description: initial?.description ?? "",
-    } as z.infer<typeof exerciseSchema>,
+    },
   });
 
   useEffect(() => {
@@ -276,7 +268,7 @@ function ExerciseFormDialog({
       title: initial?.title ?? "",
       description: initial?.description ?? "",
     });
-  }, [initial, form.reset]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initial, form.reset]);
 
   const onSubmit = async (data: z.infer<typeof exerciseSchema>) => {
     setIsSubmitting(true);
@@ -319,7 +311,7 @@ function ExerciseFormDialog({
                       min={1}
                       max={12}
                       {...field}
-                      value={field.value as string | number}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -386,17 +378,13 @@ function ProgramFormDialog({
   initial?: Program;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const form = useForm<
-    z.input<typeof programSchema>,
-    unknown,
-    z.output<typeof programSchema>
-  >({
+  const form = useForm({
     resolver: zodResolver(programSchema),
     defaultValues: {
       programNo: initial?.programNo ?? 1,
       title: initial?.title ?? "",
       description: initial?.description ?? "",
-    } as z.infer<typeof programSchema>,
+    },
   });
 
   useEffect(() => {
@@ -405,7 +393,7 @@ function ProgramFormDialog({
       title: initial?.title ?? "",
       description: initial?.description ?? "",
     });
-  }, [initial, form.reset]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initial, form.reset]);
 
   const onSubmit = async (data: z.infer<typeof programSchema>) => {
     setIsSubmitting(true);
@@ -446,7 +434,7 @@ function ProgramFormDialog({
                       min={1}
                       max={8}
                       {...field}
-                      value={field.value as string | number}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -530,7 +518,7 @@ export function LabsManager() {
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
-  const fetchLabs = async () => {
+  const fetchLabs = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getLabs();
@@ -538,9 +526,9 @@ export function LabsManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchExercises = async (labId: string) => {
+  const fetchExercises = useCallback(async (labId: string) => {
     setLoading(true);
     try {
       const data = await getExercises(labId);
@@ -548,9 +536,9 @@ export function LabsManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchPrograms = async (exerciseId: string) => {
+  const fetchPrograms = useCallback(async (exerciseId: string) => {
     setLoading(true);
     try {
       const data = await getPrograms(exerciseId);
@@ -558,7 +546,7 @@ export function LabsManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchLabs();
@@ -637,6 +625,7 @@ export function LabsManager() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-1 text-sm text-muted-foreground">
         <button
+          type="button"
           onClick={goToLabs}
           className={
             view === "labs"
@@ -650,6 +639,7 @@ export function LabsManager() {
           <>
             <ChevronRight className="h-4 w-4" />
             <button
+              type="button"
               onClick={goToExercises}
               className={
                 view === "exercises"
@@ -694,10 +684,19 @@ export function LabsManager() {
             {labs.map((lab) => (
               <div
                 key={lab.id}
-                className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 transition-colors cursor-pointer"
+                className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                // eslint-disable-next-line
+                role="button"
+                tabIndex={0}
                 onClick={() => openLab(lab)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openLab(lab);
+                  }
+                }}
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2 w-full">
                   <div className="flex items-center gap-2">
                     <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="font-medium text-sm">{lab.name}</span>
@@ -710,17 +709,20 @@ export function LabsManager() {
                   </Badge>
                 </div>
                 {lab.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">
+                  <p className="text-xs text-muted-foreground line-clamp-2 w-full text-left">
                     {lab.description}
                   </p>
                 )}
-                <div className="flex items-center justify-between mt-auto pt-2 border-t">
+                <div className="flex items-center justify-between mt-auto pt-2 border-t w-full">
                   <span className="text-xs text-muted-foreground">
                     {lab.exercises?.length ?? 0}/12 exercises
                   </span>
+                  {/* eslint-disable-next-line */}
                   <div
                     className="flex gap-1"
+                    role="presentation"
                     onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
                   >
                     <Button
                       variant="ghost"
@@ -795,8 +797,17 @@ export function LabsManager() {
             {exercises.map((exercise) => (
               <div
                 key={exercise.id}
-                className="border rounded-lg p-4 flex items-center gap-4 hover:border-primary/50 transition-colors cursor-pointer"
+                className="border rounded-lg p-4 flex items-center gap-4 hover:border-primary/50 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                // eslint-disable-next-line
+                role="button"
+                tabIndex={0}
                 onClick={() => openExercise(exercise)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openExercise(exercise);
+                  }
+                }}
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-sm font-medium shrink-0">
                   {exercise.exerciseNo}
@@ -814,9 +825,12 @@ export function LabsManager() {
                     <BookOpen className="inline h-3 w-3 mr-1" />
                     {exercise.programs?.length ?? 0}/8
                   </span>
+                  {/* biome-ignore lint/a11y/noStaticElementInteractions: propagation stopping div */}
                   <div
                     className="flex gap-1"
+                    role="presentation"
                     onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
                   >
                     <Button
                       variant="ghost"

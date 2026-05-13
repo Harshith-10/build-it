@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { markProgramSolved } from "@/actions/student/labs/submissions";
+import { Button } from "@/components/ui/button";
 
 interface ProgramCardProps {
   program: {
@@ -17,7 +17,11 @@ interface ProgramCardProps {
   isSolved: boolean;
 }
 
-export function ProgramCard({ program, exerciseId, isSolved: initialSolved }: ProgramCardProps) {
+export function ProgramCard({
+  program,
+  exerciseId,
+  isSolved: initialSolved,
+}: ProgramCardProps) {
   const [isSolved, setIsSolved] = useState(initialSolved);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -43,7 +47,9 @@ export function ProgramCard({ program, exerciseId, isSolved: initialSolved }: Pr
   return (
     <div
       className={`border rounded-lg p-4 flex items-center gap-4 transition-colors ${
-        isSolved ? "border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900" : ""
+        isSolved
+          ? "border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900"
+          : ""
       }`}
     >
       <div className="shrink-0">
@@ -70,7 +76,9 @@ export function ProgramCard({ program, exerciseId, isSolved: initialSolved }: Pr
           <span className="text-xs text-green-600 font-medium">Solved</span>
         ) : (
           <Button size="sm" onClick={handleMarkSolved} disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+            {isLoading && (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            )}
             Mark Solved
           </Button>
         )}

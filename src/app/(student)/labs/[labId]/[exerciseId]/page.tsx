@@ -1,9 +1,9 @@
+import { Code2 } from "lucide-react";
 import { headers } from "next/headers";
-import { redirect, notFound } from "next/navigation";
-import { Code2, CheckCircle2, Circle } from "lucide-react";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 import { getProgramsForExercise } from "@/actions/student/labs/submissions";
+import { auth } from "@/lib/auth";
 import { ProgramCard } from "./program-card";
 
 export default async function ProgramsPage({
@@ -35,7 +35,9 @@ export default async function ProgramsPage({
     <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
       <div>
         <p className="text-sm text-muted-foreground mb-1">
-          <Link href="/labs" className="hover:underline">Labs</Link>
+          <Link href="/labs" className="hover:underline">
+            Labs
+          </Link>
           {" / "}
           <Link href={`/labs/${labId}`} className="hover:underline">
             Exercises
@@ -53,7 +55,9 @@ export default async function ProgramsPage({
       <div className="w-full bg-muted rounded-full h-2 max-w-sm">
         <div
           className="bg-green-500 h-2 rounded-full transition-all"
-          style={{ width: `${programs.length > 0 ? (solvedCount / programs.length) * 100 : 0}%` }}
+          style={{
+            width: `${programs.length > 0 ? (solvedCount / programs.length) * 100 : 0}%`,
+          }}
         />
       </div>
 

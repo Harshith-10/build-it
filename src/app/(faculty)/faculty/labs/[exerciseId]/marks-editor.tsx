@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { awardMarks } from "../labs";
-import { toast } from "sonner";
 
 interface MarksEditorProps {
   studentId: string;
@@ -20,14 +20,14 @@ export function MarksEditor({
 }: MarksEditorProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(
-    currentMarks !== null ? String(currentMarks) : ""
+    currentMarks !== null ? String(currentMarks) : "",
   );
   const [saved, setSaved] = useState(currentMarks);
   const [loading, setLoading] = useState(false);
 
   async function handleSave() {
     const marks = parseFloat(value);
-    if (isNaN(marks) || marks < 0) {
+    if (Number.isNaN(marks) || marks < 0) {
       toast.error("Enter a valid marks value");
       return;
     }
