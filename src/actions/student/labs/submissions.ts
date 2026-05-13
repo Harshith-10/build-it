@@ -13,6 +13,20 @@ import {
 } from "@/db/schema/labs";
 import { requireUser } from "@/lib/auth-access";
 
+// ─── Get the lab for the logged-in student based on their semester ────────────
+
+export async function getMyLab() {
+  const session = await requireUser();
+
+  const lab = await db.query.labs.findFirst({
+    where: eq(labs.semester, Number(session.user.semester)),
+  });
+
+  return lab ?? null;
+}
+
+// ─── Get exercises available to the student based on their group's time window ─
+
 export async function getMyExercises(labId: string) {
   const session = await requireUser();
   const _now = new Date();

@@ -1,7 +1,11 @@
 "use server";
 
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
+import { db } from "@/db";
+import { examAssignments } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { buildExamTimingSnapshot } from "@/lib/exam";
 import {
   checkHealth,
   executeCode,
@@ -19,6 +23,7 @@ import type { TestcaseResult } from "@/types/problem";
 // ============================================
 
 export interface RunCodeInput {
+  assignmentId?: string;
   code: string;
   language: string;
   version?: string;
@@ -34,6 +39,7 @@ export interface RunCodeResult {
 }
 
 export interface RunCustomInput {
+  assignmentId?: string;
   code: string;
   language: string;
   version?: string;
@@ -53,6 +59,48 @@ export interface RunCustomResult {
 // Server Actions
 // ============================================
 
+async function validateCodingWindow(
+  assignmentId: string,
+  userId: string,
+): Promise<string | null> {
+  const assignment = await db.query.examAssignments.findFirst({
+    where: and(
+      eq(examAssignments.id, assignmentId),
+      eq(examAssignments.userId, userId),
+    ),
+    with: {
+      exam: {
+        columns: {
+          durationMinutes: true,
+        },
+      },
+    },
+  });
+
+  if (!assignment) {
+    return "Assignment not found or unauthorized";
+  }
+
+  if (assignment.status === "completed") {
+    return "Exam is already completed";
+  }
+
+  const timing = buildExamTimingSnapshot({
+    startedAt: assignment.startedAt,
+    durationMinutes: assignment.exam.durationMinutes,
+  });
+
+  if (!timing || timing.phase === "before_deadline") {
+    return null;
+  }
+
+  if (timing.phase === "grace_window") {
+    return "Coding window has ended. Use End Exam to submit within the grace period.";
+  }
+
+  return "Exam grace period has ended. The exam is closed.";
+}
+
 /**
  * Run code against provided test cases.
  * Used for the "Run" button to test against visible test cases.
@@ -68,6 +116,16 @@ export async function runCode(input: RunCodeInput): Promise<RunCodeResult> {
 
   if (!input.version) {
     return { success: false, error: "Runtime version is required" };
+  }
+
+  if (input.assignmentId) {
+    const timingError = await validateCodingWindow(
+      input.assignmentId,
+      session.user.id,
+    );
+    if (timingError) {
+      return { success: false, error: timingError };
+    }
   }
 
   try {
@@ -143,6 +201,16 @@ export async function runWithCustomInput(
 
   if (!input.version) {
     return { success: false, error: "Runtime version is required" };
+  }
+
+  if (input.assignmentId) {
+    const timingError = await validateCodingWindow(
+      input.assignmentId,
+      session.user.id,
+    );
+    if (timingError) {
+      return { success: false, error: timingError };
+    }
   }
 
   try {

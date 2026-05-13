@@ -1,10 +1,13 @@
 "use server";
 
-import { count, eq, inArray } from "drizzle-orm";
-import { headers } from "next/headers";
 import { db } from "@/db";
-import { exerciseMarks, exercises, labSubmissions } from "@/db/schema/labs";
-import { auth } from "@/lib/auth";
+import {
+  exercises,
+  labSubmissions,
+  exerciseMarks,
+} from "@/db/schema/labs";
+import { eq, countDistinct, inArray } from "drizzle-orm";
+import { ensureEntityPermission } from "@/lib/auth-access";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,8 +57,7 @@ export type ExerciseSubmissionsResult = {
 
 export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    await ensureEntityPermission({ entity: "labs", action: "read" });
 
     const allLabs = await db.query.labs.findMany({
       orderBy: (l, { asc }) => [asc(l.semester)],
@@ -77,11 +79,11 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
         exercises: await Promise.all(
           lab.exercises.map(async (ex) => {
             // count distinct students who submitted at least one program for this exercise
-            const programIds = ex.programs.map((p) => p.id);
+            const programIds = ex.programs.map(p => p.id);
             let submissionCount = 0;
             if (programIds.length > 0) {
               const [row] = await db
-                .select({ value: count(labSubmissions.userId) })
+                .select({ value: countDistinct(labSubmissions.userId) })
                 .from(labSubmissions)
                 .where(inArray(labSubmissions.programId, programIds));
               submissionCount = row?.value ?? 0;
@@ -95,9 +97,9 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
               programCount: ex.programs.length,
               submissionCount: submissionCount,
             };
-          }),
+          })
         ),
-      })),
+      }))
     );
 
     return { success: true, data };
@@ -112,11 +114,10 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
 // ---------------------------------------------------------------------------
 
 export async function getExerciseSubmissions(
-  exerciseId: string,
+  exerciseId: string
 ): Promise<ExerciseSubmissionsResult> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    await ensureEntityPermission({ entity: "labs", action: "read" });
 
     // Load exercise + its programs
     const exercise = await db.query.exercises.findFirst({
@@ -132,15 +133,14 @@ export async function getExerciseSubmissions(
 
     // Load all submissions for this exercise (via its programs)
     const programIds = exercise.programs.map((p) => p.id);
-    const submissions =
-      programIds.length > 0
-        ? await db.query.labSubmissions.findMany({
-            where: inArray(labSubmissions.programId, programIds),
-            with: {
-              user: true,
-            },
-          })
-        : [];
+    const submissions = programIds.length > 0 
+      ? await db.query.labSubmissions.findMany({
+          where: inArray(labSubmissions.programId, programIds),
+          with: {
+            user: true,
+          },
+        })
+      : [];
 
     // Load all marks for this exercise
     const marks = await db.query.exerciseMarks.findMany({
@@ -170,7 +170,7 @@ export async function getExerciseSubmissions(
           marks: null,
         });
       }
-      studentMap.get(sid)?.solvedProgramIds.push(sub.programId);
+      studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
     }
 
     // Attach marks
@@ -215,8 +215,7 @@ export async function awardMarks({
   marks: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    await ensureEntityPermission({ entity: "labs", action: "update" });
 
     await db
       .insert(exerciseMarks)
