@@ -41,6 +41,7 @@ const defaultFacultyPermissions = {
   problems: { create: true, read: true, update: true, delete: false },
   collections: { create: true, read: true, update: true, delete: false },
   exams: { create: true, read: true, update: true, delete: false },
+  labs: { create: true, read: true, update: true, delete: false },
 };
 
 const facultyPermissionSchema = z.object({
@@ -57,6 +58,12 @@ const facultyPermissionSchema = z.object({
     delete: z.boolean(),
   }),
   exams: z.object({
+    create: z.boolean(),
+    read: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
+  labs: z.object({
     create: z.boolean(),
     read: z.boolean(),
     update: z.boolean(),
@@ -80,7 +87,7 @@ const editUserSchema = z.object({
 type EditUserValues = z.infer<typeof editUserSchema>;
 type EditUserInputValues = z.input<typeof editUserSchema>;
 
-type PermissionEntity = "problems" | "collections" | "exams";
+type PermissionEntity = "problems" | "collections" | "exams" | "labs";
 type PermissionAction = "create" | "read" | "update" | "delete";
 type PermissionFieldPath =
   `facultyPermissions.${PermissionEntity}.${PermissionAction}`;
@@ -470,6 +477,7 @@ export function EditUserDialog({
                           ["problems", "Problems"],
                           ["collections", "Collections"],
                           ["exams", "Exams"],
+                          ["labs", "Labs"],
                         ].map(([entityKey, entityLabel]) => (
                           <div
                             key={entityKey}

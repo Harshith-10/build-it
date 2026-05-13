@@ -4,3 +4,4 @@ export * from "./exams";
 export * from "./groups";
 export * from "./question-collections";
 export * from "./questions";
+export * from "./labs";
