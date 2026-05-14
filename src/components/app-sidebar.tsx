@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  Code,
   Cog,
   FileQuestion,
   GraduationCap,
@@ -15,7 +16,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type * as React from "react";
+import React, { useState, useEffect } from "react"; // <-- 1. Added useState and useEffect
 import {
   Sidebar,
   SidebarContent,
@@ -30,102 +31,31 @@ import {
   SidebarRail,
 } from "@/components/animate-ui/components/radix/sidebar";
 import { UserMenu } from "@/components/user-menu";
+import { url } from "node:inspector";
 
 const adminNavMain = [
-  {
-    title: "Dashboard",
-    url: "/admin",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Users",
-    url: "/admin/users",
-    icon: Users,
-  },
-  {
-    title: "Groups",
-    url: "/admin/groups",
-    icon: Group,
-  },
-  {
-    title: "Problems",
-    url: "/admin/problems",
-    icon: FileQuestion,
-  },
-  {
-    title: "Collections",
-    url: "/admin/collections",
-    icon: Library,
-  },
-  {
-    title: "Exams",
-    url: "/admin/exams",
-    icon: GraduationCap,
-  },
-  {
-    title: "Jet Stats",
-    url: "/admin/jet-stats",
-    icon: Activity,
-  },
+  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
+  { title:"Code365",url:"/admin/code365",icon:Code},
+  { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Groups", url: "/admin/groups", icon: Group },
+  { title: "Problems", url: "/admin/problems", icon: FileQuestion },
+  { title: "Collections", url: "/admin/collections", icon: Library },
+  { title: "Exams", url: "/admin/exams", icon: GraduationCap },
+  { title: "Jet Stats", url: "/admin/jet-stats", icon: Activity },
 ];
 
 const studentNavMain = [
-  // {
-  //   title: "Dashboard",
-  //   url: "/dashboard",
-  //   icon: LayoutDashboard,
-  // },
-  // {
-  //   title: "Problems",
-  //   url: "/problems",
-  //   icon: FileQuestion,
-  // },
-  {
-    title: "Playground",
-    url: "/playground",
-    icon: Terminal,
-  },
-  {
-    title: "Exams",
-    url: "/exams",
-    icon: GraduationCap,
-  },
+  { title: "Playground", url: "/playground", icon: Terminal },
+  { title: "Exams", url: "/exams", icon: GraduationCap },
+  { title: "Code365", url: "/code365", icon: Code },
 ];
 
 const facultyNavMain = [
-  {
-    title: "Dashboard",
-    url: "/faculty",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Problems",
-    url: "/faculty/problems",
-    icon: FileQuestion,
-  },
-  {
-    title: "Collections",
-    url: "/faculty/collections",
-    icon: Library,
-  },
-  {
-    title: "Exams",
-    url: "/faculty/exams",
-    icon: GraduationCap,
-  },
-];
-
-const _navAccount = [
-  {
-    title: "Profile",
-    url: "/u/me",
-    icon: User,
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Cog,
-  },
+  { title: "Dashboard", url: "/faculty", icon: LayoutDashboard },
+  { title: "Code365", url: "/faculty/code365", icon: Code },
+  { title: "Problems", url: "/faculty/problems", icon: FileQuestion },
+  { title: "Collections", url: "/faculty/collections", icon: Library },
+  { title: "Exams", url: "/faculty/exams", icon: GraduationCap },
 ];
 
 export function AppSidebar({
@@ -135,6 +65,12 @@ export function AppSidebar({
   role: "admin" | "faculty" | "student";
 }) {
   const pathname = usePathname();
+
+  // 2. Add a mounted state to track when the client has loaded
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navMain =
     role === "admin"
@@ -185,7 +121,8 @@ export function AppSidebar({
                           ? pathname === item.url
                           : pathname.startsWith(item.url)
                     }
-                    tooltip={item.title}
+                    // 3. THE FIX: Only attach the tooltip after hydration is complete!
+                    tooltip={mounted ? item.title : undefined}
                   >
                     <Link href={item.url}>
                       <item.icon />
@@ -197,28 +134,6 @@ export function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {/* <div className="mx-2 h-px bg-sidebar-border" />
-        <SidebarGroup>
-          <SidebarGroupLabel>Account</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navAccount.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith(item.url)}
-                    tooltip={item.title}
-                  >
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup> */}
       </SidebarContent>
       <SidebarFooter>
         <UserMenu />
