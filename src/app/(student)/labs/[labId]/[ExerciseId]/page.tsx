@@ -1,12 +1,13 @@
 import { headers } from "next/headers";
-import { redirect, notFound } from "next/navigation";
-import { Code2, CheckCircle2, Circle } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Lock } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getProgramsForExercise } from "@/actions/student/labs/submissions";
-import { ProgramCard } from "./program-card";
+import { Button } from "@/components/ui/button";
+import { LabIDEShell } from "@/components/labs/lab-ide-shell";
 
-export default async function ProgramsPage({
+export default async function ExercisePage({
   params,
 }: {
   params: Promise<{ labId: string; exerciseId: string }>;
@@ -23,65 +24,41 @@ export default async function ProgramsPage({
 
   const result = await getProgramsForExercise(exerciseId);
 
+  // Show blocked page if window has ended or exercise unavailable
   if (!result.success) {
-    notFound();
+    return (
+      <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col items-center justify-center gap-4">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center max-w-md">
+          <div className="bg-muted mb-4 rounded-full p-4">
+            <Lock className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-medium">Exercise Unavailable</h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {result.error === "Exercise window has ended"
+              ? "The time window for this exercise has ended. You can no longer access it."
+              : "This exercise is not available right now."}
+          </p>
+          <Button className="mt-4" asChild>
+            <Link href={`/labs/${labId}`}>Back to Exercises</Link>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const { exercise, programs, solvedIds } = result.data!;
 
-  const solvedCount = programs.filter((p) => solvedIds.includes(p.id)).length;
-
+  // ✅ Go directly into the IDE — no separate programs list page
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
-      <div>
-        <p className="text-sm text-muted-foreground mb-1">
-          <Link href="/labs" className="hover:underline">Labs</Link>
-          {" / "}
-          <Link href={`/labs/${labId}`} className="hover:underline">
-            Exercises
-          </Link>
-          {" / "}
-          Exercise {exercise.exerciseNo}
-        </p>
-        <h2 className="text-3xl font-bold tracking-tight">{exercise.title}</h2>
-        <p className="text-muted-foreground">
-          {solvedCount}/{programs.length} programs completed
-        </p>
-      </div>
-
-      {/* Progress bar */}
-      <div className="w-full bg-muted rounded-full h-2 max-w-sm">
-        <div
-          className="bg-green-500 h-2 rounded-full transition-all"
-          style={{ width: `${programs.length > 0 ? (solvedCount / programs.length) * 100 : 0}%` }}
-        />
-      </div>
-
-      {programs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-          <div className="bg-muted mb-4 rounded-full p-4">
-            <Code2 className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium">No Programs Yet</h3>
-          <p className="text-muted-foreground mt-1 max-w-sm">
-            No programs have been added to this exercise yet.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {programs.map((program) => {
-            const isSolved = solvedIds.includes(program.id);
-            return (
-              <ProgramCard
-                key={program.id}
-                program={program}
-                exerciseId={exerciseId}
-                isSolved={isSolved}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <LabIDEShell
+      programs={programs}
+      exercise={exercise}
+      labId={labId}
+      solvedIds={solvedIds}
+      user={{
+        name: session.user.name ?? "Student",
+        image: session.user.image ?? undefined,
+      }}
+    />
   );
 }
