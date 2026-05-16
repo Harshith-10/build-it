@@ -6,12 +6,10 @@ import { db } from "@/db";
 import {
   labs,
   exercises,
-  labPrograms,
   labSubmissions,
   exerciseMarks,
 } from "@/db/schema/labs";
-import { eq, and, count, inArray } from "drizzle-orm";
-import { user } from "@/db/schema"; // adjust import to your users table
+import { eq, count, inArray } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +40,7 @@ export type ExerciseSubmissionsResult = {
       id: string;
       exerciseNo: number;
       title: string;
+      maxMarks: number;
       programs: { id: string; programNo: number; title: string }[];
     };
     students: {
@@ -70,7 +69,11 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
         exercises: {
           orderBy: (e, { asc }) => [asc(e.exerciseNo)],
           with: {
-            programs: true,
+            collection: {
+              with: {
+                questions: true,
+              },
+            },
           },
         },
       },
@@ -83,8 +86,7 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
         semester: lab.semester,
         exercises: await Promise.all(
           lab.exercises.map(async (ex) => {
-            // count distinct students who submitted at least one program for this exercise
-            const programIds = ex.programs.map(p => p.id);
+            const programIds = (ex.collection?.questions ?? []).map((q) => q.questionId);
             let submissionCount = 0;
             if (programIds.length > 0) {
               const [row] = await db
@@ -99,8 +101,8 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
               exerciseNo: ex.exerciseNo,
               title: ex.title,
               description: ex.description ?? null,
-              programCount: ex.programs.length,
-              submissionCount: submissionCount,
+              programCount: programIds.length,
+              submissionCount,
             };
           })
         ),
@@ -129,24 +131,49 @@ export async function getExerciseSubmissions(
     const exercise = await db.query.exercises.findFirst({
       where: eq(exercises.id, exerciseId),
       with: {
-        programs: {
-          orderBy: (p, { asc }) => [asc(p.programNo)],
+        collection: {
+          with: {
+            questions: {
+              with: { question: true },
+              orderBy: (cq, { asc }) => [asc(cq.addedAt)],
+            },
+          },
         },
       },
     });
 
     if (!exercise) return { success: false, error: "Exercise not found" };
 
-    // Load all submissions for this exercise (via its programs)
-    const programIds = exercise.programs.map((p) => p.id);
-    const submissions = programIds.length > 0 
-      ? await db.query.labSubmissions.findMany({
-          where: inArray(labSubmissions.programId, programIds),
-          with: {
-            user: true,
-          },
-        })
-      : [];
+    // Map collection questions to programs shape
+    // Filter out any orphaned entries where the question relation didn't load
+    const programList = (exercise.collection?.questions ?? [])
+      .filter((cq) => cq.question != null)
+      .map((cq, idx) => ({
+        id: cq.questionId,
+        programNo: idx + 1,
+        title: cq.question.title,
+      }));
+
+    // Load all submissions for this exercise
+    const programIds = programList.map((p) => p.id);
+    const submissions =
+      programIds.length > 0
+        ? await db.query.labSubmissions.findMany({
+            where: inArray(labSubmissions.programId, programIds),
+            with: {
+              user: {
+                columns: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  username: true,
+                  section: true,
+                  semester: true,
+                },
+              },
+            },
+          })
+        : [];
 
     // Load all marks for this exercise
     const marks = await db.query.exerciseMarks.findMany({
@@ -192,11 +219,8 @@ export async function getExerciseSubmissions(
           id: exercise.id,
           exerciseNo: exercise.exerciseNo,
           title: exercise.title,
-          programs: exercise.programs.map((p) => ({
-            id: p.id,
-            programNo: p.programNo,
-            title: p.title,
-          })),
+          maxMarks: parseFloat(String(exercise.maxMarks ?? 10)),
+          programs: programList,
         },
         students: Array.from(studentMap.values()),
       },

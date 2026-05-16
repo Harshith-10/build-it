@@ -13,8 +13,8 @@ import {
   Trash2,
   FlaskConical,
   BookOpen,
-  Code2,
   CalendarClock,
+  Eye,
   Clock,
   Library,
 } from "lucide-react";
@@ -32,6 +32,7 @@ import {
 } from "@/actions/admin/labs";
 
 import { ExerciseFormDialog } from "@/components/admin/labs/exercise-form-dialog";
+import { ExerciseSubmissionsDialog } from "@/components/admin/labs/exercise-submissions-dialog";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -385,6 +386,8 @@ export function LabsManager() {
   >();
   const [schedulingExercise, setSchedulingExercise] =
     useState<Exercise | null>(null);
+  const [submissionsExercise, setSubmissionsExercise] =
+    useState<Exercise | null>(null);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -680,6 +683,14 @@ export function LabsManager() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        title="View submissions"
+                        onClick={() => setSubmissionsExercise(exercise)}
+                      >
+                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
                         title={
                           hasSchedule ? "Update schedule" : "Set schedule"
                         }
@@ -773,6 +784,15 @@ export function LabsManager() {
                   collectionId: data.collectionId ?? null,
                 });
           }}
+        />
+      )}
+      {submissionsExercise && (
+        <ExerciseSubmissionsDialog
+          open={!!submissionsExercise}
+          onClose={() => setSubmissionsExercise(null)}
+          exerciseId={submissionsExercise.id}
+          exerciseTitle={submissionsExercise.title}
+          exerciseNo={submissionsExercise.exerciseNo}
         />
       )}
       {schedulingExercise && (

@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { Users, CheckCircle2, Circle } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { getExerciseSubmissions } from "../labs";
+import { getExerciseSubmissions } from "../../labs";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,13 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MarksEditor } from "./marks-editor";
+import { DownloadSubmissionsButton } from "./download-submissions-button";
 
 export default async function FacultyExerciseSubmissionsPage({
   params,
 }: {
-  params: Promise<{ exerciseId: string }>;
+  params: Promise<{ labId: string; exerciseId: string }>;
 }) {
-  const { exerciseId } = await params;
+  const { labId, exerciseId } = await params;
 
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -33,26 +34,43 @@ export default async function FacultyExerciseSubmissionsPage({
 
   const result = await getExerciseSubmissions(exerciseId);
 
-  if (!result.success || !result.data) {
-    notFound();
+  if (!result.success) {
+    if (result.error === "Exercise not found") notFound();
+    throw new Error(result.error ?? "Failed to load exercise submissions");
   }
+
+  if (!result.data) notFound();
 
   const { exercise, students } = result.data;
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <p className="text-sm text-muted-foreground mb-1">
-          <Link href="/faculty/labs" className="hover:underline">
-            Labs
-          </Link>{" "}
-          / Exercise {exercise.exerciseNo}
-        </p>
-        <h1 className="text-2xl font-bold tracking-tight">{exercise.title}</h1>
-        <p className="text-muted-foreground flex items-center gap-1.5 mt-1">
-          <Users className="h-4 w-4" />
-          {students.length} student{students.length !== 1 ? "s" : ""}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">
+            <Link href="/faculty/labs" className="hover:underline">
+              Labs
+            </Link>{" "}
+            /{" "}
+            <Link href={`/faculty/labs/${labId}`} className="hover:underline">
+              Exercises
+            </Link>{" "}
+            / Exercise {exercise.exerciseNo}
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight">{exercise.title}</h1>
+          <p className="text-muted-foreground flex items-center gap-1.5 mt-1">
+            <Users className="h-4 w-4" />
+            {students.length} student{students.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        {students.length > 0 && (
+          <DownloadSubmissionsButton
+            exerciseNo={exercise.exerciseNo}
+            exerciseTitle={exercise.title}
+            programs={exercise.programs}
+            students={students}
+          />
+        )}
       </div>
       <Separator />
 

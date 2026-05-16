@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { awardMarks } from "../labs";
+import { awardMarks } from "../../labs";
 import { toast } from "sonner";
 
 interface MarksEditorProps {

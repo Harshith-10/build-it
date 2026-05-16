@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { user } from "@/db/schema/auth";
 import { userGroupMembers, userGroups } from "@/db/schema/groups";
-import { requireAdmin } from "@/lib/auth-access";
+import { requireAdmin, requireFacultyOrAdmin } from "@/lib/auth-access";
 
 export async function getGroups({
   page = 1,
@@ -20,7 +20,7 @@ export async function getGroups({
   sort?: string;
   order?: "asc" | "desc";
 }) {
-  await requireAdmin();
+  await requireFacultyOrAdmin(); // ✅ faculty can read groups
   const offset = (page - 1) * limit;
 
   const whereClause = search
@@ -132,7 +132,6 @@ export async function deleteGroup(id: string) {
 
 export async function addGroupMember(groupId: string, email: string) {
   await requireAdmin();
-  // Find user by email
   const targetUser = await db.query.user.findFirst({
     where: eq(user.email, email),
   });
@@ -141,7 +140,6 @@ export async function addGroupMember(groupId: string, email: string) {
     return { success: false, error: "User not found" };
   }
 
-  // Check if already member
   const existing = await db.query.userGroupMembers.findFirst({
     where: and(
       eq(userGroupMembers.groupId, groupId),
@@ -183,7 +181,6 @@ export async function bulkCreateGroupWithMembers(data: {
 }) {
   await requireAdmin();
   try {
-    // Create the group
     const [inserted] = await db
       .insert(userGroups)
       .values({
@@ -194,7 +191,6 @@ export async function bulkCreateGroupWithMembers(data: {
 
     const groupId = inserted.id;
 
-    // Deduplicate emails (case-insensitive)
     const uniqueEmails = [
       ...new Set(data.emails.map((e) => e.toLowerCase().trim())),
     ];
@@ -205,7 +201,6 @@ export async function bulkCreateGroupWithMembers(data: {
       alreadyMember: [] as string[],
     };
 
-    // Process each email
     for (const email of uniqueEmails) {
       const targetUser = await db.query.user.findFirst({
         where: eq(user.email, email),
@@ -216,7 +211,6 @@ export async function bulkCreateGroupWithMembers(data: {
         continue;
       }
 
-      // Check if already a member (shouldn't happen for a new group, but just in case)
       const existing = await db.query.userGroupMembers.findFirst({
         where: and(
           eq(userGroupMembers.groupId, groupId),

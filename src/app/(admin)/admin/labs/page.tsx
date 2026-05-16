@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/admin/page-header";
-import { LabsManager } from "./labs-manager";
+import { LabsManager } from "@/components/admin/labs/labs-manager";
 
 export default function LabsPage() {
   return (

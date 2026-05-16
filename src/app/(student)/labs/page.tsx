@@ -4,9 +4,15 @@ import { FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getMyLab } from "@/actions/admin/labs";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 const SEM_COLORS: Record<number, string> = {
   1: "bg-purple-100 text-purple-700 border-purple-200",
@@ -15,63 +21,62 @@ const SEM_COLORS: Record<number, string> = {
   4: "bg-blue-100 text-blue-700 border-blue-200",
 };
 
-export default async function LabsPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export default async function StudentLabsPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) redirect("/auth/sign-in");
 
-  if (!session?.user) {
-    redirect("/auth/sign-in");
-  }
-
-  const result = await getMyLab();
+  const labs = await getMyLab();
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Lab</h2>
+        <h1 className="text-2xl font-bold tracking-tight">Labs</h1>
         <p className="text-muted-foreground">
-          Your programming lab for this semester.
+          Your lab exercises for this semester
         </p>
       </div>
+      <Separator />
 
-      {!result ? (
+      {!labs || labs.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
           <div className="bg-muted mb-4 rounded-full p-4">
             <FlaskConical className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium">No Lab Assigned</h3>
-          <p className="text-muted-foreground mt-1 max-w-sm">
-            There is no lab configured for your semester yet. Please check back
-            later or contact your faculty.
+          <h3 className="text-lg font-medium">No Labs Assigned</h3>
+          <p className="text-muted-foreground mt-1 max-w-sm text-sm">
+            No labs have been configured for your semester yet.
           </p>
         </div>
       ) : (
-        <div className="max-w-sm">
-          <Card className="flex flex-col hover:border-primary/50 transition-colors">
-            <CardHeader>
-              <div className="mb-2 flex items-center justify-between">
-                <Badge
-                  variant="outline"
-                  className={SEM_COLORS[result.semester] ?? ""}
-                >
-                  Semester {result.semester}
-                </Badge>
-                <FlaskConical className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <CardTitle>{result.name}</CardTitle>
-              {result.description && (
-                <CardDescription>{result.description}</CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" asChild>
-                <Link href={`/labs/${result.id}`}>
-                  View Exercises
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {labs.map((lab) => (
+            <Link key={lab.id} href={`/labs/${lab.id}`}>
+              <Card className="transition-all hover:shadow-md hover:border-primary/30 cursor-pointer h-full">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <FlaskConical className="h-5 w-5 text-muted-foreground" />
+                    <Badge
+                      variant="outline"
+                      className={SEM_COLORS[lab.semester] ?? ""}
+                    >
+                      Semester {lab.semester}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-base mt-2">{lab.name}</CardTitle>
+                  {lab.description && (
+                    <CardDescription className="text-xs line-clamp-2">
+                      {lab.description}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-xs text-muted-foreground">
+                    {lab.exercises?.length ?? 0} of 12 exercises added
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
       )}
     </div>
