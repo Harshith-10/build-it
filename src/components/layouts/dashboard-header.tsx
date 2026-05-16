@@ -21,6 +21,7 @@ const labelMap: Record<string, string> = {
   settings: "Settings",
   u: "User",
   me: "Profile",
+  labs: "Labs",
 };
 
 export function DashboardHeader() {
@@ -29,10 +30,11 @@ export function DashboardHeader() {
 
   const crumbs = segments.map((seg, idx) => {
     const href = `/${segments.slice(0, idx + 1).join("/")}`;
-    // Use a generic label for long segments (likely IDs), otherwise look up in map or capitalize
     const label =
       labelMap[seg] ||
-      (seg.length > 8 ? "Details" : seg.charAt(0).toUpperCase() + seg.slice(1));
+      (seg.match(/^[0-9a-f-]{36}$/) // ✅ only UUIDs become "Details"
+        ? "Details"
+        : seg.charAt(0).toUpperCase() + seg.slice(1));
     const isLast = idx === segments.length - 1;
     return { href, label, isLast };
   });
