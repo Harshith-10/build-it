@@ -10,6 +10,6 @@ export default async function RedirectPage() {
   if (!session?.user) redirect("/auth/sign-in");
 
   if (session.user.role === "admin") redirect("/admin");
-  if (session.user.role === "faculty") redirect("/faculty");
-  else redirect("/exams");
+  else if (session.user.role === "faculty") redirect("/faculty");
+  else redirect("/dashboard");
 }

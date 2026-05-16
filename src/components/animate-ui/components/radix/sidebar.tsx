@@ -572,6 +572,7 @@ const sidebarMenuButtonVariants = cva(
 type SidebarMenuButtonProps = React.ComponentProps<"button"> & {
   asChild?: boolean;
   isActive?: boolean;
+  value?: string;
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 } & VariantProps<typeof sidebarMenuButtonVariants>;
 
@@ -581,6 +582,7 @@ function SidebarMenuButton({
   variant = "default",
   size = "default",
   tooltip,
+  value,
   className,
   ...props
 }: SidebarMenuButtonProps) {
@@ -590,6 +592,7 @@ function SidebarMenuButton({
   const button = (
     <HighlightItem
       activeClassName={sidebarMenuButtonActiveVariants({ variant })}
+      value={value}
     >
       <Comp
         data-slot="sidebar-menu-button"
@@ -685,9 +688,11 @@ function SidebarMenuSkeleton({
   ...props
 }: SidebarMenuSkeletonProps) {
   // Random width between 50 to 90%.
-  const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`;
-  }, []);
+  const id = React.useId();
+const width = React.useMemo(() => {
+  const hash = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return `${(hash % 40) + 50}%`;
+}, [id]);
 
   return (
     <div

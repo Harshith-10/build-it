@@ -1,33 +1,26 @@
-import { eq, inArray, and, gt, lt, lte, gte } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   Calendar,
   CheckCircle2,
-  Clock,
   TrendingUp,
   BookOpen,
   Timer,
   Trophy,
   ArrowRight,
-  FlaskConical,
-  Code2,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import {
-  examAssignments,
-  examGroups,
-  exams,
-  userGroupMembers,
-} from "@/db/schema";
+import { examAssignments, examGroups, exams, userGroupMembers } from "@/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocalDateTimeText } from "@/components/ui/local-date-time-text";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DashboardHeader } from "./dashboard-header"; // ← new client component
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,13 +30,6 @@ function formatCountdown(ms: number) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return { hours, minutes, seconds };
-}
-
-function getGreeting(name: string) {
-  const hour = new Date().getHours();
-  if (hour < 12) return `Good morning, ${name}! ☀️`;
-  if (hour < 17) return `Good afternoon, ${name}! 👋`;
-  return `Good evening, ${name}! 🌙`;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -129,42 +115,12 @@ export default async function DashboardPage() {
     .sort((a, b) => b.effectiveEnd.getTime() - a.effectiveEnd.getTime())
     .slice(0, 5);
 
-  // ── Date/time display ──────────────────────────────────────────────────────
-  const dateStr = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const timeStr = now.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
   return (
     <ScrollArea className="h-full">
       <div className="mx-auto max-w-screen-xl flex flex-col gap-6 p-6">
-        {/* ── Header ── */}
-        <div className="flex items-start justify-between flex-wrap gap-2">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {getGreeting(userName)}
-            </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              Stay consistent and keep improving every day.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Calendar className="h-4 w-4" />
-              {dateStr}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4" />
-              {timeStr}
-            </span>
-          </div>
-        </div>
+
+        {/* ── Header — client component avoids hydration mismatch ── */}
+        <DashboardHeader userName={userName} />
 
         {/* ── Upcoming exam banner ── */}
         {nextExam && (
