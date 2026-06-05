@@ -44,3 +44,8 @@ next-env.d.ts
 drizzle/
 data/
 exports/
+tests/
+test-results/
+playwright-report/
+*.test.ts
+*.test.tsx
