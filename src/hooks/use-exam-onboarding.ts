@@ -42,10 +42,13 @@ export function useExamOnboarding({
       // 2. Initialize Session
       const result = await initializeExamSession(examId, pin);
 
-      if (result.success) {
-        initForExam(result.assignmentId!);
+      if (result.success && result.assignmentId) {
+        initForExam(result.assignmentId);
         toast.success("Exam started successfully.");
         router.push(`/exams/${examId}/session`);
+      } else if (result.success) {
+        await document.exitFullscreen().catch(() => {});
+        toast.error("Failed to start exam: missing assignment id.");
       } else {
         // If failed, exit fullscreen (optional, but good UX)
         await document.exitFullscreen().catch(() => {});
