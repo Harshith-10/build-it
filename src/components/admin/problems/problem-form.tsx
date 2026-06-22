@@ -118,10 +118,8 @@ type ProblemFormInitialData = {
 
 export function ProblemForm({
   initialData,
-  basePath = "/admin",
 }: {
   initialData?: ProblemFormInitialData;
-  basePath?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();

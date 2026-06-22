@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { user } from "@/db/schema/auth";
 import { examModerators, exams } from "@/db/schema/exams";
+import { departmentUsers } from "@/db/schema/departments";
 import { auth } from "./auth";
 import {
   canFaculty,
@@ -55,17 +56,27 @@ export async function getFacultyPermissions(userId: string) {
   return normalizeFacultyPermissions(currentUser?.facultyPermissions);
 }
 
+export async function getUserDepartment(userId: string): Promise<string | null> {
+  const deptUser = await db.query.departmentUsers.findFirst({
+    where: eq(departmentUsers.userId, userId),
+    columns: { departmentId: true },
+  });
+  return deptUser?.departmentId ?? null;
+}
+
 export async function ensureEntityPermission(options: {
   entity: FacultyPermissionEntity;
   action: FacultyPermissionAction;
 }) {
   const session = await requireFacultyOrAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
 
   if (session.user.role === "admin") {
     return {
       session,
       isAdmin: true,
       isFaculty: false,
+      userDepartmentId,
     };
   }
 
@@ -81,6 +92,7 @@ export async function ensureEntityPermission(options: {
     isAdmin: false,
     isFaculty: true,
     permissions,
+    userDepartmentId,
   };
 }
 
@@ -100,16 +112,18 @@ export function ensureOwnership(params: {
 
 export async function ensureExamReadAccess(examId: string) {
   const session = await requireFacultyOrAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
 
   const examRecord = await db.query.exams.findFirst({
     where: eq(exams.id, examId),
     columns: {
       id: true,
       ownerId: true,
+      departmentId: true,
     },
   });
 
-  if (!examRecord) {
+  if (!examRecord || examRecord.departmentId !== userDepartmentId) {
     return {
       session,
       isAdmin: session.user.role === "admin",
@@ -117,6 +131,7 @@ export async function ensureExamReadAccess(examId: string) {
       permissions: undefined,
       isOwner: false,
       isModerator: false,
+      userDepartmentId,
       examRecord: null,
     };
   }
@@ -129,6 +144,7 @@ export async function ensureExamReadAccess(examId: string) {
       permissions: undefined,
       isOwner: true,
       isModerator: false,
+      userDepartmentId,
       examRecord,
     };
   }
@@ -148,6 +164,7 @@ export async function ensureExamReadAccess(examId: string) {
       permissions,
       isOwner: true,
       isModerator: false,
+      userDepartmentId,
       examRecord,
     };
   }
@@ -173,6 +190,7 @@ export async function ensureExamReadAccess(examId: string) {
     permissions,
     isOwner: false,
     isModerator: true,
+    userDepartmentId,
     examRecord,
   };
 }

@@ -13,6 +13,7 @@ import {
 import { user } from "./auth";
 import { userGroups } from "./groups";
 import { examCollections } from "./question-collections";
+import { departments } from "./departments";
 
 export const examStatusEnum = pgEnum("exam_status", [
   "upcoming",
@@ -71,6 +72,9 @@ export type GradingConfigMap = {
 
 export const exams = pgTable("exams", {
   id: uuid("id").primaryKey().defaultRandom(),
+  departmentId: uuid("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),

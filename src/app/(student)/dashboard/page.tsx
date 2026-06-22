@@ -237,11 +237,12 @@ export default async function DashboardPage() {
             },
             {
               label: "Completed",
-              value: completedExams,
-              sub:
+              value: `${completedExams}/${totalExams}`,
+              sub: `${
                 totalExams > 0
                   ? `${Math.round((completedExams / totalExams) * 100)}%`
-                  : "0%",
+                  : "0%"
+              }`,
               icon: CheckCircle2,
             },
             {
