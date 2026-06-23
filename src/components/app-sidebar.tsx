@@ -31,7 +31,6 @@ import {
   SidebarRail,
 } from "@/components/animate-ui/components/radix/sidebar";
 import { UserMenu } from "@/components/user-menu";
-import { url } from "node:inspector";
 
 const adminNavMain = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
