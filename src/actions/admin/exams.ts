@@ -797,9 +797,12 @@ export async function getExamAbsentees(examId: string) {
     .where(
       and(
         eq(examGroups.examId, examId),
+        ne(user.role, "admin"),
+        ne(user.role, "faculty"),
         isNull(examAssignments.id), // No submission record = absentee
       ),
-    );
+    )
+    .groupBy(user.id, user.name, user.email, user.username);
 
   return {
     absentees,
