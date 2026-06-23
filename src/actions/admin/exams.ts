@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, ilike, inArray, ne, or, sql, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, notInArray, or, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { examAssignments } from "@/db/schema/assignments";
@@ -8,6 +8,7 @@ import { user } from "@/db/schema/auth";
 import type { GradingConfigMap, StrategyConfig } from "@/db/schema/exams";
 import { examGroups, examModerators, exams } from "@/db/schema/exams";
 import { examCollections } from "@/db/schema/question-collections";
+import { userGroupMembers } from "@/db/schema/groups";
 import {
   ensureEntityPermission,
   ensureExamReadAccess,
@@ -672,6 +673,12 @@ export async function getExamSubmissions({
         orderBy =
           order === "asc" ? sql`${user.name} asc` : sql`${user.name} desc`;
         break;
+      case "user.username":
+        orderBy =
+          order === "asc"
+            ? sql`${user.username} asc`
+            : sql`${user.username} desc`;
+        break;
       case "status":
         orderBy =
           order === "asc"
@@ -732,6 +739,71 @@ export async function getExamSubmissions({
     page,
     limit,
     canDelete: access.isAdmin || access.isOwner,
+  };
+}
+
+export async function getExamAbsentees(examId: string) {
+  const access = await ensureExamReadAccess(examId);
+
+  if (!access.examRecord) {
+    return {
+      absentees: [],
+      total: 0,
+    };
+  }
+
+  const assignedGroupCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(examGroups)
+    .where(eq(examGroups.examId, examId));
+
+  const hasAssignedGroups = Number(assignedGroupCount[0]?.count || 0) > 0;
+
+  if (!hasAssignedGroups) {
+    const absentees = await db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+      })
+      .from(user)
+      .where(and(ne(user.role, "admin"), ne(user.role, "faculty")));
+
+    return {
+      absentees,
+      total: absentees.length,
+    };
+  }
+
+  // Get all students from assigned groups who have NO submission record (absentees)
+  const absentees = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+    })
+    .from(userGroupMembers)
+    .innerJoin(examGroups, eq(userGroupMembers.groupId, examGroups.groupId))
+    .innerJoin(user, eq(userGroupMembers.userId, user.id))
+    .leftJoin(
+      examAssignments,
+      and(
+        eq(examAssignments.userId, user.id),
+        eq(examAssignments.examId, examId),
+      ),
+    )
+    .where(
+      and(
+        eq(examGroups.examId, examId),
+        isNull(examAssignments.id), // No submission record = absentee
+      ),
+    );
+
+  return {
+    absentees,
+    total: absentees.length,
   };
 }
 
