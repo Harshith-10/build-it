@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, ilike, inArray, ne, notInArray, or, sql, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, or, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { examAssignments } from "@/db/schema/assignments";
