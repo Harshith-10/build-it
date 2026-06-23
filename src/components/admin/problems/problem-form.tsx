@@ -118,6 +118,7 @@ type ProblemFormInitialData = {
 
 export function ProblemForm({
   initialData,
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: TODO: Remove this
   basePath = "/admin",
 }: {
   initialData?: ProblemFormInitialData;

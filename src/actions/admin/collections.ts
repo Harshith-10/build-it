@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -11,6 +11,7 @@ import {
   ensureEntityPermission,
   ensureOwnership,
   requireAdmin,
+  getUserDepartment,
 } from "@/lib/auth-access";
 
 export async function getCollections({
@@ -40,7 +41,11 @@ export async function getCollections({
     ? undefined
     : eq(questionCollections.ownerId, access.session.user.id);
 
-  const whereClause = and(ownershipClause, searchClause);
+  const departmentClause = access.userDepartmentId
+    ? eq(questionCollections.departmentId, access.userDepartmentId)
+    : isNull(questionCollections.departmentId);
+
+  const whereClause = and(ownershipClause, searchClause, departmentClause);
 
   let orderBy = desc(questionCollections.createdAt);
   if (sort) {
@@ -89,7 +94,12 @@ export async function getCollection(id: string) {
   });
 
   const collection = await db.query.questionCollections.findFirst({
-    where: eq(questionCollections.id, id),
+    where: and(
+      eq(questionCollections.id, id),
+      access.userDepartmentId
+        ? eq(questionCollections.departmentId, access.userDepartmentId)
+        : isNull(questionCollections.departmentId)
+    ),
     with: {
       questions: {
         with: {
@@ -131,11 +141,15 @@ export async function upsertCollection(data: {
     if (collectionId) {
       const current = await db.query.questionCollections.findFirst({
         where: eq(questionCollections.id, collectionId),
-        columns: { ownerId: true },
+        columns: { ownerId: true, departmentId: true },
       });
 
       if (!current) {
         return { success: false, error: "Collection not found" };
+      }
+
+      if (current.departmentId !== access.userDepartmentId) {
+        return { success: false, error: "Forbidden: department mismatch" };
       }
 
       ensureOwnership({
@@ -163,6 +177,7 @@ export async function upsertCollection(data: {
         .insert(questionCollections)
         .values({
           ownerId: access.session.user.id,
+          departmentId: access.userDepartmentId,
           title: data.title,
           description: data.description,
           isPrivate: access.isAdmin ? (data.isPrivate ?? true) : true,
@@ -203,11 +218,15 @@ export async function deleteCollection(id: string) {
   try {
     const current = await db.query.questionCollections.findFirst({
       where: eq(questionCollections.id, id),
-      columns: { ownerId: true },
+      columns: { ownerId: true, departmentId: true },
     });
 
     if (!current) {
       return { success: false, error: "Collection not found" };
+    }
+
+    if (current.departmentId !== access.userDepartmentId) {
+      return { success: false, error: "Forbidden: department mismatch" };
     }
 
     ensureOwnership({
@@ -230,7 +249,17 @@ export async function transferCollectionOwnership(
   newOwnerId: string,
 ) {
   const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
   try {
+    const current = await db.query.questionCollections.findFirst({
+      where: eq(questionCollections.id, id),
+      columns: { departmentId: true },
+    });
+
+    if (!current || current.departmentId !== userDepartmentId) {
+      return { success: false, error: "Forbidden: department mismatch" };
+    }
+
     await db
       .update(questionCollections)
       .set({

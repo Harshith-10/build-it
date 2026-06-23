@@ -5,6 +5,7 @@ import {
   Code,
   Cog,
   FileQuestion,
+  FlaskConical,
   GraduationCap,
   Group,
   LayoutDashboard,
@@ -44,9 +45,36 @@ const adminNavMain = [
 ];
 
 const studentNavMain = [
-  { title: "Playground", url: "/playground", icon: Terminal },
-  { title: "Exams", url: "/exams", icon: GraduationCap },
-  { title: "Code365", url: "/code365", icon: Code },
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Playground",
+    url: "/playground",
+    icon: Terminal,
+  },
+  {
+    title: "Exams",
+    url: "/exams",
+    icon: GraduationCap,
+  },
+  {
+    title: "Code365",
+    url: "/code365",
+    icon: Code
+  },
+  {
+    title: "Labs",
+    url: "/labs",
+    icon: FlaskConical,
+  },
+  {
+    title: "Analytics",
+    url: "/analytics",
+    icon: BarChart2,
+  },
 ];
 
 const facultyNavMain = [

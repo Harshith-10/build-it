@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, or, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { examAssignments } from "@/db/schema/assignments";
@@ -170,10 +170,11 @@ async function ensureExamManageAccess(
     columns: {
       id: true,
       ownerId: true,
+      departmentId: true,
     },
   });
 
-  if (!examRecord) {
+  if (!examRecord || examRecord.departmentId !== access.userDepartmentId) {
     return {
       access,
       examRecord: null,
@@ -267,6 +268,7 @@ export async function getExams({
   const canReadOwnExams = isAdmin
     ? true
     : (await getFacultyPermissions(session.user.id)).exams.read;
+  const userDepartmentId = await (await import("@/lib/auth-access")).getUserDepartment(session.user.id);
 
   const offset = (page - 1) * limit;
 
@@ -286,7 +288,11 @@ export async function getExams({
         )`,
       );
 
-  const whereClause = and(ownershipClause, searchClause);
+  const departmentClause = userDepartmentId
+    ? eq(exams.departmentId, userDepartmentId)
+    : isNull(exams.departmentId);
+
+  const whereClause = and(ownershipClause, searchClause, departmentClause);
 
   let orderBy = desc(exams.createdAt);
   if (sort) {
@@ -526,6 +532,7 @@ export async function upsertExam(data: UpsertExamInput) {
         .values({
           ...commonFields,
           ownerId: access.session.user.id,
+          departmentId: access.userDepartmentId,
           isPrivate: access.isAdmin ? (data.isPrivate ?? true) : true,
         })
         .returning();

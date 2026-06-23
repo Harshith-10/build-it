@@ -44,6 +44,12 @@ async function createGroup() {
 
   if (!name) return console.log("⚠️  Group name is required.");
 
+  if (name.toLowerCase() === "all users") {
+    return console.log(
+      "⚠️  The 'All Users' group is a virtual group and cannot be created.",
+    );
+  }
+
   await db.insert(userGroups).values({ name, description });
   console.log("✅ Group created.");
 }
@@ -78,6 +84,17 @@ async function manageSingleGroup() {
 }
 
 async function deleteGroup(groupId: string) {
+  const group = await db.query.userGroups.findFirst({
+    where: eq(userGroups.id, groupId),
+    columns: { name: true },
+  });
+
+  if (group?.name.toLowerCase() === "all users") {
+    return console.log(
+      "⚠️  The 'All Users' group is a virtual group and cannot be deleted.",
+    );
+  }
+
   const isConfirmed = await confirm({
     message: "Are you sure you want to delete this group?",
     default: false,

@@ -1,11 +1,11 @@
 "use server";
 
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { user } from "@/db/schema/auth";
 import { userGroupMembers, userGroups } from "@/db/schema/groups";
-import { requireAdmin } from "@/lib/auth-access";
+import { requireAdmin, getUserDepartment } from "@/lib/auth-access";
 
 export async function getGroups({
   page = 1,
@@ -20,12 +20,19 @@ export async function getGroups({
   sort?: string;
   order?: "asc" | "desc";
 }) {
-  await requireAdmin();
+  const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
   const offset = (page - 1) * limit;
 
-  const whereClause = search
+  const searchClause = search
     ? or(ilike(userGroups.name, `%${search}%`))
     : undefined;
+
+  const departmentClause = userDepartmentId
+    ? eq(userGroups.departmentId, userDepartmentId)
+    : isNull(userGroups.departmentId);
+
+  const whereClause = searchClause ? and(searchClause, departmentClause) : departmentClause;
 
   let orderBy = desc(userGroups.createdAt);
   if (sort) {
@@ -45,7 +52,7 @@ export async function getGroups({
     }
   }
 
-  const [data, totalCount] = await Promise.all([
+  const [data, totalCountResult] = await Promise.all([
     db
       .select()
       .from(userGroups)
@@ -59,18 +66,54 @@ export async function getGroups({
       .where(whereClause),
   ]);
 
+  const total = Number(totalCountResult[0]?.count || 0);
+
+  // Manually add the "All Users" group
+  const allUsersGroup = {
+    id: "all-users-virtual",
+    name: "All Users",
+    description: "A group containing all users in the system.",
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+  };
+
+  const groups = [allUsersGroup, ...data];
+
   return {
-    groups: data,
-    total: Number(totalCount[0]?.count || 0),
+    groups: groups,
+    total: total + 1, // Add 1 for the virtual group
     page,
     limit,
   };
 }
 
 export async function getGroup(id: string) {
-  await requireAdmin();
+  const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
+
+  if (id === "all-users-virtual") {
+    const allUsers = await db.select().from(user);
+    return {
+      id: "all-users-virtual",
+      name: "All Users",
+      description: "A group containing all users in the system.",
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+      members: allUsers.map((u) => ({
+        id: `virtual-member-${u.id}`,
+        groupId: "all-users-virtual",
+        userId: u.id,
+        joinedAt: u.createdAt ?? new Date(0),
+        user: u,
+      })),
+    };
+  }
+
   const group = await db.query.userGroups.findFirst({
-    where: eq(userGroups.id, id),
+    where: and(
+      eq(userGroups.id, id),
+      userDepartmentId ? eq(userGroups.departmentId, userDepartmentId) : isNull(userGroups.departmentId)
+    ),
     with: {
       members: {
         with: {
@@ -87,10 +130,28 @@ export async function upsertGroup(data: {
   name: string;
   description?: string;
 }) {
-  await requireAdmin();
+  const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
+
+  if (data.id === "all-users-virtual") {
+    throw new Error("The 'All Users' group is virtual and cannot be modified.");
+  }
+  if (data.name.toLowerCase() === "all users") {
+    throw new Error(
+      "The group name 'All Users' is reserved for the virtual group.",
+    );
+  }
+
   try {
     let groupId = data.id;
     if (data.id) {
+      const current = await db.query.userGroups.findFirst({
+        where: eq(userGroups.id, data.id),
+        columns: { departmentId: true },
+      });
+      if (!current || current.departmentId !== userDepartmentId) {
+        return { success: false, error: "Forbidden: department mismatch" };
+      }
       await db
         .update(userGroups)
         .set({
@@ -105,6 +166,7 @@ export async function upsertGroup(data: {
         .values({
           name: data.name,
           description: data.description,
+          departmentId: userDepartmentId,
         })
         .returning({ id: userGroups.id });
       groupId = inserted.id;
@@ -120,8 +182,22 @@ export async function upsertGroup(data: {
 }
 
 export async function deleteGroup(id: string) {
-  await requireAdmin();
+  const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
+  if (id === "all-users-virtual") {
+    return {
+      success: false,
+      error: "The 'All Users' group is virtual and cannot be deleted.",
+    };
+  }
   try {
+    const current = await db.query.userGroups.findFirst({
+      where: eq(userGroups.id, id),
+      columns: { departmentId: true },
+    });
+    if (!current || current.departmentId !== userDepartmentId) {
+      return { success: false, error: "Forbidden: department mismatch" };
+    }
     await db.delete(userGroups).where(eq(userGroups.id, id));
     revalidatePath("/admin/groups");
     return { success: true };
@@ -131,7 +207,23 @@ export async function deleteGroup(id: string) {
 }
 
 export async function addGroupMember(groupId: string, email: string) {
-  await requireAdmin();
+  const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
+  if (groupId === "all-users-virtual") {
+    return {
+      success: false,
+      error: "Cannot add members to the virtual 'All Users' group.",
+    };
+  }
+  
+  const currentGroup = await db.query.userGroups.findFirst({
+    where: eq(userGroups.id, groupId),
+    columns: { departmentId: true },
+  });
+  if (!currentGroup || currentGroup.departmentId !== userDepartmentId) {
+    return { success: false, error: "Forbidden: department mismatch" };
+  }
+
   // Find user by email
   const targetUser = await db.query.user.findFirst({
     where: eq(user.email, email),
@@ -163,7 +255,23 @@ export async function addGroupMember(groupId: string, email: string) {
 }
 
 export async function removeGroupMember(groupId: string, userId: string) {
-  await requireAdmin();
+  const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
+  if (groupId === "all-users-virtual") {
+    return {
+      success: false,
+      error: "Cannot remove members from the virtual 'All Users' group.",
+    };
+  }
+
+  const currentGroup = await db.query.userGroups.findFirst({
+    where: eq(userGroups.id, groupId),
+    columns: { departmentId: true },
+  });
+  if (!currentGroup || currentGroup.departmentId !== userDepartmentId) {
+    return { success: false, error: "Forbidden: department mismatch" };
+  }
+
   await db
     .delete(userGroupMembers)
     .where(
@@ -181,7 +289,8 @@ export async function bulkCreateGroupWithMembers(data: {
   description?: string;
   emails: string[];
 }) {
-  await requireAdmin();
+  const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
   try {
     // Create the group
     const [inserted] = await db
@@ -189,6 +298,7 @@ export async function bulkCreateGroupWithMembers(data: {
       .values({
         name: data.name,
         description: data.description,
+        departmentId: userDepartmentId,
       })
       .returning({ id: userGroups.id });
 

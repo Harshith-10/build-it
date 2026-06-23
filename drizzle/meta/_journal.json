@@ -26,15 +26,8 @@
     {
       "idx": 3,
       "version": "7",
-      "when": 1778597205164,
-      "tag": "0003_steep_vengeance",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1778761238129,
-      "tag": "0004_slim_giant_girl",
+      "when": 1777622383758,
+      "tag": "0003_careless_gorgon",
       "breakpoints": true
     }
   ]
