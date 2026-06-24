@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -70,14 +70,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 type Lab = Awaited<ReturnType<typeof getLabs>>[number];
 type Exercise = Awaited<ReturnType<typeof getExercises>>[number];
 
 type View = "labs" | "exercises";
 
-// ─── Schemas ──────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Schemas ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -109,7 +109,7 @@ const SEM_COLORS: Record<number, string> = {
   4: "bg-blue-100 text-blue-700 border-blue-200",
 };
 
-// ─── Lab Form Dialog ──────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Lab Form Dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function LabFormDialog({
   open,
@@ -239,7 +239,7 @@ function LabFormDialog({
   );
 }
 
-// ─── Schedule Dialog ──────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Schedule Dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function ScheduleDialog({
   open,
@@ -344,7 +344,7 @@ function ScheduleDialog({
             {existingWindow && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                Currently scheduled — saving will update all groups.
+                Currently scheduled ΓÇö saving will update all groups.
               </p>
             )}
             <div className="flex justify-end gap-2 pt-2">
@@ -365,7 +365,7 @@ function ScheduleDialog({
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Main Component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export function LabsManager() {
   const [view, setView] = useState<View>("labs");
@@ -386,7 +386,7 @@ export function LabsManager() {
   const [schedulingExercise, setSchedulingExercise] =
     useState<Exercise | null>(null);
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Data fetching ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   const fetchLabs = async () => {
     setLoading(true);
@@ -412,7 +412,7 @@ export function LabsManager() {
     fetchLabs();
   }, []);
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Navigation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   const openLab = (lab: Lab) => {
     setSelectedLab(lab);
@@ -425,7 +425,7 @@ export function LabsManager() {
     setSelectedLab(null);
   };
 
-  // ── Delete handlers ────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Delete handlers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   const handleDeleteLab = async (id: string) => {
     const res = await deleteLab(id);
@@ -447,7 +447,7 @@ export function LabsManager() {
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Render ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   if (loading) {
     return (
@@ -481,7 +481,7 @@ export function LabsManager() {
         )}
       </div>
 
-      {/* ── Labs View ── */}
+      {/* ΓöÇΓöÇ Labs View ΓöÇΓöÇ */}
       {view === "labs" && (
         <>
           <div className="flex items-center justify-between">
@@ -581,7 +581,7 @@ export function LabsManager() {
         </>
       )}
 
-      {/* ── Exercises View ── */}
+      {/* ΓöÇΓöÇ Exercises View ΓöÇΓöÇ */}
       {view === "exercises" && selectedLab && (
         <>
           <div className="flex items-center justify-between">
@@ -634,7 +634,7 @@ export function LabsManager() {
                         {collection.name}
                         {collection.questions?.length != null && (
                           <span className="ml-1">
-                            · {collection.questions.length} programs
+                            ┬╖ {collection.questions.length} programs
                           </span>
                         )}
                       </p>
@@ -648,7 +648,7 @@ export function LabsManager() {
                     {hasSchedule && window?.startTime && window?.endTime && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                         <Clock className="h-3 w-3" />
-                        {new Date(window.startTime).toLocaleString()} →{" "}
+                        {new Date(window.startTime).toLocaleString()} ΓåÆ{" "}
                         {new Date(window.endTime).toLocaleString()}
                         {isActive && (
                           <span className="ml-1 inline-flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -742,7 +742,7 @@ export function LabsManager() {
         </>
       )}
 
-      {/* ── Dialogs ── */}
+      {/* ΓöÇΓöÇ Dialogs ΓöÇΓöÇ */}
       <LabFormDialog
         open={labDialog}
         onClose={() => setLabDialog(false)}

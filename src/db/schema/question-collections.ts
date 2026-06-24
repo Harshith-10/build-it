@@ -11,9 +11,13 @@ import {
 import { exams } from "./exams";
 import { questions } from "./questions";
 import { exercises } from "./labs";
+import { departments } from "./departments";
 
 export const questionCollections = pgTable("question_collections", {
   id: uuid("id").primaryKey().defaultRandom(),
+  departmentId: uuid("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),

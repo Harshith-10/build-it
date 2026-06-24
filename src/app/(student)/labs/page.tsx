@@ -3,14 +3,7 @@ import { redirect } from "next/navigation";
 import { FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { getMyLab } from "@/actions/admin/labs";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { getMyLab } from "@/actions/student/labs/submissions";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 

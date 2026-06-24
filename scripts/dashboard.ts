@@ -14,6 +14,7 @@ async function main() {
         { name: "Problem Management", value: "Problem Management" },
         { name: "Collection Management", value: "Collection Management" },
         { name: "Assignment Management", value: "Assignment Management" },
+        { name: "Department Management", value: "Department Management" },
         { name: "System & Database", value: "System & Database" },
         { name: "Exit", value: "Exit" },
       ],
@@ -97,6 +98,17 @@ async function main() {
       scriptPath = action;
     } else if (category === "Collection Management") {
       scriptPath = "scripts/collections/manage-collections.ts";
+    } else if (category === "Department Management") {
+      const action = await select({
+        message: "Department Management:",
+        choices: [
+          { name: "Create Department", value: "scripts/departments/create-department.ts" },
+          { name: "Back", value: "back" },
+        ],
+        loop: false,
+      });
+      if (action === "back") continue;
+      scriptPath = action;
     } else if (category === "System & Database") {
       const action = await select({
         message: "System Utils:",

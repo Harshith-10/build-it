@@ -1,10 +1,11 @@
+import { BookOpen, Clock, Lock } from "lucide-react";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { BookOpen, Lock } from "lucide-react";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { getMyExercises } from "@/actions/admin/labs";
+import { notFound, redirect } from "next/navigation";
+import { getMyExercises } from "@/actions/student/labs/submissions";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
 
 function getWindowStatus(startTime: Date | null, endTime: Date | null) {
   if (!startTime || !endTime) return "locked";

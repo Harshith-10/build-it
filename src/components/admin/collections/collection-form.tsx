@@ -282,7 +282,7 @@ export function CollectionForm({
                             <div className="flex-1 min-w-0 text-sm font-medium text-left truncate">
                               {problem?.title || "Unknown Problem"}
                             </div>
-                            
+
                             {problem && (
                               <Badge
                                 variant="outline"
@@ -292,9 +292,7 @@ export function CollectionForm({
                               </Badge>
                             )}
                             {problem && (
-                              <Link
-                                href={`${basePath}/problems/${id}`}
-                              >
+                              <Link href={`${basePath}/problems/${id}`}>
                                 <Button variant="outline" size="icon-sm">
                                   <Pencil />
                                 </Button>

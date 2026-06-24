@@ -1,15 +1,13 @@
 "use server";
 
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
-  labs,
   exercises,
   labSubmissions,
   exerciseMarks,
 } from "@/db/schema/labs";
-import { eq, count, inArray } from "drizzle-orm";
+import { eq, count, countDistinct, inArray } from "drizzle-orm";
+import { ensureEntityPermission } from "@/lib/auth-access";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,8 +58,7 @@ export type ExerciseSubmissionsResult = {
 
 export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    await ensureEntityPermission({ entity: "labs", action: "read" });
 
     const allLabs = await db.query.labs.findMany({
       orderBy: (l, { asc }) => [asc(l.semester)],
@@ -90,7 +87,7 @@ export async function getFacultyLabOverview(): Promise<FacultyLabOverviewResult>
             let submissionCount = 0;
             if (programIds.length > 0) {
               const [row] = await db
-                .select({ value: count(labSubmissions.userId) })
+                .select({ value: countDistinct(labSubmissions.userId) })
                 .from(labSubmissions)
                 .where(inArray(labSubmissions.programId, programIds));
               submissionCount = row?.value ?? 0;
@@ -124,8 +121,7 @@ export async function getExerciseSubmissions(
   exerciseId: string
 ): Promise<ExerciseSubmissionsResult> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    await ensureEntityPermission({ entity: "labs", action: "read" });
 
     // Load exercise + its programs
     const exercise = await db.query.exercises.findFirst({
@@ -245,8 +241,7 @@ export async function awardMarks({
   marks: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return { success: false, error: "Unauthorized" };
+    await ensureEntityPermission({ entity: "labs", action: "update" });
 
     await db
       .insert(exerciseMarks)

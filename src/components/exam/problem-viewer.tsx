@@ -83,11 +83,11 @@ export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
                           >
                             {children}
                           </h1>
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={cn(
                               "capitalize shrink-0 px-3 py-1 text-sm leading-none mt-1.5",
-                              difficultyStyles(question.difficulty)
+                              difficultyStyles(question.difficulty),
                             )}
                           >
                             {question.difficulty}

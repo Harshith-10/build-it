@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, lte, gte } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { labSubmissions, exerciseGroups, exercises, labs } from "@/db/schema/labs";
@@ -41,6 +41,7 @@ export async function getMyExercises(labId: string) {
   const studentGroups = await db.query.userGroupMembers.findMany({
     where: eq(userGroupMembers.userId, session.user.id),
   });
+
   const groupIds = studentGroups.map((g) => g.groupId);
 
   // Get all time windows for these exercises for the student's groups
@@ -60,8 +61,8 @@ export async function getMyExercises(labId: string) {
     const window = windows.find((w) => w.exerciseId === exercise.id);
     return {
       ...exercise,
-      startTime: window?.startTime ?? null,
-      endTime: window?.endTime ?? null,
+      windowStart: window?.startTime ?? null,
+      windowEnd: window?.endTime ?? null,
     };
   });
 
@@ -117,13 +118,12 @@ export async function getProgramsForExercise(exerciseId: string) {
 
   // Map collection questions to programs
   const programs = exercise.collection?.questions.map((cq, idx) => ({
-  id: cq.questionId,
-  programNo: idx + 1,
-  title: cq.question.title,
-  description: cq.question.problemStatement,
-  testCases: cq.question.testCases ?? [], 
-  
-})) ?? [];
+    id: cq.questionId,
+    programNo: idx + 1,
+    title: cq.question.title,
+    description: cq.question.problemStatement,
+    testCases: cq.question.testCases ?? [],
+  })) ?? [];
 
   const programIds = programs.map((p) => p.id);
 
@@ -181,7 +181,7 @@ export async function markProgramSolved(data: {
         eq(exerciseGroups.exerciseId, exerciseId),
         inArray(exerciseGroups.groupId, groupIds),
         lte(exerciseGroups.startTime, now),
-        gte(exerciseGroups.endTime, now)
+        gte(exerciseGroups.endTime, now),
       ),
     });
 

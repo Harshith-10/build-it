@@ -14,6 +14,7 @@ interface ExamCardActionProps {
   status: "upcoming" | "active" | "ended";
   effectiveStart: Date;
   isSubmitted?: boolean;
+  serverNowMs: number;
 }
 
 export function ExamCardAction({
@@ -21,9 +22,11 @@ export function ExamCardAction({
   status: initialStatus,
   effectiveStart,
   isSubmitted = false,
+  serverNowMs,
 }: ExamCardActionProps) {
   const [status, setStatus] = useState(initialStatus);
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
+  const [serverOffsetMs] = useState(() => serverNowMs - Date.now());
   const router = useRouter();
   const { status: jetStatus } = useJetStore();
 
@@ -34,7 +37,7 @@ export function ExamCardAction({
     const targetTime = new Date(effectiveStart).getTime();
 
     const updateTimer = () => {
-      const now = Date.now();
+      const now = Date.now() + serverOffsetMs;
       const diff = targetTime - now;
 
       if (diff <= 0) {
@@ -63,7 +66,7 @@ export function ExamCardAction({
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [status, effectiveStart, router]);
+  }, [status, effectiveStart, router, serverOffsetMs]);
 
   // If exam is already submitted, show "Submitted" button with link to results
   if (isSubmitted) {
@@ -105,7 +108,7 @@ export function ExamCardAction({
   if (status === "ended") {
     return (
       <Button
-        variant="secondary"
+        variant="outline"
         className="w-full cursor-not-allowed"
         asChild
         disabled

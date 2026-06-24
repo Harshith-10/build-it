@@ -1,10 +1,11 @@
+import { Code2 } from "lucide-react";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Lock } from "lucide-react";
-import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { getProgramsForExercise } from "@/actions/student/labs/submissions";
 import { Button } from "@/components/ui/button";
+import { getProgramsForExercise } from "@/actions/student/labs/submissions";
+import { auth } from "@/lib/auth";
 import { LabIDEShell } from "@/components/labs/lab-ide-shell";
 
 export default async function ExercisePage({

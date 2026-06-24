@@ -22,6 +22,7 @@ const labelMap: Record<string, string> = {
   u: "User",
   me: "Profile",
   labs: "Labs",
+  code365: "Code365",
 };
 
 export function DashboardHeader() {

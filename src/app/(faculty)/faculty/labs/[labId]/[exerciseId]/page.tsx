@@ -1,11 +1,9 @@
+import { CheckCircle2, Circle, Users } from "lucide-react";
 import { headers } from "next/headers";
-import { redirect, notFound } from "next/navigation";
-import { Users, CheckCircle2, Circle } from "lucide-react";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { getExerciseSubmissions } from "../../labs";
-import { Separator } from "@/components/ui/separator";
+import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -14,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { auth } from "@/lib/auth";
+import { getExerciseSubmissions } from "../../labs";
 import { MarksEditor } from "./marks-editor";
 import { DownloadSubmissionsButton } from "./download-submissions-button";
 
@@ -111,7 +111,9 @@ export default async function FacultyExerciseSubmissionsPage({
                     </div>
                   </TableCell>
                   {exercise.programs.map((program) => {
-                    const solved = student.solvedProgramIds.includes(program.id);
+                    const solved = student.solvedProgramIds.includes(
+                      program.id,
+                    );
                     return (
                       <TableCell key={program.id} className="text-center">
                         {solved ? (
@@ -124,7 +126,8 @@ export default async function FacultyExerciseSubmissionsPage({
                   })}
                   <TableCell className="text-center">
                     <Badge variant="outline">
-                      {student.solvedProgramIds.length}/{exercise.programs.length}
+                      {student.solvedProgramIds.length}/
+                      {exercise.programs.length}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">

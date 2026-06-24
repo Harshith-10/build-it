@@ -1,15 +1,29 @@
-import { eq, inArray, desc } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
+import {
+  BookOpen,
+  Code2,
+  Flame,
+  Star,
+  Target,
+  TrendingUp,
+  Trophy,
+} from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { TrendingUp, Trophy, Target, BookOpen, Flame, Code2, Star } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { db } from "@/db";
 import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { PerformanceChart } from "./performance-chart";
 import type { GradingConfigMap } from "@/db/schema/exams";
+import { auth } from "@/lib/auth";
+import { PerformanceChart } from "./performance-chart";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -55,9 +69,10 @@ export default async function AnalyticsPage() {
     with: {
       exam: {
         with: {
-          groups: userGroupIds.length > 0
-            ? { where: inArray(examGroups.groupId, userGroupIds) }
-            : undefined,
+          groups:
+            userGroupIds.length > 0
+              ? { where: inArray(examGroups.groupId, userGroupIds) }
+              : undefined,
         },
       },
     },
@@ -112,7 +127,7 @@ export default async function AnalyticsPage() {
       year: "2-digit",
     });
     if (!monthlyMap.has(key)) monthlyMap.set(key, []);
-    monthlyMap.get(key)!.push(a.accuracy);
+    monthlyMap.get(key)?.push(a.accuracy);
   }
 
   const chartData = Array.from(monthlyMap.entries())
@@ -127,7 +142,7 @@ export default async function AnalyticsPage() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="mx-auto max-w-screen-xl flex flex-col gap-6 p-6">
+      <div className="mx-auto max-w-screen-xl flex flex-col gap-6">
         {/* ── Header ── */}
         <div className="flex items-start justify-between flex-wrap gap-2">
           <div>
@@ -144,78 +159,94 @@ export default async function AnalyticsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {/* Average Score */}
           <Card>
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="rounded-full bg-purple-100 dark:bg-purple-950 p-3 shrink-0">
-                <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Average Score</CardTitle>
+                <TrendingUp className="size-5 text-purple-600 dark:text-purple-400" />
               </div>
+            </CardHeader>
+            <CardContent className="flex items-center gap-4">
               <div>
-                <p className="text-xs text-muted-foreground font-medium">
-                  Average Score
-                </p>
-                <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                <p className="text-4xl font-bold text-purple-600 dark:text-purple-400">
                   {avgScore ? `${avgScore}%` : "—"}
                 </p>
-                <p className="text-xs text-muted-foreground">Across all exams</p>
               </div>
             </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">Across all exams</p>
+            </CardFooter>
           </Card>
 
           {/* Exams Attempted */}
           <Card>
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="rounded-full bg-green-100 dark:bg-green-950 p-3 shrink-0">
-                <BookOpen className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Exams Attempted</CardTitle>
+                <BookOpen className="size-5 text-green-600 dark:text-green-400" />
               </div>
+            </CardHeader>
+            <CardContent className="flex items-center gap-4">
               <div>
-                <p className="text-xs text-muted-foreground font-medium">
-                  Exams Attempted
-                </p>
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                <p className="text-4xl font-bold text-green-600 dark:text-green-400">
                   {examsAttempted}
                 </p>
-                <p className="text-xs text-muted-foreground">All time</p>
               </div>
             </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">All time</p>
+            </CardFooter>
           </Card>
 
           {/* Highest Score */}
           <Card>
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="rounded-full bg-amber-100 dark:bg-amber-950 p-3 shrink-0">
-                <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Highest Score</CardTitle>
+                <Trophy className="size-5 text-amber-600 dark:text-amber-400" />
               </div>
+            </CardHeader>
+            <CardContent className="flex items-center gap-4">
               <div>
-                <p className="text-xs text-muted-foreground font-medium">
-                  Highest Score
-                </p>
-                <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+                <p className="text-4xl font-bold text-amber-600 dark:text-amber-400">
                   {highestEntry?.accuracy != null
                     ? `${highestEntry.accuracy}%`
                     : "—"}
                 </p>
-                <p className="text-xs text-muted-foreground truncate max-w-[120px]">
-                  {highestEntry?.exam.title ?? "N/A"}
-                </p>
               </div>
             </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">
+                Highest score in{" "}
+                <span className="font-medium">
+                  {highestEntry?.exam.title ?? "N/A"}
+                </span>
+              </p>
+            </CardFooter>
           </Card>
 
           {/* Accuracy */}
           <Card>
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="rounded-full bg-blue-100 dark:bg-blue-950 p-3 shrink-0">
-                <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Accuracy</CardTitle>
+                <Target className="size-5 text-blue-600 dark:text-blue-400" />
               </div>
+            </CardHeader>
+            <CardContent className="flex items-center gap-4">
               <div>
-                <p className="text-xs text-muted-foreground font-medium">
-                  Accuracy
-                </p>
-                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">
                   {avgAccuracy != null ? `${avgAccuracy}%` : "—"}
                 </p>
-                <p className="text-xs text-muted-foreground">Average accuracy</p>
               </div>
             </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">
+                Average accuracy across{" "}
+                <span className="font-medium">
+                  {examsAttempted} exam{examsAttempted !== 1 ? "s" : ""}
+                </span>
+              </p>
+            </CardFooter>
           </Card>
         </div>
 
@@ -248,7 +279,9 @@ export default async function AnalyticsPage() {
                   <Flame className="h-5 w-5 text-orange-500 dark:text-orange-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Current Streak</p>
+                  <p className="text-xs text-muted-foreground">
+                    Current Streak
+                  </p>
                   <p className="text-2xl font-bold">—</p>
                   <p className="text-xs text-muted-foreground">Coming soon</p>
                 </div>
@@ -256,7 +289,9 @@ export default async function AnalyticsPage() {
                   <Code2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Problems Solved</p>
+                  <p className="text-xs text-muted-foreground">
+                    Problems Solved
+                  </p>
                   <p className="text-2xl font-bold">—</p>
                   <p className="text-xs text-muted-foreground">All time</p>
                 </div>
@@ -334,7 +369,8 @@ export default async function AnalyticsPage() {
                           <span className="font-semibold">{a.score ?? 0}</span>
                           {a.totalMarks && (
                             <span className="text-muted-foreground">
-                              {" "}/ {a.totalMarks}
+                              {" "}
+                              / {a.totalMarks}
                             </span>
                           )}
                           {a.accuracy !== null && (

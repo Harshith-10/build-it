@@ -1,26 +1,31 @@
 import { eq, inArray } from "drizzle-orm";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import {
+  ArrowRight,
+  BookOpen,
   Calendar,
   CheckCircle2,
-  TrendingUp,
-  BookOpen,
   Timer,
+  TrendingUp,
   Trophy,
-  ArrowRight,
   Zap,
 } from "lucide-react";
+import { headers } from "next/headers";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import { examAssignments, examGroups, exams, userGroupMembers } from "@/db/schema";
+import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { LocalDateTimeText } from "@/components/ui/local-date-time-text";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DashboardHeader } from "./dashboard-header"; // ← new client component
+import { db } from "@/db";
+import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
+import { auth } from "@/lib/auth";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,6 +35,13 @@ function formatCountdown(ms: number) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return { hours, minutes, seconds };
+}
+
+function getGreeting(name: string) {
+  const hour = new Date().getHours();
+  if (hour < 12) return `Good morning, ${name}! ☀️`;
+  if (hour < 17) return `Good afternoon, ${name}! 🌤️`;
+  return `Good evening, ${name}! 🌙`;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -117,10 +129,18 @@ export default async function DashboardPage() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="mx-auto max-w-screen-xl flex flex-col gap-6 p-6">
-
-        {/* ── Header — client component avoids hydration mismatch ── */}
-        <DashboardHeader userName={userName} />
+      <div className="mx-auto max-w-screen-xl flex flex-col gap-6">
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between flex-wrap gap-2">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">
+              {getGreeting(userName)}
+            </h1>
+            <p className="text-muted-foreground mt-0.5">
+              Stay consistent and keep improving every day.
+            </p>
+          </div>
+        </div>
 
         {/* ── Upcoming exam banner ── */}
         {nextExam && (
@@ -174,7 +194,9 @@ export default async function DashboardPage() {
 
             <Button asChild size="sm">
               <Link href={`/exams/${nextExam.id}/onboarding`}>
-                {nextExam.status === "active" ? "Start Exam" : "View Exam Details"}
+                {nextExam.status === "active"
+                  ? "Start Exam"
+                  : "View Exam Details"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -192,11 +214,12 @@ export default async function DashboardPage() {
             },
             {
               label: "Completed",
-              value: completedExams,
-              sub:
+              value: `${completedExams}/${totalExams}`,
+              sub: `${
                 totalExams > 0
                   ? `${Math.round((completedExams / totalExams) * 100)}%`
-                  : "0%",
+                  : "0%"
+              }`,
               icon: CheckCircle2,
             },
             {
@@ -216,14 +239,18 @@ export default async function DashboardPage() {
             },
           ].map(({ label, value, sub, icon: Icon }) => (
             <Card key={label}>
-              <CardContent className="p-4 flex flex-col gap-1">
+              <CardHeader>
                 <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">{label}</span>
+                  <span className="text-sm font-medium">{label}</span>
                   <Icon className="h-4 w-4" />
                 </div>
+              </CardHeader>
+              <CardContent>
                 <p className="text-3xl font-bold">{value}</p>
-                <p className="text-xs text-muted-foreground">{sub}</p>
               </CardContent>
+              <CardFooter>
+                <p className="text-xs text-muted-foreground">{sub}</p>
+              </CardFooter>
             </Card>
           ))}
         </div>

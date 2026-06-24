@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { questions, testCases } from "@/db/schema/questions";
@@ -8,6 +8,7 @@ import {
   ensureEntityPermission,
   ensureOwnership,
   requireAdmin,
+  getUserDepartment,
 } from "@/lib/auth-access";
 
 type UpsertProblemInput = {
@@ -55,7 +56,11 @@ export async function getProblems({
     ? undefined
     : eq(questions.ownerId, access.session.user.id);
 
-  const whereClause = and(ownershipClause, searchClause);
+  const departmentClause = access.userDepartmentId
+    ? eq(questions.departmentId, access.userDepartmentId)
+    : isNull(questions.departmentId);
+
+  const whereClause = and(ownershipClause, searchClause, departmentClause);
 
   let orderBy = desc(questions.createdAt);
   if (sort) {
@@ -110,7 +115,12 @@ export async function getProblem(id: string) {
   });
 
   const problem = await db.query.questions.findFirst({
-    where: eq(questions.id, id),
+    where: and(
+      eq(questions.id, id),
+      access.userDepartmentId
+        ? eq(questions.departmentId, access.userDepartmentId)
+        : isNull(questions.departmentId)
+    ),
     with: {
       testCases: true,
     },
@@ -138,11 +148,15 @@ export async function deleteProblem(id: string) {
   try {
     const current = await db.query.questions.findFirst({
       where: eq(questions.id, id),
-      columns: { ownerId: true },
+      columns: { ownerId: true, departmentId: true },
     });
 
     if (!current) {
       return { success: false, error: "Problem not found" };
+    }
+
+    if (current.departmentId !== access.userDepartmentId) {
+      return { success: false, error: "Forbidden: department mismatch" };
     }
 
     ensureOwnership({
@@ -177,11 +191,15 @@ export async function upsertProblem(data: UpsertProblemInput) {
     if (problemId) {
       const current = await db.query.questions.findFirst({
         where: eq(questions.id, problemId),
-        columns: { ownerId: true },
+        columns: { ownerId: true, departmentId: true },
       });
 
       if (!current) {
         return { success: false, error: "Problem not found" };
+      }
+
+      if (current.departmentId !== access.userDepartmentId) {
+        return { success: false, error: "Forbidden: department mismatch" };
       }
 
       ensureOwnership({
@@ -211,6 +229,7 @@ export async function upsertProblem(data: UpsertProblemInput) {
         .insert(questions)
         .values({
           ownerId: access.session.user.id,
+          departmentId: access.userDepartmentId,
           title: data.title,
           problemStatement: data.problemStatement,
           difficulty: data.difficulty,
@@ -246,7 +265,18 @@ export async function upsertProblem(data: UpsertProblemInput) {
 
 export async function transferProblemOwnership(id: string, newOwnerId: string) {
   const session = await requireAdmin();
+  const userDepartmentId = await getUserDepartment(session.user.id);
+  
   try {
+    const current = await db.query.questions.findFirst({
+      where: eq(questions.id, id),
+      columns: { departmentId: true },
+    });
+
+    if (!current || current.departmentId !== userDepartmentId) {
+      return { success: false, error: "Forbidden: department mismatch" };
+    }
+
     await db
       .update(questions)
       .set({

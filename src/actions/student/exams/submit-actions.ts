@@ -8,6 +8,7 @@ import type { GradingConfigMap } from "@/db/schema";
 import { examAssignments, submissions } from "@/db/schema/assignments";
 import { questions, testCases } from "@/db/schema/questions";
 import { auth } from "@/lib/auth";
+import { buildExamTimingSnapshot } from "@/lib/exam";
 import { calculateGradingScore } from "@/lib/grading";
 import {
   executeCode,
@@ -73,6 +74,37 @@ export async function submitQuestion(
 
     if (assignment.status === "completed") {
       return { success: false, error: "Exam is already completed" };
+    }
+
+    const timing = buildExamTimingSnapshot({
+      startedAt: assignment.startedAt,
+      durationMinutes: assignment.exam.durationMinutes,
+    });
+
+    if (timing && timing.phase !== "before_deadline") {
+      if (timing.phase === "expired") {
+        await db
+          .update(examAssignments)
+          .set({
+            status: "completed",
+            completedAt: new Date(),
+          })
+          .where(eq(examAssignments.id, input.assignmentId));
+
+        revalidatePath(`/exams/${assignment.examId}`);
+
+        return {
+          success: false,
+          error:
+            "Exam grace period has ended. The exam is closed and no more submissions are accepted.",
+        };
+      }
+
+      return {
+        success: false,
+        error:
+          "Coding window has ended. Use End Exam to submit within the 5-minute grace period.",
+      };
     }
 
     // 3. Fetch Hidden Test Cases

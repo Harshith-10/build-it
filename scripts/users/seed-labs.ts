@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { input, confirm } from "@inquirer/prompts";
+import { confirm, input } from "@inquirer/prompts";
 import { db } from "../../src/db";
 import { labs } from "../../src/db/schema/labs";
 
@@ -12,7 +12,7 @@ async function seedLabs() {
 
     while (addMore) {
       console.log(`\n--- Adding Lab #${labsToInsert.length + 1} ---`);
-      
+
       const name = await input({
         message: "Enter the name of the lab (e.g., 'OOPS Lab'):",
         required: true,
@@ -23,7 +23,7 @@ async function seedLabs() {
         required: true,
         validate: (value) => {
           const num = parseInt(value, 10);
-          if (isNaN(num) || num < 1) {
+          if (Number.isNaN(num) || num < 1) {
             return "Please enter a valid positive semester number.";
           }
           return true;
@@ -62,4 +62,4 @@ async function seedLabs() {
   }
 }
 
-seedLabs();
+seedLabs();
