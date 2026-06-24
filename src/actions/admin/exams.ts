@@ -757,25 +757,6 @@ export async function getExamAbsentees(examId: string) {
     .from(examGroups)
     .where(eq(examGroups.examId, examId));
 
-  const hasAssignedGroups = Number(assignedGroupCount[0]?.count || 0) > 0;
-
-  if (!hasAssignedGroups) {
-    const absentees = await db
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        username: user.username,
-      })
-      .from(user)
-      .where(and(ne(user.role, "admin"), ne(user.role, "faculty")));
-
-    return {
-      absentees,
-      total: absentees.length,
-    };
-  }
-
   // Get all students from assigned groups who have NO submission record (absentees)
   const absentees = await db
     .select({
