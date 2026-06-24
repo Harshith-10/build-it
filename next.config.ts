@@ -7,13 +7,6 @@ const nextConfig: NextConfig = {
   experimental: {},
   turbopack: {
     root: path.resolve(__dirname),
-    resolveAlias: {
-      tailwindcss: path.resolve(__dirname, "node_modules/tailwindcss"),
-      "@tailwindcss/postcss": path.resolve(
-        __dirname,
-        "node_modules/@tailwindcss/postcss"
-      ),
-    },
   },
   allowedDevOrigins: [
     "localhost:3000",

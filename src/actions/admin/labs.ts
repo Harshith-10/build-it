@@ -302,6 +302,7 @@ export async function scheduleExerciseForSemester(data: {
   } catch (error) {
     console.error("Failed to schedule exercise for semester:", error);
     return { success: false, error: "Permission denied or failed to schedule exercise" };
+  }
 }
 
 // ─── Student-facing ───────────────────────────────────────────────────────────

@@ -6,6 +6,14 @@ import { auth } from "@/lib/auth";
 import { getMyLab } from "@/actions/student/labs/submissions";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 const SEM_COLORS: Record<number, string> = {
   1: "bg-purple-100 text-purple-700 border-purple-200",

@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  BarChart2,
   Code,
   Cog,
   FileQuestion,

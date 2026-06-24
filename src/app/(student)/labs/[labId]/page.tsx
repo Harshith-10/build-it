@@ -40,7 +40,13 @@ export default async function ExercisesPage({
     redirect("/auth/sign-in");
   }
 
-  const exercises = await getMyExercises(labId);
+  const result = await getMyExercises(labId);
+
+  if (!result.success) {
+    notFound();
+  }
+
+  const exercises = result.data.exercises;
 
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
