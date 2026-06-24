@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useRef, useState } from "react";
 import {
   deleteExamSubmission,
+  getExamAbsentees,
   getExamSubmissions,
 } from "@/actions/admin/exams";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
@@ -19,7 +20,15 @@ interface SubmissionsTableProps {
   examId: string;
 }
 
-function exportToCSV(data: Submission[]) {
+function exportToCSV(
+  submissions: Submission[],
+  absentees: Array<{
+    id: string;
+    name: string;
+    email: string;
+    username: string | null;
+  }> = [],
+) {
   const headers = [
     "#",
     "Student Name",
@@ -31,7 +40,7 @@ function exportToCSV(data: Submission[]) {
     "Attempted At",
   ];
 
-  const rows = data.map((s, i) => [
+  const submissionRows = submissions.map((s, i) => [
     i + 1,
     s.user?.name ?? "Unknown",
     s.user?.email ?? "-",
@@ -48,12 +57,24 @@ function exportToCSV(data: Submission[]) {
     }),
   ]);
 
+  const absenteeRows = absentees.map((a, i) => [
+    submissions.length + i + 1,
+    a.name ?? "Unknown",
+    a.email ?? "-",
+    a.username ?? "-",
+    "absent",
+    "-",
+    "-",
+    "-",
+  ]);
+
   const escapeCsv = (val: unknown) => {
     const str = String(val);
     if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
     return str;
   };
 
+  const rows = [...submissionRows, ...absenteeRows];
   const csv = [headers, ...rows]
     .map((row) => row.map(escapeCsv).join(","))
     .join("\n");
@@ -62,7 +83,7 @@ function exportToCSV(data: Submission[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "Exam_Submissions.csv";
+  link.download = "Exam_Results.csv";
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -99,15 +120,18 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // Fetch all submissions for this exam, overriding pagination
-      const result = await getExamSubmissions({
-        examId,
-        page: 1,
-        limit: 10000,
-      });
-      exportToCSV(result.submissions);
+      // Fetch all submissions and absentees for this exam
+      const [submissionsResult, absenteesResult] = await Promise.all([
+        getExamSubmissions({
+          examId,
+          page: 1,
+          limit: 10000,
+        }),
+        getExamAbsentees(examId),
+      ]);
+      exportToCSV(submissionsResult.submissions, absenteesResult.absentees);
     } catch (error) {
-      console.error("Failed to export all submissions", error);
+      console.error("Failed to export results", error);
     } finally {
       setIsExporting(false);
     }
@@ -122,7 +146,7 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
       disabled={isExporting}
     >
       <Download className="h-4 w-4" />
-      {isExporting ? "Exporting..." : "Export All"}
+      {isExporting ? "Exporting..." : "Export Results"}
     </Button>
   ) : undefined;
 
