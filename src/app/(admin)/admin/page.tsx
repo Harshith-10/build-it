@@ -4,7 +4,6 @@ import {
   Library,
   Plus,
   Users,
-  Code
 } from "lucide-react";
 import Link from "next/link";
 import { getCollections } from "@/actions/admin/collections";
@@ -12,19 +11,17 @@ import { getExams } from "@/actions/admin/exams";
 import { getGroups } from "@/actions/admin/groups";
 import { getProblems } from "@/actions/admin/problems";
 import { getUsers } from "@/actions/admin/users";
-import { getCode365Analytics } from "@/actions/faculty/code365-analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default async function AdminDashboard() {
-  const [usersData, examsData, problemsData, groupsData, collectionsData, code365Data] =
+  const [usersData, examsData, problemsData, groupsData, collectionsData] =
     await Promise.all([
       getUsers({ limit: 1 }),
       getExams({ limit: 1 }),
       getProblems({ limit: 1 }),
       getGroups({ limit: 1 }),
       getCollections({ limit: 1 }),
-      getCode365Analytics(),
     ]);
 
   const stats = [
@@ -36,15 +33,6 @@ export default async function AdminDashboard() {
       color:
         "from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/5",
       iconColor: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      title: "Code365 Submissions",
-      value: code365Data.success && code365Data.data ? code365Data.data.totalSubmissions : 0,
-      icon: Code,
-      href: "/admin/code365",
-      color:
-        "from-cyan-500/10 to-cyan-500/5 dark:from-cyan-500/20 dark:to-cyan-500/5",
-      iconColor: "text-cyan-600 dark:text-cyan-400",
     },
     {
       title: "Exams",
@@ -123,7 +111,7 @@ export default async function AdminDashboard() {
       <Separator />
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card
