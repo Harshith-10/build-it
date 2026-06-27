@@ -4,6 +4,8 @@ import { username } from "better-auth/plugins";
 import { admin } from "better-auth/plugins/admin";
 import { defaultRoles } from "better-auth/plugins/admin/access";
 import { db } from "@/db";
+import { eq } from "drizzle-orm";
+import { user, session as sessionTable } from "@/db/schema";
 
 type AppAdminRoles = {
   admin: typeof defaultRoles.admin;
@@ -12,6 +14,26 @@ type AppAdminRoles = {
 };
 
 export const auth = betterAuth({
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const [currentUser] = await db
+            .select({ role: user.role })
+            .from(user)
+            .where(eq(user.id, session.userId));
+
+          if (currentUser?.role === "student") {
+            await db
+              .delete(sessionTable)
+              .where(eq(sessionTable.userId, session.userId));
+          }
+
+          return { data: session };
+        },
+      },
+    },
+  },
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
