@@ -30,6 +30,7 @@ export default async function FacultyEditCollectionPage({
           description: collection.description || "",
           questions: collection.questions.map((q) => ({
             questionId: q.question.id,
+            question: q.question,
           })),
         }}
       />

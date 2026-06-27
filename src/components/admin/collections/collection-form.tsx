@@ -48,7 +48,7 @@ export function CollectionForm({
   basePath = "/admin",
 }: {
   initialData?: Partial<z.infer<typeof collectionSchema>> & {
-    questions?: { questionId: string }[];
+    questions?: { questionId: string; question: Problem }[];
   };
   basePath?: string;
 }) {
@@ -67,22 +67,17 @@ export function CollectionForm({
       title: initialData?.title || "",
       description: initialData?.description || "",
       questionIds:
-        initialData?.questions?.map(
-          (q: { questionId: string }) => q.questionId,
-        ) || [],
+        initialData?.questions?.map((q) => q.questionId) || [],
     },
   });
 
-  // Initial load: fetch selected problems and first batch of available
+  // Initialize selected problems from pre-loaded data
   useEffect(() => {
     getProblems({ limit: 50 }).then((res) =>
       setAvailableProblems(res.problems),
     );
-    const ids = initialData?.questions?.map((q) => q.questionId) || [];
-    if (ids.length > 0) {
-      getProblems({ limit: 100 }).then((res) => {
-        setSelectedProblems(res.problems.filter((p) => ids.includes(p.id)));
-      });
+    if (initialData?.questions?.length) {
+      setSelectedProblems(initialData.questions.map((q) => q.question));
     }
   }, [initialData?.questions]); // eslint-disable-line react-hooks/exhaustive-deps
 
