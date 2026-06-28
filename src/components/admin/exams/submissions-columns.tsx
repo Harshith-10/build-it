@@ -1,16 +1,23 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Trash2 } from "lucide-react";
+import { Lock, Trash2, Unlock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export type Submission = {
   id: string;
   status: string;
   score: number | null;
   malpracticeCount: number;
+  activeSessionId: string | null;
   createdAt: Date | string;
   user: {
     name: string;
@@ -24,6 +31,7 @@ export const createColumns = (
   pageIndex: number,
   pageSize: number,
   canDelete = true,
+  onUnlock?: (id: string) => void,
 ): ColumnDef<Submission>[] => {
   const columns: ColumnDef<Submission>[] = [
     {
@@ -67,10 +75,26 @@ export const createColumns = (
       ),
       cell: ({ row }) => {
         const status = row.getValue("status") as string;
+        const isLocked =
+          status === "in_progress" && !!row.original.activeSessionId;
         return (
-          <Badge variant={"secondary"} className="capitalize">
-            {status.replace("_", " ")}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge variant={"secondary"} className="capitalize">
+              {status.replace("_", " ")}
+            </Badge>
+            {isLocked && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Lock className="h-3.5 w-3.5 text-amber-500" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Session locked — student cannot log in elsewhere</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         );
       },
       enableSorting: true,
@@ -127,13 +151,37 @@ export const createColumns = (
         <DataTableColumnHeader column={column} title="Actions" />
       ),
       cell: ({ row }) => {
+        const isLocked =
+          row.original.status === "in_progress" &&
+          !!row.original.activeSessionId;
         return (
-          <Button
-            onClick={() => onDelete(row.original.id)}
-            className="ml-1 bg-destructive/80 hover:bg-red-900/70"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {isLocked && onUnlock && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => onUnlock(row.original.id)}
+                    >
+                      <Unlock className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Unlock session — allow student to log in again</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            <Button
+              onClick={() => onDelete(row.original.id)}
+              className="ml-1 bg-destructive/80 hover:bg-red-900/70"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
         );
       },
     });
@@ -141,3 +189,4 @@ export const createColumns = (
 
   return columns;
 };
+

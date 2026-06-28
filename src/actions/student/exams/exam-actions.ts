@@ -44,6 +44,14 @@ export async function initializeExamSession(examId: string, pin?: string) {
         };
       }
 
+      // Re-stamp session lock if unlocked by admin (allows resume)
+      if (!existingAssignment.activeSessionId) {
+        await db
+          .update(examAssignments)
+          .set({ activeSessionId: session.session.id })
+          .where(eq(examAssignments.id, existingAssignment.id));
+      }
+
       return {
         success: true,
         assignmentId: existingAssignment.id,
@@ -141,6 +149,7 @@ export async function initializeExamSession(examId: string, pin?: string) {
         assignedQuestionIds: questionIds,
         startedAt: new Date(),
         status: "in_progress",
+        activeSessionId: session.session.id,
       })
       .returning();
 
