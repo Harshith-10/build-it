@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username } from "better-auth/plugins";
 import { admin } from "better-auth/plugins/admin";
@@ -42,9 +43,10 @@ export const auth = betterAuth({
               .limit(1);
 
             if (lockedAssignment) {
-              throw new Error(
-                "Exam in progress on another device. Please contact the administrator.",
-              );
+              throw new APIError("FORBIDDEN", {
+                message:
+                  "Exam in progress on another device. Please contact the administrator.",
+              });
             }
 
             await db
