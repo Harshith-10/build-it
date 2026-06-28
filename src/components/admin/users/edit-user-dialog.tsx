@@ -663,21 +663,21 @@ export function EditUserDialog({
                         No active sessions found.
                       </p>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="max-h-[260px] overflow-y-auto pr-1 space-y-3">
                         {sessions.map((session) => (
                           <div
                             key={session.id}
-                            className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between p-3 rounded-md border bg-muted/30"
+                            className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between p-3 rounded-md border bg-muted/30 w-full min-w-0 overflow-hidden"
                           >
-                            <div className="flex items-start gap-3 overflow-hidden">
+                            <div className="flex items-start gap-3 w-full min-w-0 overflow-hidden">
                               <div className="mt-0.5 p-2 bg-background rounded-full shrink-0">
                                 <MonitorSmartphone className="h-4 w-4 text-primary" />
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate">
+                              <div className="w-full min-w-0 flex-1 overflow-hidden">
+                                <p className="text-sm font-medium line-clamp-1 break-all" title={session.ipAddress || "Unknown IP"}>
                                   {session.ipAddress || "Unknown IP"}
                                 </p>
-                                <p className="text-xs text-muted-foreground truncate">
+                                <p className="text-xs text-muted-foreground line-clamp-1 break-all" title={session.userAgent || "Unknown Device"}>
                                   {session.userAgent || "Unknown Device"}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
@@ -689,7 +689,7 @@ export function EditUserDialog({
                               type="button"
                               variant="destructive"
                               size="sm"
-                              className="shrink-0"
+                              className="shrink-0 self-start sm:self-center"
                               onClick={() => handleRevokeSession(session.id)}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
