@@ -1,13 +1,18 @@
 "use client";
 
-import { Download, GraduationCap } from "lucide-react";
+import { Download, GraduationCap, Unlock } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   deleteExamSubmission,
   getExamAbsentees,
   getExamSubmissions,
 } from "@/actions/admin/exams";
+import {
+  bulkUnlockExamSessions,
+  unlockStudentExamSession,
+} from "@/actions/admin/session-lock-actions";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
 import { Button } from "@/components/ui/button";
 import type {
@@ -94,6 +99,14 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
   const latestDataRef = useRef<Submission[]>([]);
   const [canDelete, setCanDelete] = useState(true);
 
+  const triggerRefresh = useCallback(() => {
+    window.dispatchEvent(
+      new CustomEvent("entity-table-refresh", {
+        detail: "Submission",
+      }),
+    );
+  }, []);
+
   const submissionsConfig: EntityTableConfig<Submission> = {
     entityName: "Submission",
     searchKey: "user.name",
@@ -114,6 +127,35 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
     },
     deleteFn: deleteExamSubmission,
   };
+
+  const handleUnlock = useCallback(async (assignmentId: string) => {
+    const result = await unlockStudentExamSession(assignmentId);
+    if (result.success) {
+      toast.success("Session unlocked — student can now log in again");
+      triggerRefresh();
+    } else {
+      toast.error(result.error ?? "Failed to unlock session");
+    }
+  }, [triggerRefresh]);
+
+  const [isBulkUnlocking, setIsBulkUnlocking] = useState(false);
+
+  const handleBulkUnlock = useCallback(async () => {
+    setIsBulkUnlocking(true);
+    try {
+      const result = await bulkUnlockExamSessions(examId);
+      if (result.success) {
+        toast.success(
+          `Unlocked ${result.count} session${result.count === 1 ? "" : "s"} for this exam`,
+        );
+        triggerRefresh();
+      } else {
+        toast.error(result.error ?? "Failed to bulk unlock sessions");
+      }
+    } finally {
+      setIsBulkUnlocking(false);
+    }
+  }, [examId, triggerRefresh]);
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -137,26 +179,38 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
     }
   };
 
-  const exportButton = isSubmissionsPage ? (
-    <Button
-      variant="outline"
-      size="sm"
-      className="gap-1.5"
-      onClick={handleExport}
-      disabled={isExporting}
-    >
-      <Download className="h-4 w-4" />
-      {isExporting ? "Exporting..." : "Export Results"}
-    </Button>
+  const toolbarActions = isSubmissionsPage ? (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
+        onClick={handleBulkUnlock}
+        disabled={isBulkUnlocking}
+      >
+        <Unlock className="h-4 w-4" />
+        {isBulkUnlocking ? "Unlocking..." : "Unlock All Sessions"}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
+        onClick={handleExport}
+        disabled={isExporting}
+      >
+        <Download className="h-4 w-4" />
+        {isExporting ? "Exporting..." : "Export Results"}
+      </Button>
+    </div>
   ) : undefined;
 
   return (
     <AdminEntityTable
       config={submissionsConfig}
       createColumns={(onDelete, page, pageSize) =>
-        createColumns(onDelete, page, pageSize, canDelete)
+        createColumns(onDelete, page, pageSize, canDelete, handleUnlock)
       }
-      actions={exportButton}
+      actions={toolbarActions}
       emptyState={
         <div className="flex flex-col items-center gap-2">
           <GraduationCap className="h-8 w-8 text-muted-foreground" />
@@ -177,3 +231,4 @@ export function SubmissionsTable({ examId }: SubmissionsTableProps) {
     </Suspense>
   );
 }
+
