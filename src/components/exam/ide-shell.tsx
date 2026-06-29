@@ -13,6 +13,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import type { ExamTimingSnapshot } from "@/lib/exam";
+import { useExamStore } from "@/stores/exam-store";
 
 import { CodePlayground } from "./code-playground";
 import { ExamHeader } from "./exam-header";
@@ -44,6 +45,7 @@ interface IDEShellProps {
   examTitle: string;
   assignmentId: string;
   completedQuestionIds: string[];
+  latestSubmissions?: Record<string, Record<string, string>>;
 }
 
 function formatCountdown(ms: number): string {
@@ -64,6 +66,7 @@ export function IDEShell({
   examTitle,
   assignmentId,
   completedQuestionIds,
+  latestSubmissions,
 }: IDEShellProps) {
   const [activeQuestionId, setActiveQuestionId] = useQueryState("q", {
     defaultValue: questions[0]?.id || "",
@@ -78,7 +81,13 @@ export function IDEShell({
     Date.now() + (timingSnapshot.serverNowMs - Date.now()),
   );
 
+  const initForExam = useExamStore((s) => s.initForExam);
+
   useEffect(() => setIsMounted(true), []);
+
+  useEffect(() => {
+    initForExam(assignmentId);
+  }, [assignmentId, initForExam]);
 
   useEffect(() => {
     setTiming(timingSnapshot);
@@ -164,6 +173,7 @@ export function IDEShell({
                 question={activeQuestion}
                 assignmentId={assignmentId}
                 isCodingLocked={hardDeadlineReached}
+                latestSubmissions={latestSubmissions}
               />
             </ResizablePanel>
           </ResizablePanelGroup>
