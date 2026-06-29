@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { IDEShell } from "@/components/exam/ide-shell";
 import { db } from "@/db";
@@ -97,24 +97,6 @@ export default async function SessionPage({
 
   const completedQuestionIds = passedSubmissions.map((s) => s.questionId);
 
-  const latestSubmissionsList = await db
-    .selectDistinctOn([submissions.questionId, submissions.language], {
-      questionId: submissions.questionId,
-      language: submissions.language,
-      code: submissions.code,
-    })
-    .from(submissions)
-    .where(eq(submissions.assignmentId, assignment.id))
-    .orderBy(submissions.questionId, submissions.language, desc(submissions.createdAt));
-
-  const latestSubmissions: Record<string, Record<string, string>> = {};
-  for (const sub of latestSubmissionsList) {
-    if (!latestSubmissions[sub.questionId]) {
-      latestSubmissions[sub.questionId] = {};
-    }
-    latestSubmissions[sub.questionId][sub.language] = sub.code;
-  }
-
   return (
     <IDEShell
       questions={questionList}
@@ -123,7 +105,6 @@ export default async function SessionPage({
       examTitle={exam?.title || "Exam Session"}
       assignmentId={assignment.id}
       completedQuestionIds={completedQuestionIds}
-      latestSubmissions={latestSubmissions}
     />
   );
 }

@@ -41,14 +41,12 @@ interface CodePlaygroundProps {
   question: Question;
   assignmentId: string;
   isCodingLocked?: boolean;
-  latestSubmissions?: Record<string, Record<string, string>>;
 }
 
 export function CodePlayground({
   question,
   assignmentId,
   isCodingLocked = false,
-  latestSubmissions,
 }: CodePlaygroundProps) {
   const { code, setCode } = useExamStore();
   const { theme } = useTheme();
@@ -95,22 +93,15 @@ export function CodePlayground({
     );
   }
 
-  const driverCode =
+  const defaultCode =
     (question.driverCode as Record<string, string> | null)?.[
       selectedLanguage
     ] || "";
 
-  const latestSubmittedCode = latestSubmissions?.[question.id]?.[selectedLanguage];
-
-  const localDraft =
+  const currentCode =
     question.id in code && code[question.id]?.[selectedLanguage]
       ? code[question.id][selectedLanguage]
-      : undefined;
-
-  // 1. Local Draft (Highest priority)
-  // 2. Latest Submitted Code (DB recovery anchor)
-  // 3. Question Driver / Template Code
-  const currentCode = localDraft ?? latestSubmittedCode ?? driverCode;
+      : defaultCode;
 
   const getLanguageExtension = (lang: string) => {
     switch (lang) {
