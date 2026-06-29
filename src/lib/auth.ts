@@ -5,7 +5,7 @@ import { username } from "better-auth/plugins";
 import { admin } from "better-auth/plugins/admin";
 import { defaultRoles } from "better-auth/plugins/admin/access";
 import { db } from "@/db";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import {
   user,
   session as sessionTable,
@@ -29,29 +29,29 @@ export const auth = betterAuth({
             .where(eq(user.id, session.userId));
 
           if (currentUser?.role === "student") {
-            // Check for an in-progress exam with an active session lock
-            const [lockedAssignment] = await db
+            // Check for an in-progress exam linked to a live, unexpired session lock
+            const [activeLock] = await db
               .select({ id: examAssignments.id })
               .from(examAssignments)
+              .innerJoin(
+                sessionTable,
+                eq(examAssignments.activeSessionId, sessionTable.id),
+              )
               .where(
                 and(
                   eq(examAssignments.userId, session.userId),
                   eq(examAssignments.status, "in_progress"),
-                  isNotNull(examAssignments.activeSessionId),
+                  gt(sessionTable.expiresAt, new Date()),
                 ),
               )
               .limit(1);
 
-            if (lockedAssignment) {
+            if (activeLock) {
               throw new APIError("FORBIDDEN", {
                 message:
-                  "Exam in progress on another device. Please contact the administrator.",
+                  "An active exam session is already running on another device or tab. Please ask the proctor to unlock your session.",
               });
             }
-
-            await db
-              .delete(sessionTable)
-              .where(eq(sessionTable.userId, session.userId));
           }
 
           return { data: session };
