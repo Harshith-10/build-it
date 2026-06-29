@@ -713,7 +713,6 @@ export async function getExamSubmissions({
         status: examAssignments.status,
         score: examAssignments.score,
         malpracticeCount: examAssignments.malpracticeCount,
-        activeSessionId: examAssignments.activeSessionId,
         createdAt: examAssignments.createdAt,
         user: {
           name: user.name,

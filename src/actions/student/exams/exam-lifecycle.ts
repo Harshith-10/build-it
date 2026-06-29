@@ -98,7 +98,6 @@ export async function finishExam(input: string | FinishExamInput) {
       .set({
         status: "completed",
         completedAt: new Date(),
-        activeSessionId: null,
       })
       .where(eq(examAssignments.id, assignmentId));
 

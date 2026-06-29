@@ -1,13 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, KeyRound, Loader2, Save, MonitorSmartphone, Trash2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { setUserPassword, updateUser, getUserSessions, revokeSession } from "@/actions/admin/users";
+import { setUserPassword, updateUser } from "@/actions/admin/users";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -132,8 +132,6 @@ export function EditUserDialog({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const router = useRouter();
 
   const form = useForm<EditUserInputValues, unknown, EditUserValues>({
@@ -175,14 +173,6 @@ export function EditUserDialog({
       setConfirmPassword("");
       setPasswordError("");
       setShowPassword(false);
-      
-      // Fetch sessions
-      setIsLoadingSessions(true);
-      getUserSessions(editUser.id).then((res) => {
-        if (res.success && res.sessions) {
-          setSessions(res.sessions);
-        }
-      }).finally(() => setIsLoadingSessions(false));
     }
   }, [editUser, open, form]);
 
@@ -254,20 +244,6 @@ export function EditUserDialog({
       toast.error("An error occurred while changing the password");
     } finally {
       setIsChangingPassword(false);
-    }
-  };
-
-  const handleRevokeSession = async (sessionId: string) => {
-    try {
-      const res = await revokeSession(sessionId);
-      if (res.success) {
-        toast.success("Session revoked successfully");
-        setSessions(prev => prev.filter(s => s.id !== sessionId));
-      } else {
-        toast.error(res.error || "Failed to revoke session");
-      }
-    } catch {
-      toast.error("An error occurred");
     }
   };
 
@@ -642,66 +618,6 @@ export function EditUserDialog({
                     </Button>
                   </div>
                 </div>
-
-                <Separator />
-
-                {/* Active Sessions */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-1 bg-amber-500 rounded-full" />
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                      Active Sessions
-                    </h3>
-                  </div>
-                  <div className="rounded-lg border p-4 space-y-3">
-                    {isLoadingSessions ? (
-                      <div className="flex items-center justify-center p-4">
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : sessions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center">
-                        No active sessions found.
-                      </p>
-                    ) : (
-                      <div className="max-h-[260px] overflow-y-auto pr-1 space-y-3">
-                        {sessions.map((session) => (
-                          <div
-                            key={session.id}
-                            className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between p-3 rounded-md border bg-muted/30 w-full min-w-0 overflow-hidden"
-                          >
-                            <div className="flex items-start gap-3 w-full min-w-0 overflow-hidden">
-                              <div className="mt-0.5 p-2 bg-background rounded-full shrink-0">
-                                <MonitorSmartphone className="h-4 w-4 text-primary" />
-                              </div>
-                              <div className="w-full min-w-0 flex-1 overflow-hidden">
-                                <p className="text-sm font-medium line-clamp-1 break-all" title={session.ipAddress || "Unknown IP"}>
-                                  {session.ipAddress || "Unknown IP"}
-                                </p>
-                                <p className="text-xs text-muted-foreground line-clamp-1 break-all" title={session.userAgent || "Unknown Device"}>
-                                  {session.userAgent || "Unknown Device"}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Started: {new Date(session.createdAt).toLocaleString()}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="shrink-0 self-start sm:self-center"
-                              onClick={() => handleRevokeSession(session.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Revoke
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
               </div>
             </ScrollArea>
 

@@ -43,7 +43,6 @@ export const examAssignments = pgTable("exam_assignments", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   malpracticeCount: integer("malpractice_count").default(0).notNull(),
   isTerminated: boolean("is_terminated").default(false).notNull(),
-  activeSessionId: text("active_session_id"),
 });
 
 export const malpracticeEvents = pgTable("malpractice_events", {
