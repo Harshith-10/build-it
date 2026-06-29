@@ -118,7 +118,11 @@ export default async function SessionPage({
   return (
     <IDEShell
       questions={questionList}
-      user={{ name: session.user.name, image: session.user.image || undefined }}
+      user={{
+        id: session.user.id,
+        name: session.user.name,
+        image: session.user.image || undefined,
+      }}
       timingSnapshot={timingSnapshot}
       examTitle={exam?.title || "Exam Session"}
       assignmentId={assignment.id}

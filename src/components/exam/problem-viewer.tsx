@@ -20,9 +20,10 @@ import type { Question } from "./ide-shell";
 interface ProblemViewerProps {
   question: Question;
   assignmentId: string;
+  userId: string;
 }
 
-export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
+export function ProblemViewer({ question, assignmentId, userId }: ProblemViewerProps) {
   const [activeTab, setActiveTab] = useState("description");
 
   if (!question) {
@@ -266,6 +267,7 @@ export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
           <SubmissionsList
             assignmentId={assignmentId}
             questionId={question.id}
+            userId={userId}
           />
         </TabsContent>
       </Tabs>
@@ -276,9 +278,11 @@ export function ProblemViewer({ question, assignmentId }: ProblemViewerProps) {
 function SubmissionsList({
   assignmentId,
   questionId,
+  userId,
 }: {
   assignmentId: string;
   questionId: string;
+  userId: string;
 }) {
   const { setCode } = useExamStore();
   const [submissions, setSubmissions] = useState<SubmissionHistoryItem[]>([]);
@@ -306,7 +310,7 @@ function SubmissionsList({
 
   const handleRestore = (code: string, language: string) => {
     // Confirm restore? Maybe too annoying. Just restore.
-    setCode(questionId, language, code);
+    setCode(userId, assignmentId, questionId, language, code);
     toast.success(`Restored ${language} code to editor`);
   };
 

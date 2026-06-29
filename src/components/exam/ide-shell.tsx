@@ -38,6 +38,7 @@ export interface Question {
 interface IDEShellProps {
   questions: Question[];
   user: {
+    id: string;
     name: string;
     image?: string;
   };
@@ -86,8 +87,8 @@ export function IDEShell({
   useEffect(() => setIsMounted(true), []);
 
   useEffect(() => {
-    initForExam(assignmentId);
-  }, [assignmentId, initForExam]);
+    initForExam(user.id, assignmentId);
+  }, [user.id, assignmentId, initForExam]);
 
   useEffect(() => {
     setTiming(timingSnapshot);
@@ -163,6 +164,7 @@ export function IDEShell({
               <ProblemViewer
                 question={activeQuestion}
                 assignmentId={assignmentId}
+                userId={user.id}
               />
             </ResizablePanel>
 
@@ -172,6 +174,7 @@ export function IDEShell({
               <CodePlayground
                 question={activeQuestion}
                 assignmentId={assignmentId}
+                userId={user.id}
                 isCodingLocked={hardDeadlineReached}
                 latestSubmissions={latestSubmissions}
               />

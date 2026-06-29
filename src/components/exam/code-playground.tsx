@@ -40,6 +40,7 @@ import TestCaseConsole from "./test-case-console";
 interface CodePlaygroundProps {
   question: Question;
   assignmentId: string;
+  userId: string;
   isCodingLocked?: boolean;
   latestSubmissions?: Record<string, Record<string, string>>;
 }
@@ -47,10 +48,16 @@ interface CodePlaygroundProps {
 export function CodePlayground({
   question,
   assignmentId,
+  userId,
   isCodingLocked = false,
   latestSubmissions,
 }: CodePlaygroundProps) {
-  const { code, setCode } = useExamStore();
+  const {
+    code,
+    setCode,
+    userId: storedUserId,
+    assignmentId: storedAssignmentId,
+  } = useExamStore();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -102,8 +109,11 @@ export function CodePlayground({
 
   const latestSubmittedCode = latestSubmissions?.[question.id]?.[selectedLanguage];
 
+  const isSameSession =
+    storedUserId === userId && storedAssignmentId === assignmentId;
+
   const localDraft =
-    question.id in code && code[question.id]?.[selectedLanguage]
+    isSameSession && question.id in code && code[question.id]?.[selectedLanguage]
       ? code[question.id][selectedLanguage]
       : undefined;
 
@@ -302,7 +312,9 @@ export function CodePlayground({
                 getLanguageExtension(selectedLanguage),
                 EditorState.tabSize.of(4),
               ]}
-              onChange={(val) => setCode(question.id, selectedLanguage, val)}
+              onChange={(val) =>
+                setCode(userId, assignmentId, question.id, selectedLanguage, val)
+              }
               theme={theme === "dark" ? "dark" : "light"}
               className="h-full"
               editable={!isCodingLocked}
