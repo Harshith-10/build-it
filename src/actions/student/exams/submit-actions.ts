@@ -88,6 +88,7 @@ export async function submitQuestion(
           .set({
             status: "completed",
             completedAt: new Date(),
+            activeSessionId: null,
           })
           .where(eq(examAssignments.id, input.assignmentId));
 

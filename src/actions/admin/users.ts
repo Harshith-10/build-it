@@ -3,7 +3,7 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { user } from "@/db/schema/auth";
+import { user, session } from "@/db/schema/auth";
 import { userGroupMembers, userGroups } from "@/db/schema/groups";
 import { auth } from "@/lib/auth";
 import { requireAdmin } from "@/lib/auth-access";
@@ -498,5 +498,32 @@ export async function deleteUser(userId: string) {
   } catch (error) {
     console.error("Failed to delete user:", error);
     return { success: false, error: "Failed to delete user" };
+  }
+}
+
+export async function getUserSessions(userId: string) {
+  await requireAdmin();
+  try {
+    const sessions = await db
+      .select()
+      .from(session)
+      .where(eq(session.userId, userId))
+      .orderBy(desc(session.createdAt));
+    return { success: true, sessions };
+  } catch (error) {
+    console.error("Failed to get user sessions:", error);
+    return { success: false, error: "Failed to fetch sessions" };
+  }
+}
+
+export async function revokeSession(sessionId: string) {
+  await requireAdmin();
+  try {
+    await db.delete(session).where(eq(session.id, sessionId));
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to revoke session:", error);
+    return { success: false, error: "Failed to revoke session" };
   }
 }
