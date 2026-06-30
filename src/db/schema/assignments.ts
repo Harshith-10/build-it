@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 import {
   boolean,
   integer,
+  index,
   jsonb,
   pgEnum,
   pgTable,
@@ -43,17 +44,27 @@ export const examAssignments = pgTable("exam_assignments", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   malpracticeCount: integer("malpractice_count").default(0).notNull(),
   isTerminated: boolean("is_terminated").default(false).notNull(),
+  activeSessionId: text("active_session_id"),
 });
 
-export const malpracticeEvents = pgTable("malpractice_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  assignmentId: uuid("assignment_id")
-    .notNull()
-    .references(() => examAssignments.id, { onDelete: "cascade" }),
-  type: text("type").notNull(), // 'tab_switch', 'fullscreen_exit', 'paste', etc.
-  details: text("details"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const malpracticeEvents = pgTable(
+  "malpractice_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => examAssignments.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    type: text("type").notNull(), // 'tab_switch', 'fullscreen_exit', 'paste', 'invigilator_resume', etc.
+    details: text("details"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("malpractice_events_assignment_idx").on(table.assignmentId),
+  ],
+);
 
 export const submissions = pgTable("submissions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -104,6 +115,10 @@ export const malpracticeEventsRelations = relations(
     assignment: one(examAssignments, {
       fields: [malpracticeEvents.assignmentId],
       references: [examAssignments.id],
+    }),
+    actor: one(user, {
+      fields: [malpracticeEvents.actorId],
+      references: [user.id],
     }),
   }),
 );
