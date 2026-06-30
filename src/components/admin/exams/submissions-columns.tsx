@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileSearch, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -11,7 +11,6 @@ export type Submission = {
   status: string;
   score: number | null;
   malpracticeCount: number;
-  isTerminated?: boolean;
   createdAt: Date | string;
   user: {
     name: string;
@@ -25,7 +24,6 @@ export const createColumns = (
   pageIndex: number,
   pageSize: number,
   canDelete = true,
-  onAudit?: (id: string) => void,
 ): ColumnDef<Submission>[] => {
   const columns: ColumnDef<Submission>[] = [
     {
@@ -69,14 +67,6 @@ export const createColumns = (
       ),
       cell: ({ row }) => {
         const status = row.getValue("status") as string;
-        const isTerminated = row.original.isTerminated;
-        if (isTerminated) {
-          return (
-            <Badge variant="destructive" className="capitalize">
-              Terminated
-            </Badge>
-          );
-        }
         return (
           <Badge variant={"secondary"} className="capitalize">
             {status.replace("_", " ")}
@@ -129,7 +119,7 @@ export const createColumns = (
     },
   ];
 
-  if (canDelete || onAudit) {
+  if (canDelete) {
     columns.push({
       id: "actions",
       enableHiding: false,
@@ -138,28 +128,12 @@ export const createColumns = (
       ),
       cell: ({ row }) => {
         return (
-          <div className="flex items-center gap-1">
-            {onAudit && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onAudit(row.original.id)}
-                className="h-8 w-8 p-0 text-blue-600 border-blue-500/30 hover:bg-blue-500/10"
-                title="Inspect Audit Logs"
-              >
-                <FileSearch className="w-4 h-4" />
-              </Button>
-            )}
-            {canDelete && (
-              <Button
-                onClick={() => onDelete(row.original.id)}
-                className="h-8 w-8 p-0 bg-destructive/80 hover:bg-red-900/70 text-white"
-                title="Delete Submission"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
+          <Button
+            onClick={() => onDelete(row.original.id)}
+            className="ml-1 bg-destructive/80 hover:bg-red-900/70"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         );
       },
     });
