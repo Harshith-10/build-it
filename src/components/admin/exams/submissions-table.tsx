@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import { Suspense, useRef, useState } from "react";
 import {
   deleteExamSubmission,
+  exportExamLogsToExcel,
   getExamAbsentees,
   getExamSubmissions,
 } from "@/actions/admin/exams";
+import { toast } from "sonner";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
 import { Button } from "@/components/ui/button";
 import type {
@@ -119,19 +121,34 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
 
   const handleExport = async () => {
     setIsExporting(true);
+    toast.info("Generating comprehensive Excel logs...");
     try {
-      // Fetch all submissions and absentees for this exam
-      const [submissionsResult, absenteesResult] = await Promise.all([
-        getExamSubmissions({
-          examId,
-          page: 1,
-          limit: 10000,
-        }),
-        getExamAbsentees(examId),
-      ]);
-      exportToCSV(submissionsResult.submissions, absenteesResult.absentees);
+      const result = await exportExamLogsToExcel(examId);
+      if (!result.success || !result.base64) {
+        toast.error(result.error || "Failed to export results");
+        return;
+      }
+
+      const byteCharacters = atob(result.base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.filename || "Exam_Full_Logs.xlsx";
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Excel logs exported successfully!");
     } catch (error) {
       console.error("Failed to export results", error);
+      toast.error("An error occurred while exporting logs.");
     } finally {
       setIsExporting(false);
     }
