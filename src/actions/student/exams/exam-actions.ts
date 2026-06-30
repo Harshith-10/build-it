@@ -200,9 +200,12 @@ export async function generateExamQuestions(
     } else {
       randomQuestions = await base;
     }
-  } else if (strategyType === "difficulty_mix") {
+  } else if (strategyType === "difficulty_mix" || strategyType === "lab_external") {
     const config = strategyConfig as StrategyConfigMap["difficulty_mix"] | null;
-    const { easy = 0, medium = 0, hard = 0 } = config || {};
+    const isLabExternal = strategyType === "lab_external";
+    const easy = isLabExternal ? 2 : (config?.easy || 0);
+    const medium = isLabExternal ? 2 : (config?.medium || 0);
+    const hard = isLabExternal ? 1 : (config?.hard || 0);
 
     const fetchByDifficulty = async (
       diff: "easy" | "medium" | "hard",

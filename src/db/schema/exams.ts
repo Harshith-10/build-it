@@ -24,6 +24,7 @@ export const strategyTypeEnum = pgEnum("strategy_type", [
   "random_n",
   "fixed_set",
   "difficulty_mix",
+  "lab_external",
 ]);
 
 export interface RandomNStrategyConfig {
@@ -42,10 +43,15 @@ export interface DifficultyMixStrategyConfig {
   collectionIds: string[];
 }
 
+export interface LabExternalStrategyConfig {
+  collectionIds: string[];
+}
+
 export type StrategyConfigMap = {
   random_n: RandomNStrategyConfig;
   fixed_set: FixedSetStrategyConfig;
   difficulty_mix: DifficultyMixStrategyConfig;
+  lab_external: LabExternalStrategyConfig;
 };
 
 export type StrategyConfig = StrategyConfigMap[keyof StrategyConfigMap];
@@ -54,6 +60,7 @@ export const gradingStrategyEnum = pgEnum("grading_strategy", [
   "linear",
   "difficulty_based",
   "count_based",
+  "lab_external",
 ]);
 
 export type CountBasedStrategyConfig = {
@@ -68,6 +75,11 @@ export type GradingConfigMap = {
     hardWeight: number;
   };
   count_based: CountBasedStrategyConfig;
+  lab_external: {
+    easyMarks: number;
+    mediumMarks: number;
+    hardMarks: number;
+  };
 };
 
 export const exams = pgTable("exams", {

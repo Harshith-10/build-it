@@ -34,9 +34,9 @@ type UpsertExamInput = {
   startTime?: string | null;
   endTime?: string | null;
   duration?: number;
-  strategyType?: "random_n" | "fixed_set" | "difficulty_mix";
+  strategyType?: "random_n" | "fixed_set" | "difficulty_mix" | "lab_external";
   strategyConfig?: StrategyConfig | null;
-  gradingStrategy?: "linear" | "difficulty_based" | "count_based";
+  gradingStrategy?: "linear" | "difficulty_based" | "count_based" | "lab_external";
   gradingConfig?: GradingConfigMap[keyof GradingConfigMap] | null;
   assignments?: UpsertExamAssignmentInput[];
   moderatorIds?: string[];
@@ -119,6 +119,26 @@ function normalizeGradingConfig(
     Array.isArray(config.thresholds)
   ) {
     return { thresholds: config.thresholds };
+  }
+
+  if (strategy === "lab_external") {
+    if (
+      config &&
+      typeof config === "object" &&
+      "easyMarks" in config &&
+      "mediumMarks" in config &&
+      "hardMarks" in config &&
+      typeof config.easyMarks === "number" &&
+      typeof config.mediumMarks === "number" &&
+      typeof config.hardMarks === "number"
+    ) {
+      return {
+        easyMarks: config.easyMarks,
+        mediumMarks: config.mediumMarks,
+        hardMarks: config.hardMarks,
+      };
+    }
+    return { easyMarks: 20, mediumMarks: 30, hardMarks: 10 };
   }
 
   return { thresholds: [] };
