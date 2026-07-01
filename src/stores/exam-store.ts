@@ -57,3 +57,8 @@ export const useExamStore = create<ExamState>()(
     },
   ),
 );
+
+export function clearExamStorage() {
+  useExamStore.setState({ userId: null, assignmentId: null, code: {} });
+}
+
