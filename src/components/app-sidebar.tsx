@@ -19,6 +19,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as React from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -148,6 +158,21 @@ export function AppSidebar({
   role: "admin" | "faculty" | "student";
 }) {
   const pathname = usePathname();
+  const downloadLinkRef = useRef<HTMLAnchorElement | null>(null);
+  const [showWindowsInstaller, setShowWindowsInstaller] = useState(false);
+  const [downloadTutorialOpen, setDownloadTutorialOpen] = useState(false);
+
+  useEffect(() => {
+    const isWindows =
+      /windows/i.test(navigator.platform) || /windows/i.test(navigator.userAgent);
+
+    setShowWindowsInstaller(isWindows);
+  }, []);
+
+  const handleInstallerDownload = () => {
+    downloadLinkRef.current?.click();
+    setDownloadTutorialOpen(true);
+  };
 
   const navMain =
     role === "admin"
@@ -234,6 +259,77 @@ export function AppSidebar({
         </SidebarGroup> */}
       </SidebarContent>
       <SidebarFooter>
+        {showWindowsInstaller && (
+          <>
+            <div className="rounded-xl border border-sidebar-border/80 bg-sidebar-accent/40 p-3 shadow-sm group-data-[collapsible=icon]:hidden">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-background/80 text-sidebar-foreground shadow-sm">
+                  <Code className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div>
+                    <p className="text-sm font-semibold text-sidebar-foreground">
+                      Cryo OS Installer for Windows
+                    </p>
+                    <p className="text-xs text-sidebar-foreground/70">
+                      Download the Windows installer and keep the file using the
+                      Edge download prompt.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+                    onClick={handleInstallerDownload}
+                  >
+                    Download installer
+                  </Button>
+                </div>
+              </div>
+              <a
+                ref={downloadLinkRef}
+                href="/cryo-win.exe"
+                download="Cryo OS Installer for Windows.exe"
+                tabIndex={-1}
+                className="hidden"
+              >
+                Download Cryo OS Installer for Windows
+              </a>
+            </div>
+            <Dialog
+              open={downloadTutorialOpen}
+              onOpenChange={setDownloadTutorialOpen}
+            >
+              <DialogContent className="sm:max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Keep the downloaded installer in Edge</DialogTitle>
+                  <DialogDescription>
+                    If Microsoft Edge asks what to do with the file, choose Keep so
+                    the Cryo OS installer stays on your computer.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="overflow-hidden rounded-lg border bg-muted/30">
+                  <Image
+                    src="/download-tut-edge.png"
+                    alt="Tutorial showing how to keep the downloaded file in Microsoft Edge"
+                    width={1600}
+                    height={900}
+                    className="h-auto w-full object-contain"
+                    priority
+                  />
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    onClick={() => setDownloadTutorialOpen(false)}
+                  >
+                    Got it
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
         <UserMenu />
       </SidebarFooter>
       <SidebarRail />
