@@ -133,6 +133,7 @@ export function EditUserDialog({
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const router = useRouter();
+  const hasPasswordFormValues = Boolean(newPassword || confirmPassword);
 
   const form = useForm<EditUserInputValues, unknown, EditUserValues>({
     resolver: zodResolver(editUserSchema),
@@ -602,7 +603,11 @@ export function EditUserDialog({
                         isChangingPassword || (!newPassword && !confirmPassword)
                       }
                       onClick={handleChangePassword}
-                      className="w-full sm:w-auto"
+                      className={`group w-full sm:w-auto transition-colors ${
+                        hasPasswordFormValues
+                          ? "border-destructive text-destructive hover:border-destructive hover:bg-destructive/10"
+                          : ""
+                      }`}
                     >
                       {isChangingPassword ? (
                         <>
@@ -611,7 +616,13 @@ export function EditUserDialog({
                         </>
                       ) : (
                         <>
-                          <KeyRound className="mr-2 h-4 w-4" />
+                          <KeyRound
+                            className={`mr-2 h-4 w-4 ${
+                              hasPasswordFormValues
+                                ? "text-destructive transition-colors group-hover:text-white"
+                                : "text-foreground"
+                            }`}
+                          />
                           Set Password
                         </>
                       )}
