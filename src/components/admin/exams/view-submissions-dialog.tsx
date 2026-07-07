@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDeleteDialog } from "@/components/admin/confirm-delete-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -43,6 +44,7 @@ export function ViewSubmissionsDialog({
 }: ViewSubmissionsDialogProps) {
   const [submissions, setSubmissions] = useState<SubmissionsResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
     try {
@@ -132,7 +134,7 @@ export function ViewSubmissionsDialog({
                     </TableCell>
                     <TableCell>
                       <Button
-                        onClick={() => handleDelete(sub.id)}
+                        onClick={() => setPendingDeleteId(sub.id)}
                         className="text-destructive hover:text-white bg-destructive/10 hover:bg-destructive/50"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -145,6 +147,18 @@ export function ViewSubmissionsDialog({
           )}
         </div>
       </DialogContent>
+      <ConfirmDeleteDialog
+        entityName="Submission"
+        description={`This will permanently delete this submission. This action cannot be undone.`}
+        open={!!pendingDeleteId}
+        onOpenChange={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          if (pendingDeleteId) {
+            handleDelete(pendingDeleteId);
+          }
+          setPendingDeleteId(null);
+        }}
+      />
     </Dialog>
   );
 }

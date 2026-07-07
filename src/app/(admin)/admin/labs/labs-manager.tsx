@@ -30,17 +30,7 @@ import {
   updateLab,
   updateProgram,
 } from "@/actions/admin/labs";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/admin/confirm-delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +63,26 @@ type Exercise = Awaited<ReturnType<typeof getExercises>>[number];
 type Program = Awaited<ReturnType<typeof getPrograms>>[number];
 
 type View = "labs" | "exercises" | "programs";
+
+type DeleteTarget =
+  | {
+      type: "lab";
+      id: string;
+      entityName: string;
+      description: string;
+    }
+  | {
+      type: "exercise";
+      id: string;
+      entityName: string;
+      description: string;
+    }
+  | {
+      type: "program";
+      id: string;
+      entityName: string;
+      description: string;
+    };
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -517,6 +527,9 @@ export function LabsManager() {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(
     null,
   );
+  const [pendingDelete, setPendingDelete] = useState<DeleteTarget | null>(
+    null,
+  );
 
   // Dialog state
   const [labDialog, setLabDialog] = useState(false);
@@ -620,6 +633,25 @@ export function LabsManager() {
     } else {
       toast.error(res.error ?? "Failed to delete");
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+
+    const target = pendingDelete;
+    setPendingDelete(null);
+
+    if (target.type === "lab") {
+      await handleDeleteLab(target.id);
+      return;
+    }
+
+    if (target.type === "exercise") {
+      await handleDeleteExercise(target.id);
+      return;
+    }
+
+    await handleDeleteProgram(target.id);
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -732,32 +764,20 @@ export function LabsManager() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon-sm">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Lab</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete{" "}
-                            <strong>{lab.name}</strong> and all its exercises
-                            and programs. This cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleDeleteLab(lab.id)}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() =>
+                        setPendingDelete({
+                          type: "lab",
+                          id: lab.id,
+                          entityName: "Lab",
+                          description: `This will permanently delete ${lab.name} and all its exercises and programs. This cannot be undone.`,
+                        })
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -828,31 +848,20 @@ export function LabsManager() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon-sm">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Exercise</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will delete Exercise {exercise.exerciseNo} and
-                            all its programs permanently.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleDeleteExercise(exercise.id)}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() =>
+                        setPendingDelete({
+                          type: "exercise",
+                          id: exercise.id,
+                          entityName: "Exercise",
+                          description: `This will delete Exercise ${exercise.exerciseNo} and all its programs permanently.`,
+                        })
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -916,31 +925,20 @@ export function LabsManager() {
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon-sm">
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Program</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete &quot;{program.title}
-                          &quot;.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          onClick={() => handleDeleteProgram(program.id)}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() =>
+                      setPendingDelete({
+                        type: "program",
+                        id: program.id,
+                        entityName: "Program",
+                        description: `This will permanently delete "${program.title}".`,
+                      })
+                    }
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
                 </div>
               </div>
             ))}
@@ -978,6 +976,15 @@ export function LabsManager() {
           initial={editingProgram}
         />
       )}
+      <ConfirmDeleteDialog
+        entityName={pendingDelete?.entityName ?? "Item"}
+        description={pendingDelete?.description ?? ""}
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
