@@ -29,11 +29,7 @@ async function main() {
     },
   });
 
-  if (
-    !examWithGroups ||
-    !examWithGroups.groups ||
-    examWithGroups.groups.length === 0
-  ) {
+  if (!examWithGroups?.groups || examWithGroups.groups.length === 0) {
     console.log("\n❌ No groups assigned to this exam.");
     process.exit(0);
   }

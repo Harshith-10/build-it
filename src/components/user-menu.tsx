@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient, useSession } from "@/lib/auth-client";
+import { clearExamStorage } from "@/stores/exam-store";
 
 export function UserMenu() {
   const { isMobile } = useSidebar();
@@ -127,6 +128,7 @@ export function UserMenu() {
             <DropdownMenuItem
               variant="destructive"
               onClick={async () => {
+                clearExamStorage();
                 await authClient.signOut();
                 router.push("/auth/sign-in");
               }}

@@ -148,6 +148,7 @@ export default async function ExamsPage() {
         effectiveEnd,
         computedStatus: status,
         isSubmitted: assignmentStatus === "completed",
+        isInProgress: assignmentStatus === "in_progress",
       };
     })
     .sort(
@@ -277,6 +278,8 @@ export default async function ExamsPage() {
                     status={exam.computedStatus}
                     effectiveStart={exam.effectiveStart}
                     isSubmitted={exam.isSubmitted}
+                    isInProgress={exam.isInProgress}
+                    serverNowMs={now.getTime()}
                   />
                 </CardFooter>
               </Card>

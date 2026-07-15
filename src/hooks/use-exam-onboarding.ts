@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { initializeExamSession } from "@/actions/student/exams/exam-actions";
+import { useSession } from "@/lib/auth-client";
+import { useExamStore } from "@/stores/exam-store";
 
 interface UseExamOnboardingProps {
   examId: string;
@@ -15,8 +17,10 @@ export function useExamOnboarding({
   requiresPin,
 }: UseExamOnboardingProps) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [pin, setPin] = useState("");
+  const initForExam = useExamStore((s) => s.initForExam);
 
   const handleStartExam = async () => {
     if (requiresPin && !pin) {
@@ -40,9 +44,13 @@ export function useExamOnboarding({
       // 2. Initialize Session
       const result = await initializeExamSession(examId, pin);
 
-      if (result.success) {
+      if (result.success && result.assignmentId) {
+        initForExam(session?.user?.id || "", result.assignmentId);
         toast.success("Exam started successfully.");
         router.push(`/exams/${examId}/session`);
+      } else if (result.success) {
+        await document.exitFullscreen().catch(() => {});
+        toast.error("Failed to start exam: missing assignment id.");
       } else {
         // If failed, exit fullscreen (optional, but good UX)
         await document.exitFullscreen().catch(() => {});

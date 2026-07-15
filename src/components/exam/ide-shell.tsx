@@ -2,6 +2,7 @@
 
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
+import { getExamTimingSnapshot } from "@/actions/student/exams/exam-lifecycle";
 import {
   SidebarInset,
   SidebarProvider,
@@ -11,6 +12,8 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import type { ExamTimingSnapshot } from "@/lib/exam";
+import { useExamStore } from "@/stores/exam-store";
 
 import { CodePlayground } from "./code-playground";
 import { ExamHeader } from "./exam-header";
@@ -35,29 +38,97 @@ export interface Question {
 interface IDEShellProps {
   questions: Question[];
   user: {
+    id: string;
     name: string;
     image?: string;
   };
-  endTime?: Date;
+  timingSnapshot: ExamTimingSnapshot;
   examTitle: string;
   assignmentId: string;
   completedQuestionIds: string[];
+  latestSubmissions?: Record<string, Record<string, string>>;
+}
+
+function formatCountdown(ms: number): string {
+  const safeMs = Math.max(0, ms);
+  const hours = Math.floor(safeMs / (1000 * 60 * 60));
+  const minutes = Math.floor((safeMs % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((safeMs % (1000 * 60)) / 1000);
+
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 export function IDEShell({
   questions,
   user,
-  endTime,
+  timingSnapshot,
   examTitle,
   assignmentId,
   completedQuestionIds,
+  latestSubmissions,
 }: IDEShellProps) {
   const [activeQuestionId, setActiveQuestionId] = useQueryState("q", {
     defaultValue: questions[0]?.id || "",
   });
 
   const [_isMounted, setIsMounted] = useState(false);
+  const [timing, setTiming] = useState(timingSnapshot);
+  const [serverOffsetMs, setServerOffsetMs] = useState(
+    timingSnapshot.serverNowMs - Date.now(),
+  );
+  const [syncedNowMs, setSyncedNowMs] = useState(
+    Date.now() + (timingSnapshot.serverNowMs - Date.now()),
+  );
+
+  const initForExam = useExamStore((s) => s.initForExam);
+
   useEffect(() => setIsMounted(true), []);
+
+  useEffect(() => {
+    initForExam(user.id, assignmentId);
+  }, [user.id, assignmentId, initForExam]);
+
+  useEffect(() => {
+    setTiming(timingSnapshot);
+    setServerOffsetMs(timingSnapshot.serverNowMs - Date.now());
+  }, [timingSnapshot]);
+
+  useEffect(() => {
+    setSyncedNowMs(Date.now() + serverOffsetMs);
+
+    const interval = setInterval(() => {
+      setSyncedNowMs(Date.now() + serverOffsetMs);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [serverOffsetMs]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const syncTiming = async () => {
+      const result = await getExamTimingSnapshot(assignmentId);
+
+      if (!disposed && result.success && result.timing) {
+        setTiming(result.timing.timing);
+        setServerOffsetMs(result.timing.timing.serverNowMs - Date.now());
+      }
+    };
+
+    syncTiming();
+    const interval = setInterval(syncTiming, 60000);
+
+    return () => {
+      disposed = true;
+      clearInterval(interval);
+    };
+  }, [assignmentId]);
+
+  const hardDeadlineReached = syncedNowMs >= timing.deadlineMs;
+  const graceExpired = syncedNowMs > timing.graceDeadlineMs;
+  const timeLeft = formatCountdown(timing.deadlineMs - syncedNowMs);
 
   const activeQuestion =
     questions.find((q) => q.id === activeQuestionId) || questions[0];
@@ -81,7 +152,9 @@ export function IDEShell({
       <SidebarInset className="h-screen overflow-hidden flex flex-col">
         <ExamHeader
           user={user}
-          endTime={endTime}
+          timeLeft={timeLeft}
+          hardDeadlineReached={hardDeadlineReached}
+          graceExpired={graceExpired}
           examTitle={examTitle}
           assignmentId={assignmentId}
         />
@@ -91,6 +164,7 @@ export function IDEShell({
               <ProblemViewer
                 question={activeQuestion}
                 assignmentId={assignmentId}
+                userId={user.id}
               />
             </ResizablePanel>
 
@@ -100,6 +174,9 @@ export function IDEShell({
               <CodePlayground
                 question={activeQuestion}
                 assignmentId={assignmentId}
+                userId={user.id}
+                isCodingLocked={hardDeadlineReached}
+                latestSubmissions={latestSubmissions}
               />
             </ResizablePanel>
           </ResizablePanelGroup>

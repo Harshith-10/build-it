@@ -39,11 +39,12 @@ export function useCodeExecution() {
   }, [cooldown]);
 
   const handleRun = async ({
+    assignmentId,
     code,
     language,
     version,
     testCases,
-  }: Omit<UseCodeExecutionProps, "assignmentId" | "questionId">) => {
+  }: Omit<UseCodeExecutionProps, "questionId">) => {
     if (!version) {
       toast.error(`No ${language} runtime available.`);
       return;
@@ -58,6 +59,7 @@ export function useCodeExecution() {
     try {
       if (activeTab === "custom") {
         const result = await runWithCustomInput({
+          assignmentId,
           code,
           language,
           version,
@@ -90,6 +92,7 @@ export function useCodeExecution() {
       } else {
         setActiveTab("results");
         const result = await runCode({
+          assignmentId,
           code,
           language,
           version,

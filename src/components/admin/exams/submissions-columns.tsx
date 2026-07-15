@@ -58,7 +58,7 @@ export const createColumns = (
         <DataTableColumnHeader column={column} title="Username" />
       ),
       cell: ({ row }) => row.original.user?.username || "-",
-      enableSorting: false,
+      enableSorting: true,
     },
     {
       accessorKey: "status",

@@ -41,6 +41,7 @@ export type User = {
       delete: boolean;
     };
     exams: { create: boolean; read: boolean; update: boolean; delete: boolean };
+    labs: { create: boolean; read: boolean; update: boolean; delete: boolean };
   } | null;
   createdAt: Date | string;
 };

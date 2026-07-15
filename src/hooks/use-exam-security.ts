@@ -32,6 +32,18 @@ interface UseExamSecurityReturn {
 
 const DEBOUNCE_MS = 1000;
 
+function isLinuxClient() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const platform =
+    navigator.platform ??
+    navigator.userAgent;
+
+  return /linux/i.test(platform);
+}
+
 export const useExamSecurity = ({
   assignmentId,
 }: UseExamSecurityProps): UseExamSecurityReturn => {
@@ -59,6 +71,10 @@ export const useExamSecurity = ({
 
   const reportViolation = useCallback(
     async (type: ViolationType, isSevere: boolean, details?: string) => {
+      if (isLinuxClient()) {
+        return;
+      }
+
       const now = Date.now();
       if (now - lastViolationTime.current < DEBOUNCE_MS) {
         return;
@@ -121,6 +137,10 @@ export const useExamSecurity = ({
   );
 
   useEffect(() => {
+    if (isLinuxClient()) {
+      return;
+    }
+
     // 1. Prevent Right Click
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();

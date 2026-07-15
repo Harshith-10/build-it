@@ -50,7 +50,7 @@ export function BasicDetails({ form }: BasicDetailsProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>Exam Instructions</FormLabel>
               <FormControl>
                 <Textarea {...field} />
               </FormControl>

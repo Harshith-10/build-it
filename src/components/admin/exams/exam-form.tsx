@@ -42,6 +42,9 @@ const examGradingConfigSchema = z.object({
       }),
     )
     .default([]),
+  easyMarks: z.number().optional(),
+  mediumMarks: z.number().optional(),
+  hardMarks: z.number().optional(),
 });
 
 const examSchema = z.object({
@@ -52,13 +55,13 @@ const examSchema = z.object({
   endTime: z.string(),
   duration: z.coerce.number().min(1),
 
-  strategyType: z.enum(["random_n", "difficulty_mix"]),
+  strategyType: z.enum(["random_n", "difficulty_mix", "lab_external"]),
   strategyConfig: examStrategyConfigSchema.default({
     collectionIds: [],
     questionIds: [],
   }),
 
-  gradingStrategy: z.enum(["linear", "difficulty_based", "count_based"]),
+  gradingStrategy: z.enum(["linear", "difficulty_based", "count_based", "lab_external"]),
   gradingConfig: examGradingConfigSchema.default({ thresholds: [] }),
 
   assignments: z
@@ -94,9 +97,9 @@ type ExamFormInitialData = {
   startTime?: string | Date | null;
   endTime?: string | Date | null;
   durationMinutes?: number | null;
-  strategyType?: "random_n" | "difficulty_mix" | "fixed_set";
+  strategyType?: "random_n" | "difficulty_mix" | "fixed_set" | "lab_external";
   strategyConfig?: unknown;
-  gradingStrategy?: "linear" | "difficulty_based" | "count_based";
+  gradingStrategy?: "linear" | "difficulty_based" | "count_based" | "lab_external";
   gradingConfig?: unknown;
   assignments?: Array<{
     groupId: string;
@@ -141,6 +144,8 @@ export function ExamForm({
           strategyType:
             initialData.strategyType === "difficulty_mix"
               ? "difficulty_mix"
+              : initialData.strategyType === "lab_external"
+                ? "lab_external"
               : "random_n",
           strategyConfig:
             typeof initialData.strategyConfig === "object" &&
@@ -149,12 +154,12 @@ export function ExamForm({
               : { count: 10, collectionIds: [], questionIds: [] },
           gradingStrategy:
             initialData.gradingStrategy ||
-            ("linear" as "linear" | "difficulty_based" | "count_based"),
+            ("linear" as "linear" | "difficulty_based" | "count_based" | "lab_external"),
           gradingConfig:
             typeof initialData.gradingConfig === "object" &&
             initialData.gradingConfig !== null
               ? initialData.gradingConfig
-              : { totalMarks: 100, thresholds: [] },
+              : { totalMarks: 100, thresholds: [], easyMarks: 20, mediumMarks: 30, hardMarks: 10 },
           assignments:
             initialData.groups?.map((eg: ExamGroupInitialData) => ({
               groupId: eg.groupId,

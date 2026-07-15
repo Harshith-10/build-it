@@ -98,7 +98,7 @@ export default function SignIn() {
             {error}
           </div>
         )}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} method="POST" className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="identifier">Email or Roll No.</Label>
             <Input

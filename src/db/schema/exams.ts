@@ -13,6 +13,7 @@ import {
 import { user } from "./auth";
 import { userGroups } from "./groups";
 import { examCollections } from "./question-collections";
+import { departments } from "./departments";
 
 export const examStatusEnum = pgEnum("exam_status", [
   "upcoming",
@@ -23,6 +24,7 @@ export const strategyTypeEnum = pgEnum("strategy_type", [
   "random_n",
   "fixed_set",
   "difficulty_mix",
+  "lab_external",
 ]);
 
 export interface RandomNStrategyConfig {
@@ -41,10 +43,15 @@ export interface DifficultyMixStrategyConfig {
   collectionIds: string[];
 }
 
+export interface LabExternalStrategyConfig {
+  collectionIds: string[];
+}
+
 export type StrategyConfigMap = {
   random_n: RandomNStrategyConfig;
   fixed_set: FixedSetStrategyConfig;
   difficulty_mix: DifficultyMixStrategyConfig;
+  lab_external: LabExternalStrategyConfig;
 };
 
 export type StrategyConfig = StrategyConfigMap[keyof StrategyConfigMap];
@@ -53,6 +60,7 @@ export const gradingStrategyEnum = pgEnum("grading_strategy", [
   "linear",
   "difficulty_based",
   "count_based",
+  "lab_external",
 ]);
 
 export type CountBasedStrategyConfig = {
@@ -67,10 +75,18 @@ export type GradingConfigMap = {
     hardWeight: number;
   };
   count_based: CountBasedStrategyConfig;
+  lab_external: {
+    easyMarks: number;
+    mediumMarks: number;
+    hardMarks: number;
+  };
 };
 
 export const exams = pgTable("exams", {
   id: uuid("id").primaryKey().defaultRandom(),
+  departmentId: uuid("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),

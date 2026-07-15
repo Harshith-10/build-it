@@ -8,11 +8,15 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import { departments } from "./departments";
 
 export const difficultyEnum = pgEnum("difficulty", ["easy", "medium", "hard"]);
 
 export const questions = pgTable("questions", {
   id: uuid("id").primaryKey().defaultRandom(),
+  departmentId: uuid("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),

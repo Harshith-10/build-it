@@ -1,0 +1,353 @@
+diff --git a/src/db/schema/exams.ts b/src/db/schema/exams.ts
+--- a/src/db/schema/exams.ts
++++ b/src/db/schema/exams.ts
+@@ -17,6 +17,7 @@
+   "random_n",
+   "fixed_set",
+   "difficulty_mix",
++  "lab_external",
+ ]);
+ 
+ export interface RandomNStrategyConfig {
+@@ -34,10 +35,15 @@
+   collectionIds: string[];
+ }
+ 
++export interface LabExternalStrategyConfig {
++  collectionIds: string[];
++}
++
+ export type StrategyConfigMap = {
+   random_n: RandomNStrategyConfig;
+   fixed_set: FixedSetStrategyConfig;
+   difficulty_mix: DifficultyMixStrategyConfig;
++  lab_external: LabExternalStrategyConfig;
+ };
+ 
+ export type StrategyConfig = StrategyConfigMap[keyof StrategyConfigMap];
+@@ -46,6 +52,7 @@
+   "linear",
+   "difficulty_based",
+   "count_based",
++  "lab_external",
+ ]);
+ 
+ export type CountBasedStrategyConfig = {
+@@ -58,6 +65,11 @@
+     hardWeight: number;
+   };
+   count_based: CountBasedStrategyConfig;
++  lab_external: {
++    easyMarks: number;
++    mediumMarks: number;
++    hardMarks: number;
++  };
+ };
+ 
+ export const exams = pgTable("exams", {
+diff --git a/src/types/exam.ts b/src/types/exam.ts
+--- a/src/types/exam.ts
++++ b/src/types/exam.ts
+@@ -8,8 +8,8 @@
+   endTime: Date;
+   durationMinutes: number;
+   requiresPin: boolean;
+-  strategyType: "random_n" | "fixed_set" | "difficulty_mix";
+-  gradingStrategy: "linear" | "difficulty_based" | "count_based";
++  strategyType: "random_n" | "fixed_set" | "difficulty_mix" | "lab_external";
++  gradingStrategy: "linear" | "difficulty_based" | "count_based" | "lab_external";
+   strategyConfig: StrategyConfig | null;
+   gradingConfig: unknown;
+ }
+diff --git a/src/lib/grading.ts b/src/lib/grading.ts
+--- a/src/lib/grading.ts
++++ b/src/lib/grading.ts
+@@ -1,4 +1,4 @@
+-export type GradingStrategy = "linear" | "difficulty_based" | "count_based";
++export type GradingStrategy = "linear" | "difficulty_based" | "count_based" | "lab_external";
+ export type Difficulty = "easy" | "medium" | "hard";
+ 
+ export interface GradingInput {
+@@ -69,6 +69,39 @@
+     if (matchedRule) {
+       score = matchedRule.marks;
+     }
++  } else if (strategy === "lab_external") {
++    let easyScore = 0;
++    let mediumScore = 0;
++    let hardScore = 0;
++
++    const easyMax = config?.easyMarks ?? 20;
++    const mediumMax = config?.mediumMarks ?? 30;
++    const hardMax = config?.hardMarks ?? 10;
++
++    if (allowPartial && questionScores && questionDifficulties) {
++      for (const [qId, percentage] of Object.entries(questionScores)) {
++        const difficulty = questionDifficulties?.[qId];
++        if (difficulty === "easy") easyScore += percentage * easyMax;
++        else if (difficulty === "medium") mediumScore += percentage * mediumMax;
++        else if (difficulty === "hard") hardScore += percentage * hardMax;
++      }
++    } else {
++      for (const qId of passedQuestionIds) {
++        const difficulty = questionDifficulties?.[qId];
++        if (difficulty === "easy") easyScore += easyMax;
++        else if (difficulty === "medium") mediumScore += mediumMax;
++        else if (difficulty === "hard") hardScore += hardMax;
++      }
++    }
++
++    const cappedEasy = Math.min(easyScore, easyMax);
++    const cappedMedium = Math.min(mediumScore, mediumMax);
++    const baseScore = cappedEasy + cappedMedium;
++    
++    score = baseScore;
++    if (baseScore > 40) {
++      score += Math.min(hardScore, hardMax);
++    }
+   } else {
+     // Legacy or unknown
+     console.warn(`Unknown grading strategy: ${strategy}`);
+diff --git a/src/actions/admin/exams.ts b/src/actions/admin/exams.ts
+--- a/src/actions/admin/exams.ts
++++ b/src/actions/admin/exams.ts
+@@ -28,9 +28,9 @@
+   startTime?: string | null;
+   endTime?: string | null;
+   duration?: number;
+-  strategyType?: "random_n" | "fixed_set" | "difficulty_mix";
++  strategyType?: "random_n" | "fixed_set" | "difficulty_mix" | "lab_external";
+   strategyConfig?: StrategyConfig | null;
+-  gradingStrategy?: "linear" | "difficulty_based" | "count_based";
++  gradingStrategy?: "linear" | "difficulty_based" | "count_based" | "lab_external";
+   gradingConfig?: GradingConfigMap[keyof GradingConfigMap] | null;
+   assignments?: UpsertExamAssignmentInput[];
+   moderatorIds?: string[];
+@@ -99,6 +99,25 @@
+     return { thresholds: config.thresholds };
+   }
+ 
++  if (strategy === "lab_external") {
++    if (
++      config &&
++      typeof config === "object" &&
++      "easyMarks" in config &&
++      "mediumMarks" in config &&
++      "hardMarks" in config &&
++      typeof config.easyMarks === "number" &&
++      typeof config.mediumMarks === "number" &&
++      typeof config.hardMarks === "number"
++    ) {
++      return {
++        easyMarks: config.easyMarks,
++        mediumMarks: config.mediumMarks,
++        hardMarks: config.hardMarks,
++      };
++    }
++    return { easyMarks: 20, mediumMarks: 30, hardMarks: 10 };
++  }
++
+   return { thresholds: [] };
+ }
+diff --git a/src/actions/student/exams/exam-actions.ts b/src/actions/student/exams/exam-actions.ts
+--- a/src/actions/student/exams/exam-actions.ts
++++ b/src/actions/student/exams/exam-actions.ts
+@@ -107,9 +107,11 @@
+     } else {
+       randomQuestions = await base;
+     }
+-  } else if (strategyType === "difficulty_mix") {
++  } else if (strategyType === "difficulty_mix" || strategyType === "lab_external") {
+     const config = strategyConfig as StrategyConfigMap["difficulty_mix"] | null;
+-    const { easy = 0, medium = 0, hard = 0 } = config || {};
++    const isLabExternal = strategyType === "lab_external";
++    const easy = isLabExternal ? 2 : (config?.easy || 0);
++    const medium = isLabExternal ? 2 : (config?.medium || 0);
++    const hard = isLabExternal ? 1 : (config?.hard || 0);
+ 
+     const fetchByDifficulty = async (
+       diff: "easy" | "medium" | "hard",
+diff --git a/src/components/admin/exams/form-sections/strategy-config.tsx b/src/components/admin/exams/form-sections/strategy-config.tsx
+--- a/src/components/admin/exams/form-sections/strategy-config.tsx
++++ b/src/components/admin/exams/form-sections/strategy-config.tsx
+@@ -43,6 +43,7 @@
+                   <SelectItem value="random_n">Random N Questions</SelectItem>
+                   {/* <SelectItem value="fixed_set">Fixed Set</SelectItem> */}
+                   <SelectItem value="difficulty_mix">Difficulty Mix</SelectItem>
++                  <SelectItem value="lab_external">Lab External (2E, 2M, 1H)</SelectItem>
+                 </SelectContent>
+               </Select>
+             </FormItem>
+@@ -130,6 +131,25 @@
+             </div>
+           </div>
+         )}
++
++        {strategyType === "lab_external" && (
++          <div className="space-y-4">
++            <FormField
++              control={form.control}
++              name="strategyConfig.collectionIds"
++              render={({ field }) => (
++                <FormItem>
++                  <FormLabel>Select Collections</FormLabel>
++                  <CollectionPicker
++                    value={field.value ?? []}
++                    onChange={field.onChange}
++                  />
++                  <FormDescription>
++                    Questions will be selected from these collections (2 Easy, 2 Medium, 1 Hard).
++                  </FormDescription>
++                </FormItem>
++              )}
++            />
++          </div>
++        )}
+       </CardContent>
+     </Card>
+diff --git a/src/components/admin/exams/form-sections/grading-config.tsx b/src/components/admin/exams/form-sections/grading-config.tsx
+--- a/src/components/admin/exams/form-sections/grading-config.tsx
++++ b/src/components/admin/exams/form-sections/grading-config.tsx
+@@ -53,6 +53,9 @@
+                   <SelectItem value="count_based">
+                     Count Based (Thresholds)
+                   </SelectItem>
++                  <SelectItem value="lab_external">
++                    Lab External Rules
++                  </SelectItem>
+                 </SelectContent>
+               </Select>
+             </FormItem>
+@@ -213,6 +216,59 @@
+               )}
+             </div>
+           </div>
+         )}
++
++        {gradingStrategy === "lab_external" && (
++          <div className="space-y-4">
++            <p className="text-sm text-muted-foreground">
++              Lab External grading: Easy caps at max, Medium caps at max. Hard is added only if Easy + Medium &gt; 40.
++            </p>
++            <div className="grid grid-cols-3 gap-4">
++              <FormField
++                control={form.control}
++                name="gradingConfig.easyMarks"
++                render={({ field }) => (
++                  <FormItem>
++                    <FormLabel>Easy Max (pts)</FormLabel>
++                    <FormControl>
++                      <Input
++                        type="number"
++                        placeholder="20"
++                        value={typeof field.value === "number" ? field.value : ""}
++                        onChange={(e) => field.onChange(Number(e.target.value))}
++                      />
++                    </FormControl>
++                  </FormItem>
++                )}
++              />
++              <FormField
++                control={form.control}
++                name="gradingConfig.mediumMarks"
++                render={({ field }) => (
++                  <FormItem>
++                    <FormLabel>Medium Max (pts)</FormLabel>
++                    <FormControl>
++                      <Input
++                        type="number"
++                        placeholder="30"
++                        value={typeof field.value === "number" ? field.value : ""}
++                        onChange={(e) => field.onChange(Number(e.target.value))}
++                      />
++                    </FormControl>
++                  </FormItem>
++                )}
++              />
++              <FormField
++                control={form.control}
++                name="gradingConfig.hardMarks"
++                render={({ field }) => (
++                  <FormItem>
++                    <FormLabel>Hard Max (pts)</FormLabel>
++                    <FormControl>
++                      <Input
++                        type="number"
++                        placeholder="10"
++                        value={typeof field.value === "number" ? field.value : ""}
++                        onChange={(e) => field.onChange(Number(e.target.value))}
++                      />
++                    </FormControl>
++                  </FormItem>
++                )}
++              />
++            </div>
++          </div>
++        )}
+       </CardContent>
+     </Card>
+diff --git a/src/components/admin/exams/exam-form.tsx b/src/components/admin/exams/exam-form.tsx
+--- a/src/components/admin/exams/exam-form.tsx
++++ b/src/components/admin/exams/exam-form.tsx
+@@ -37,6 +37,9 @@
+       }),
+     )
+     .default([]),
++  easyMarks: z.number().optional(),
++  mediumMarks: z.number().optional(),
++  hardMarks: z.number().optional(),
+ });
+ 
+ const examSchema = z.object({
+@@ -46,10 +49,10 @@
+   startTime: z.string(),
+   endTime: z.string(),
+   duration: z.coerce.number().min(1),
+ 
+-  strategyType: z.enum(["random_n", "difficulty_mix"]),
++  strategyType: z.enum(["random_n", "difficulty_mix", "lab_external"]),
+   strategyConfig: examStrategyConfigSchema.default({
+     collectionIds: [],
+     questionIds: [],
+   }),
+ 
+-  gradingStrategy: z.enum(["linear", "difficulty_based", "count_based"]),
++  gradingStrategy: z.enum(["linear", "difficulty_based", "count_based", "lab_external"]),
+   gradingConfig: examGradingConfigSchema.default({ thresholds: [] }),
+ 
+@@ -73,9 +76,9 @@
+   startTime?: string | Date | null;
+   endTime?: string | Date | null;
+   durationMinutes?: number | null;
+-  strategyType?: "random_n" | "difficulty_mix" | "fixed_set";
++  strategyType?: "random_n" | "difficulty_mix" | "fixed_set" | "lab_external";
+   strategyConfig?: unknown;
+-  gradingStrategy?: "linear" | "difficulty_based" | "count_based";
++  gradingStrategy?: "linear" | "difficulty_based" | "count_based" | "lab_external";
+   gradingConfig?: unknown;
+   assignments?: Array<{
+     groupId: string;
+@@ -118,6 +121,8 @@
+           strategyType:
+             initialData.strategyType === "difficulty_mix"
+               ? "difficulty_mix"
++              : initialData.strategyType === "lab_external"
++                ? "lab_external"
+               : "random_n",
+           strategyConfig:
+             typeof initialData.strategyConfig === "object" &&
+@@ -126,12 +131,12 @@
+               : { count: 10, collectionIds: [], questionIds: [] },
+           gradingStrategy:
+             initialData.gradingStrategy ||
+-            ("linear" as "linear" | "difficulty_based" | "count_based"),
++            ("linear" as "linear" | "difficulty_based" | "count_based" | "lab_external"),
+           gradingConfig:
+             typeof initialData.gradingConfig === "object" &&
+             initialData.gradingConfig !== null
+               ? initialData.gradingConfig
+-              : { totalMarks: 100, thresholds: [] },
++              : { totalMarks: 100, thresholds: [], easyMarks: 20, mediumMarks: 30, hardMarks: 10 },
+           assignments:
+             initialData.groups?.map((eg: ExamGroupInitialData) => ({
+               groupId: eg.groupId,

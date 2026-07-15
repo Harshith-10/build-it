@@ -40,13 +40,24 @@ import TestCaseConsole from "./test-case-console";
 interface CodePlaygroundProps {
   question: Question;
   assignmentId: string;
+  userId: string;
+  isCodingLocked?: boolean;
+  latestSubmissions?: Record<string, Record<string, string>>;
 }
 
 export function CodePlayground({
   question,
   assignmentId,
+  userId,
+  isCodingLocked = false,
+  latestSubmissions,
 }: CodePlaygroundProps) {
-  const { code, setCode } = useExamStore();
+  const {
+    code,
+    setCode,
+    userId: storedUserId,
+    assignmentId: storedAssignmentId,
+  } = useExamStore();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -91,15 +102,25 @@ export function CodePlayground({
     );
   }
 
-  const defaultCode =
+  const driverCode =
     (question.driverCode as Record<string, string> | null)?.[
       selectedLanguage
     ] || "";
 
-  const currentCode =
-    question.id in code && code[question.id]?.[selectedLanguage]
+  const latestSubmittedCode = latestSubmissions?.[question.id]?.[selectedLanguage];
+
+  const isSameSession =
+    storedUserId === userId && storedAssignmentId === assignmentId;
+
+  const localDraft =
+    isSameSession && question.id in code && code[question.id]?.[selectedLanguage]
       ? code[question.id][selectedLanguage]
-      : defaultCode;
+      : undefined;
+
+  // 1. Local Draft (Highest priority)
+  // 2. Latest Submitted Code (DB recovery anchor)
+  // 3. Question Driver / Template Code
+  const currentCode = localDraft ?? latestSubmittedCode ?? driverCode;
 
   const getLanguageExtension = (lang: string) => {
     switch (lang) {
@@ -227,13 +248,19 @@ export function CodePlayground({
                   size="sm"
                   onClick={() =>
                     handleRun({
+                      assignmentId,
                       code: currentCode,
                       language: selectedLanguage,
                       version: selectedVersion,
                       testCases: question.testCases,
                     })
                   }
-                  disabled={isRunning || !selectedVersion || cooldown > 0}
+                  disabled={
+                    isCodingLocked ||
+                    isRunning ||
+                    !selectedVersion ||
+                    cooldown > 0
+                  }
                   className="gap-1.5"
                 >
                   {isRunning ? (
@@ -258,7 +285,12 @@ export function CodePlayground({
                       version: selectedVersion,
                     })
                   }
-                  disabled={isSubmitting || !selectedVersion || isRunning}
+                  disabled={
+                    isCodingLocked ||
+                    isSubmitting ||
+                    !selectedVersion ||
+                    isRunning
+                  }
                   className="gap-1.5 bg-green-600 hover:bg-green-700 text-foreground"
                 >
                   {isSubmitting ? (
@@ -271,7 +303,7 @@ export function CodePlayground({
               </ButtonGroup>
             </div>
           </div>
-          <div className="flex-1 overflow-hidden text-[14px]">
+          <div className="relative flex-1 overflow-hidden text-[14px]">
             <CodeMirror
               key={question.id}
               value={currentCode}
@@ -280,15 +312,23 @@ export function CodePlayground({
                 getLanguageExtension(selectedLanguage),
                 EditorState.tabSize.of(4),
               ]}
-              onChange={(val) => setCode(question.id, selectedLanguage, val)}
+              onChange={(val) =>
+                setCode(userId, assignmentId, question.id, selectedLanguage, val)
+              }
               theme={theme === "dark" ? "dark" : "light"}
               className="h-full"
+              editable={!isCodingLocked}
               basicSetup={{
                 lineNumbers: true,
                 foldGutter: true,
               }}
               onCreateEditor={onCreateEditor}
             />
+            {isCodingLocked && (
+              <div className="absolute bottom-3 right-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                Coding window ended. Use End Exam to submit.
+              </div>
+            )}
           </div>
         </div>
       </ResizablePanel>

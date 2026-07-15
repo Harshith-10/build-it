@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { finishExam } from "@/actions/student/exams/exam-lifecycle";
+import { clearExamStorage } from "@/stores/exam-store";
 import { SidebarTrigger } from "@/components/animate-ui/components/radix/sidebar";
 import {
   AlertDialog,
@@ -24,20 +25,24 @@ interface ExamHeaderProps {
     name: string;
     image?: string;
   };
-  endTime?: Date;
+  timeLeft: string;
+  hardDeadlineReached: boolean;
+  graceExpired: boolean;
   examTitle: string;
   assignmentId: string;
 }
 
 export function ExamHeader({
   user,
-  endTime,
+  timeLeft,
+  hardDeadlineReached,
+  graceExpired,
   examTitle,
   assignmentId,
 }: ExamHeaderProps) {
   const router = useRouter();
-  const [timeLeft, setTimeLeft] = useState<string>("00:00:00");
   const [isFinishing, setIsFinishing] = useState(false);
+  const [hasAutoSubmitted, setHasAutoSubmitted] = useState(false);
 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
@@ -48,13 +53,23 @@ export function ExamHeader({
       setIsFinishing(true);
       toast.info(force ? "Time's up! Submitting exam..." : "Finishing exam...");
 
-      const result = await finishExam(assignmentId);
+      const result = await finishExam({
+        assignmentId,
+        source: force ? "auto" : "manual",
+      });
 
       if (result.success && result.redirectPath) {
+        clearExamStorage();
         toast.success("Exam submitted successfully");
         router.push(result.redirectPath);
       } else {
         toast.error(result.error || "Failed to submit exam");
+
+        // If auto-submit was rejected as early, allow retry on next tick.
+        if (force && result.timing?.timing?.phase === "before_deadline") {
+          setHasAutoSubmitted(false);
+        }
+
         setIsFinishing(false);
       }
     },
@@ -62,36 +77,11 @@ export function ExamHeader({
   );
 
   useEffect(() => {
-    if (!endTime) return;
+    if (!hardDeadlineReached || hasAutoSubmitted) return;
 
-    const interval = setInterval(() => {
-      const now = new Date();
-      const diff = endTime.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setTimeLeft("00:00:00");
-        clearInterval(interval);
-        // Trigger auto-submit
-        submitExam(true);
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeLeft(
-        `${hours.toString().padStart(2, "0")}:${minutes
-          .toString()
-          .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [
-    endTime, // Trigger auto-submit
-    submitExam,
-  ]);
+    setHasAutoSubmitted(true);
+    submitExam(true);
+  }, [hardDeadlineReached, hasAutoSubmitted, submitExam]);
 
   const handleFinishClick = () => setShowConfirmDialog(true);
   const handleConfirmFinish = () => {
@@ -113,7 +103,11 @@ export function ExamHeader({
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-1.5 font-mono text-sm font-medium">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className={timeLeft === "00:00:00" ? "text-red-500" : ""}>
+            <span
+              className={
+                hardDeadlineReached || graceExpired ? "text-red-500" : ""
+              }
+            >
               {timeLeft}
             </span>
           </div>

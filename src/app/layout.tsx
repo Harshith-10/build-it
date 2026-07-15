@@ -22,6 +22,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${chakraPetch.variable} ${googleSans.variable} ${geistMono.variable} antialiased h-screen`}
     >
+      <head>
+        <script
+          async
+          crossOrigin="anonymous"
+          src="https://tweakcn.com/live-preview.min.js"
+        />
+      </head>
       <body className="h-screen">
         <ThemeProvider
           attribute="class"

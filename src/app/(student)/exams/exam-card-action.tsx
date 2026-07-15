@@ -14,6 +14,8 @@ interface ExamCardActionProps {
   status: "upcoming" | "active" | "completed";
   effectiveStart: Date;
   isSubmitted?: boolean;
+  isInProgress?: boolean;
+  serverNowMs: number;
 }
 
 export function ExamCardAction({
@@ -21,9 +23,12 @@ export function ExamCardAction({
   status: initialStatus,
   effectiveStart,
   isSubmitted = false,
+  isInProgress = false,
+  serverNowMs,
 }: ExamCardActionProps) {
   const [status, setStatus] = useState(initialStatus);
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
+  const [serverOffsetMs] = useState(() => serverNowMs - Date.now());
   const router = useRouter();
   const { status: jetStatus } = useJetStore();
 
@@ -34,7 +39,7 @@ export function ExamCardAction({
     const targetTime = new Date(effectiveStart).getTime();
 
     const updateTimer = () => {
-      const now = Date.now();
+      const now = Date.now() + serverOffsetMs;
       const diff = targetTime - now;
 
       if (diff <= 0) {
@@ -63,7 +68,7 @@ export function ExamCardAction({
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [status, effectiveStart, router]);
+  }, [status, effectiveStart, router, serverOffsetMs]);
 
   // If exam is already submitted, show "Submitted" button with link to results
   if (isSubmitted) {
@@ -72,6 +77,31 @@ export function ExamCardAction({
         <Link href={`/exams/${examId}/results`}>
           <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
           Submitted - View Results
+        </Link>
+      </Button>
+    );
+  }
+
+  if (isInProgress) {
+    if (jetStatus === "offline") {
+      return (
+        <Button
+          variant="secondary"
+          className="w-full cursor-not-allowed"
+          disabled
+        >
+          <span className="text-destructive font-medium">
+            Jet Server Offline - Contact Admin
+          </span>
+        </Button>
+      );
+    }
+
+    return (
+      <Button className="w-full group bg-blue-600 hover:bg-blue-700 text-white" asChild>
+        <Link href={`/exams/${examId}/session`}>
+          Resume Session
+          <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
         </Link>
       </Button>
     );
@@ -105,7 +135,7 @@ export function ExamCardAction({
   if (status === "completed") {
     return (
       <Button
-        variant="secondary"
+        variant="outline"
         className="w-full cursor-not-allowed"
         asChild
         disabled
