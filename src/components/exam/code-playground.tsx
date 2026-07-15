@@ -102,13 +102,9 @@ export function CodePlayground({
       selectedLanguage
     ] || "";
 
-  const examCode = code[assignmentId];
   const latestSubmittedCode = latestSubmissions?.[question.id]?.[selectedLanguage];
 
-  const localDraft =
-    examCode && question.id in examCode && examCode[question.id]?.[selectedLanguage]
-      ? examCode[question.id][selectedLanguage]
-      : undefined;
+  const localDraft = code[question.id]?.[selectedLanguage];
 
   // 1. Local Draft (Highest priority)
   // 2. Latest Submitted Code (DB recovery anchor)
@@ -306,7 +302,7 @@ export function CodePlayground({
                 EditorState.tabSize.of(4),
               ]}
               onChange={(val) =>
-                setCode(assignmentId, question.id, selectedLanguage, val)
+                setCode(userId, assignmentId, question.id, selectedLanguage, val)
               }
               theme={theme === "dark" ? "dark" : "light"}
               className="h-full"
