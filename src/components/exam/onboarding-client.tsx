@@ -232,7 +232,7 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
 
               {exam.description ? (
                 <div className="h-full rounded-lg bg-muted p-4">
-                  <h4 className="mb-2 font-semibold">Exam Description</h4>
+                  <h4 className="mb-2 font-semibold">Exam Instructions</h4>
                   <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                     {exam.description}
                   </p>

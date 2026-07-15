@@ -9,12 +9,20 @@ import { auth } from "@/lib/auth";
 
 const MAX_MALPRACTICE_LIMIT = 3;
 
+function isLinuxRequest(requestHeaders: Headers) {
+  const platformHeader = requestHeaders.get("sec-ch-ua-platform") ?? "";
+  const userAgent = requestHeaders.get("user-agent") ?? "";
+
+  return /linux/i.test(platformHeader) || /linux/i.test(userAgent);
+}
+
 interface MalpracticeResult {
   success: boolean;
   terminated: boolean;
   warningsLeft: number;
   error?: string;
   redirectPath?: string;
+  ignored?: boolean;
 }
 
 export async function recordMalpractice(
@@ -24,8 +32,19 @@ export async function recordMalpractice(
   isSevere: boolean = true,
 ): Promise<MalpracticeResult> {
   try {
+    const requestHeaders = await headers();
+
+    if (isLinuxRequest(requestHeaders)) {
+      return {
+        success: true,
+        terminated: false,
+        warningsLeft: MAX_MALPRACTICE_LIMIT,
+        ignored: true,
+      };
+    }
+
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     });
 
     if (!session) {

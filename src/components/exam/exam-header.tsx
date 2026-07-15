@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { finishExam } from "@/actions/student/exams/exam-lifecycle";
+import { clearExamStorage } from "@/stores/exam-store";
 import { SidebarTrigger } from "@/components/animate-ui/components/radix/sidebar";
 import {
   AlertDialog,
@@ -58,6 +59,7 @@ export function ExamHeader({
       });
 
       if (result.success && result.redirectPath) {
+        clearExamStorage();
         toast.success("Exam submitted successfully");
         router.push(result.redirectPath);
       } else {

@@ -5,8 +5,11 @@ import { usePathname } from "next/navigation";
 import { Suspense, useRef, useState } from "react";
 import {
   deleteExamSubmission,
+  exportExamLogsToExcel,
+  getExamAbsentees,
   getExamSubmissions,
 } from "@/actions/admin/exams";
+import { toast } from "sonner";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
 import { Button } from "@/components/ui/button";
 import type {
@@ -19,7 +22,15 @@ interface SubmissionsTableProps {
   examId: string;
 }
 
-function exportToCSV(data: Submission[]) {
+function exportToCSV(
+  submissions: Submission[],
+  absentees: Array<{
+    id: string;
+    name: string;
+    email: string;
+    username: string | null;
+  }> = [],
+) {
   const headers = [
     "#",
     "Student Name",
@@ -31,7 +42,7 @@ function exportToCSV(data: Submission[]) {
     "Attempted At",
   ];
 
-  const rows = data.map((s, i) => [
+  const submissionRows = submissions.map((s, i) => [
     i + 1,
     s.user?.name ?? "Unknown",
     s.user?.email ?? "-",
@@ -48,12 +59,24 @@ function exportToCSV(data: Submission[]) {
     }),
   ]);
 
+  const absenteeRows = absentees.map((a, i) => [
+    submissions.length + i + 1,
+    a.name ?? "Unknown",
+    a.email ?? "-",
+    a.username ?? "-",
+    "absent",
+    "-",
+    "-",
+    "-",
+  ]);
+
   const escapeCsv = (val: unknown) => {
     const str = String(val);
     if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
     return str;
   };
 
+  const rows = [...submissionRows, ...absenteeRows];
   const csv = [headers, ...rows]
     .map((row) => row.map(escapeCsv).join(","))
     .join("\n");
@@ -62,7 +85,7 @@ function exportToCSV(data: Submission[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "Exam_Submissions.csv";
+  link.download = "Exam_Results.csv";
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -98,16 +121,34 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
 
   const handleExport = async () => {
     setIsExporting(true);
+    toast.info("Generating comprehensive Excel logs...");
     try {
-      // Fetch all submissions for this exam, overriding pagination
-      const result = await getExamSubmissions({
-        examId,
-        page: 1,
-        limit: 10000,
+      const result = await exportExamLogsToExcel(examId);
+      if (!result.success || !result.base64) {
+        toast.error(result.error || "Failed to export results");
+        return;
+      }
+
+      const byteCharacters = atob(result.base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      exportToCSV(result.submissions);
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.filename || "Exam_Full_Logs.xlsx";
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Excel logs exported successfully!");
     } catch (error) {
-      console.error("Failed to export all submissions", error);
+      console.error("Failed to export results", error);
+      toast.error("An error occurred while exporting logs.");
     } finally {
       setIsExporting(false);
     }
@@ -122,7 +163,7 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
       disabled={isExporting}
     >
       <Download className="h-4 w-4" />
-      {isExporting ? "Exporting..." : "Export All"}
+      {isExporting ? "Exporting..." : "Export Results"}
     </Button>
   ) : undefined;
 

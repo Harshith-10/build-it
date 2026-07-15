@@ -2,39 +2,63 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface ExamState {
-  code: Record<string, Record<string, Record<string, string>>>; // examId -> questionId -> language -> code
-  setCode: (examId: string, questionId: string, language: string, code: string) => void;
-  clearExamCode: (examId: string) => void;
+  userId: string | null; // tracks which user the stored code belongs to
+  assignmentId: string | null; // tracks which attempt the stored code belongs to
+  code: Record<string, Record<string, string>>; // questionId -> language -> code
+  setCode: (
+    userId: string,
+    assignmentId: string,
+    questionId: string,
+    language: string,
+    code: string,
+  ) => void;
+  initForExam: (userId: string, assignmentId: string) => void;
 }
 
 export const useExamStore = create<ExamState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      userId: null,
+      assignmentId: null,
       code: {},
+      setCode: (targetUserId, targetAssignmentId, questionId, language, code) =>
+        set((state) => {
+          const isSameSession =
+            state.userId === targetUserId &&
+            state.assignmentId === targetAssignmentId;
+          const currentCodeMap = isSameSession ? state.code : {};
 
-      setCode: (examId, questionId, language, code) =>
-        set((state) => ({
-          code: {
-            ...state.code,
-            [examId]: {
-              ...(state.code[examId] || {}),
+          return {
+            userId: targetUserId,
+            assignmentId: targetAssignmentId,
+            code: {
+              ...currentCodeMap,
               [questionId]: {
-                ...(state.code[examId]?.[questionId] || {}),
+                ...(currentCodeMap[questionId] || {}),
                 [language]: code,
               },
             },
-          },
-        })),
-
-      clearExamCode: (examId) =>
-        set((state) => {
-          const updated = { ...state.code };
-          delete updated[examId];
-          return { code: updated };
+          };
         }),
+      initForExam: (targetUserId, targetAssignmentId) => {
+        const { userId: currentUserId, assignmentId: currentAssignmentId } = get();
+        if (
+          currentUserId !== targetUserId ||
+          currentAssignmentId !== targetAssignmentId
+        ) {
+          // Different user or attempt — clear stale code and update session IDs
+          set({ userId: targetUserId, assignmentId: targetAssignmentId, code: {} });
+        }
+        // Same user and attempt — preserve existing code
+      },
     }),
     {
-      name: "exam-storage-v3", // bumped to wipe old v2 data
+      name: "exam-storage-v4", // Bumped to v4 to enforce user-scoped storage isolation
     },
   ),
 );
+
+export function clearExamStorage() {
+  useExamStore.setState({ userId: null, assignmentId: null, code: {} });
+}
+

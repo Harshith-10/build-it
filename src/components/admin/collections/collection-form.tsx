@@ -14,6 +14,7 @@ import { getProblems } from "@/actions/admin/problems";
 import type { questions } from "@/db/schema/questions";
 
 type Problem = InferSelectModel<typeof questions>;
+type ProblemSummary = Pick<Problem, "id" | "title" | "difficulty">;
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,14 +49,14 @@ export function CollectionForm({
   basePath = "/admin",
 }: {
   initialData?: Partial<z.infer<typeof collectionSchema>> & {
-    questions?: { questionId: string }[];
+    questions?: { questionId: string; question: ProblemSummary }[];
   };
   basePath?: string;
 }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableProblems, setAvailableProblems] = useState<Problem[]>([]);
-  const [selectedProblems, setSelectedProblems] = useState<Problem[]>([]);
+  const [selectedProblems, setSelectedProblems] = useState<ProblemSummary[]>([]);
   const [search, setSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -67,22 +68,17 @@ export function CollectionForm({
       title: initialData?.title || "",
       description: initialData?.description || "",
       questionIds:
-        initialData?.questions?.map(
-          (q: { questionId: string }) => q.questionId,
-        ) || [],
+        initialData?.questions?.map((q) => q.questionId) || [],
     },
   });
 
-  // Initial load: fetch selected problems and first batch of available
+  // Initialize selected problems from pre-loaded data
   useEffect(() => {
     getProblems({ limit: 50 }).then((res) =>
       setAvailableProblems(res.problems),
     );
-    const ids = initialData?.questions?.map((q) => q.questionId) || [];
-    if (ids.length > 0) {
-      getProblems({ limit: 100 }).then((res) => {
-        setSelectedProblems(res.problems.filter((p) => ids.includes(p.id)));
-      });
+    if (initialData?.questions?.length) {
+      setSelectedProblems(initialData.questions.map((q) => q.question));
     }
   }, [initialData?.questions]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -121,7 +117,7 @@ export function CollectionForm({
 
   const selectedIds = form.watch("questionIds") ?? [];
 
-  const toggleProblem = (problem: Problem) => {
+  const toggleProblem = (problem: ProblemSummary) => {
     const current = form.getValues("questionIds") ?? [];
     if (current.includes(problem.id)) {
       form.setValue(

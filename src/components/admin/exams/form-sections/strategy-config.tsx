@@ -56,6 +56,7 @@ export function StrategyConfig() {
                   <SelectItem value="random_n">Random N Questions</SelectItem>
                   {/* <SelectItem value="fixed_set">Fixed Set</SelectItem> */}
                   <SelectItem value="difficulty_mix">Difficulty Mix</SelectItem>
+                  <SelectItem value="lab_external">Lab External (2E, 2M, 1H)</SelectItem>
                 </SelectContent>
               </Select>
             </FormItem>
@@ -176,6 +177,27 @@ export function StrategyConfig() {
                 )}
               />
             </div>
+          </div>
+        )}
+
+        {strategyType === "lab_external" && (
+          <div className="space-y-4">
+            <FormField
+              control={form.control}
+              name="strategyConfig.collectionIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Select Collections</FormLabel>
+                  <CollectionPicker
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                  <FormDescription>
+                    Questions will be selected from these collections (2 Easy, 2 Medium, 1 Hard).
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
           </div>
         )}
       </CardContent>
