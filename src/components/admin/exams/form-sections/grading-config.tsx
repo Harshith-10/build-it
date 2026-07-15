@@ -68,6 +68,9 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                   <SelectItem value="count_based">
                     Count Based (Thresholds)
                   </SelectItem>
+                  <SelectItem value="lab_external">
+                    Lab External Rules
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </FormItem>
@@ -254,6 +257,67 @@ export function GradingConfig({ linearMarksPerQuestion }: GradingConfigProps) {
                   No rules defined. Click "Add Rule" to start.
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {gradingStrategy === "lab_external" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Lab External grading: Easy caps at max, Medium caps at max. Hard is added only if Easy + Medium &gt; 40.
+            </p>
+            <div className="grid grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="gradingConfig.easyMarks"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Easy Max (pts)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="20"
+                        value={typeof field.value === "number" ? field.value : ""}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="gradingConfig.mediumMarks"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Medium Max (pts)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="30"
+                        value={typeof field.value === "number" ? field.value : ""}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="gradingConfig.hardMarks"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hard Max (pts)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="10"
+                        value={typeof field.value === "number" ? field.value : ""}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             </div>
           </div>
         )}

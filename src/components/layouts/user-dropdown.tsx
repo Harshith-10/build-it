@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut, useSession } from "@/lib/auth-client";
+import { clearExamStorage } from "@/stores/exam-store";
 
 export function UserDropdown() {
   const { data: session, isPending } = useSession();
@@ -31,6 +32,7 @@ export function UserDropdown() {
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
+    clearExamStorage();
     try {
       await signOut({
         fetchOptions: {

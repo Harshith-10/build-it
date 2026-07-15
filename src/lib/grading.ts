@@ -1,4 +1,4 @@
-export type GradingStrategy = "linear" | "difficulty_based" | "count_based";
+export type GradingStrategy = "linear" | "difficulty_based" | "count_based" | "lab_external";
 export type Difficulty = "easy" | "medium" | "hard";
 
 export interface GradingInput {
@@ -80,6 +80,39 @@ export function calculateGradingScore(input: GradingInput): number {
     const matchedRule = rules.find((r) => passedCount >= r.count);
     if (matchedRule) {
       score = matchedRule.marks;
+    }
+  } else if (strategy === "lab_external") {
+    let easyScore = 0;
+    let mediumScore = 0;
+    let hardScore = 0;
+
+    const easyMax = config?.easyMarks ?? 20;
+    const mediumMax = config?.mediumMarks ?? 30;
+    const hardMax = config?.hardMarks ?? 10;
+
+    if (allowPartial && questionScores && questionDifficulties) {
+      for (const [qId, percentage] of Object.entries(questionScores)) {
+        const difficulty = questionDifficulties?.[qId];
+        if (difficulty === "easy") easyScore += percentage * easyMax;
+        else if (difficulty === "medium") mediumScore += percentage * mediumMax;
+        else if (difficulty === "hard") hardScore += percentage * hardMax;
+      }
+    } else {
+      for (const qId of passedQuestionIds) {
+        const difficulty = questionDifficulties?.[qId];
+        if (difficulty === "easy") easyScore += easyMax;
+        else if (difficulty === "medium") mediumScore += mediumMax;
+        else if (difficulty === "hard") hardScore += hardMax;
+      }
+    }
+
+    const cappedEasy = Math.min(easyScore, easyMax);
+    const cappedMedium = Math.min(mediumScore, mediumMax);
+    const baseScore = cappedEasy + cappedMedium;
+    
+    score = baseScore;
+    if (baseScore > 40) {
+      score += Math.min(hardScore, hardMax);
     }
   } else {
     // Legacy or unknown
