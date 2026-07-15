@@ -1,5 +1,6 @@
 export * from "./assignments";
 export * from "./auth";
+export * from "./code365";
 export * from "./exams";
 export * from "./groups";
 export * from "./labs";
