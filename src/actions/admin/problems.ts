@@ -1,9 +1,10 @@
 "use server";
 
-import { and, desc, eq, ilike, or, sql, isNull } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, ilike, or, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { questions, testCases } from "@/db/schema/questions";
+import { user } from "@/db/schema/auth";
 import {
   ensureEntityPermission,
   ensureOwnership,
@@ -88,8 +89,9 @@ export async function getProblems({
 
   const [data, totalCount] = await Promise.all([
     db
-      .select()
+      .select({ ...getTableColumns(questions), createdByName: user.name })
       .from(questions)
+      .leftJoin(user, eq(questions.ownerId, user.id))
       .where(whereClause)
       .limit(limit)
       .offset(offset)
