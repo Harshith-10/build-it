@@ -29,7 +29,7 @@ export default async function StudentLabsPage() {
   const labs = await getMyLab();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 overflow-y-auto min-h-0 pr-1">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Labs</h1>
         <p className="text-muted-foreground">
@@ -72,7 +72,7 @@ export default async function StudentLabsPage() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <p className="text-xs text-muted-foreground">
-                    {lab.exercises?.length ?? 0} of 12 exercises added
+                    {lab.exercises?.length ?? 0} exercise{(lab.exercises?.length ?? 0) !== 1 ? "s" : ""} added
                   </p>
                 </CardContent>
               </Card>

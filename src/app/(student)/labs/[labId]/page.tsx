@@ -49,7 +49,7 @@ export default async function ExercisesPage({
   const exercises = result.data.exercises;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
+    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6 overflow-y-auto pr-1">
       {/* Header */}
       <div>
         <p className="text-sm text-muted-foreground mb-1">

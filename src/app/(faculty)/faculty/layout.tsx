@@ -28,7 +28,7 @@ export default async function FacultyLayout({
       <AppSidebar role={role} />
       <SidebarInset>
         <DashboardHeader />
-        <main className="flex flex-1 flex-col gap-6 p-6 min-h-0">
+        <main className="flex flex-1 flex-col gap-6 p-6 min-h-0 overflow-y-auto">
           {children}
         </main>
       </SidebarInset>

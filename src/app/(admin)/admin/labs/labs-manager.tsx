@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -70,14 +70,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// ΓöÇΓöÇΓöÇ Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Types ────────────────────────────────────────────────────────────────
 
 type Lab = Awaited<ReturnType<typeof getLabs>>[number];
 type Exercise = Awaited<ReturnType<typeof getExercises>>[number];
 
 type View = "labs" | "exercises";
 
-// ΓöÇΓöÇΓöÇ Schemas ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Schemas ────────────────────────────────────────────────────────────────
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -109,7 +109,7 @@ const SEM_COLORS: Record<number, string> = {
   4: "bg-blue-100 text-blue-700 border-blue-200",
 };
 
-// ΓöÇΓöÇΓöÇ Lab Form Dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Lab Form Dialog ────────────────────────────────────────────────────────
 
 function LabFormDialog({
   open,
@@ -239,7 +239,7 @@ function LabFormDialog({
   );
 }
 
-// ΓöÇΓöÇΓöÇ Schedule Dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Schedule Dialog ────────────────────────────────────────────────────────
 
 function ScheduleDialog({
   open,
@@ -344,7 +344,7 @@ function ScheduleDialog({
             {existingWindow && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                Currently scheduled ΓÇö saving will update all groups.
+                Currently scheduled — saving will update all groups.
               </p>
             )}
             <div className="flex justify-end gap-2 pt-2">
@@ -365,7 +365,7 @@ function ScheduleDialog({
   );
 }
 
-// ΓöÇΓöÇΓöÇ Main Component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Main Component ────────────────────────────────────────────────────────
 
 export function LabsManager() {
   const [view, setView] = useState<View>("labs");
@@ -386,7 +386,7 @@ export function LabsManager() {
   const [schedulingExercise, setSchedulingExercise] =
     useState<Exercise | null>(null);
 
-  // ΓöÇΓöÇ Data fetching ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Data fetching ─────────────────────────────────────────────────────────
 
   const fetchLabs = async () => {
     setLoading(true);
@@ -412,7 +412,7 @@ export function LabsManager() {
     fetchLabs();
   }, []);
 
-  // ΓöÇΓöÇ Navigation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Navigation ─────────────────────────────────────────────────────────────
 
   const openLab = (lab: Lab) => {
     setSelectedLab(lab);
@@ -425,7 +425,7 @@ export function LabsManager() {
     setSelectedLab(null);
   };
 
-  // ΓöÇΓöÇ Delete handlers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Delete handlers ─────────────────────────────────────────────────────────
 
   const handleDeleteLab = async (id: string) => {
     const res = await deleteLab(id);
@@ -447,7 +447,7 @@ export function LabsManager() {
     }
   };
 
-  // ΓöÇΓöÇ Render ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -481,7 +481,7 @@ export function LabsManager() {
         )}
       </div>
 
-      {/* ΓöÇΓöÇ Labs View ΓöÇΓöÇ */}
+      {/* ── Labs View ── */}
       {view === "labs" && (
         <>
           <div className="flex items-center justify-between">
@@ -504,13 +504,15 @@ export function LabsManager() {
             {labs.map((lab) => (
               <div
                 key={lab.id}
-                className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 transition-colors cursor-pointer"
+                className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 transition-colors cursor-pointer min-w-0"
                 onClick={() => openLab(lab)}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium text-sm">{lab.name}</span>
+                    <span className="font-medium text-sm truncate">
+                      {lab.name}
+                    </span>
                   </div>
                   <Badge
                     variant="outline"
@@ -520,13 +522,13 @@ export function LabsManager() {
                   </Badge>
                 </div>
                 {lab.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">
+                  <p className="text-xs text-muted-foreground line-clamp-2 break-words">
                     {lab.description}
                   </p>
                 )}
                 <div className="flex items-center justify-between mt-auto pt-2 border-t">
                   <span className="text-xs text-muted-foreground">
-                    {lab.exercises?.length ?? 0}/12 exercises
+                    {lab.exercises?.length ?? 0} exercise{(lab.exercises?.length ?? 0) !== 1 ? "s" : ""}
                   </span>
                   <div
                     className="flex gap-1"
@@ -581,16 +583,15 @@ export function LabsManager() {
         </>
       )}
 
-      {/* ΓöÇΓöÇ Exercises View ΓöÇΓöÇ */}
+      {/* ── Exercises View ── */}
       {view === "exercises" && selectedLab && (
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {exercises.length}/12 exercises
+              {exercises.length} exercise{exercises.length !== 1 ? "s" : ""}
             </p>
             <Button
               size="sm"
-              disabled={exercises.length >= 12}
               onClick={() => {
                 setEditingExercise(undefined);
                 setExerciseDialog(true);
@@ -620,38 +621,42 @@ export function LabsManager() {
               return (
                 <div
                   key={exercise.id}
-                  className="border rounded-lg p-4 flex items-center gap-4 hover:border-primary/50 transition-colors"
+                  className="border rounded-lg p-4 flex items-center gap-4 hover:border-primary/50 transition-colors min-w-0"
                 >
                   <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-sm font-medium shrink-0">
                     {exercise.exerciseNo}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{exercise.title}</p>
+                    <p className="font-medium text-sm truncate">
+                      {exercise.title}
+                    </p>
                     {/* Collection info */}
                     {collection ? (
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Library className="h-3 w-3" />
-                        {collection.name}
+                        <Library className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{collection.name}</span>
                         {collection.questions?.length != null && (
-                          <span className="ml-1">
-                            ┬╖ {collection.questions.length} programs
+                          <span className="ml-1 shrink-0">
+                            · {collection.questions.length} programs
                           </span>
                         )}
                       </p>
                     ) : (
                       <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
-                        <BookOpen className="h-3 w-3" />
+                        <BookOpen className="h-3 w-3 shrink-0" />
                         No collection linked
                       </p>
                     )}
                     {/* Schedule info */}
                     {hasSchedule && window?.startTime && window?.endTime && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Clock className="h-3 w-3" />
-                        {new Date(window.startTime).toLocaleString()} ΓåÆ{" "}
-                        {new Date(window.endTime).toLocaleString()}
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span className="truncate">
+                          {new Date(window.startTime).toLocaleString()} →{" "}
+                          {new Date(window.endTime).toLocaleString()}
+                        </span>
                         {isActive && (
-                          <span className="ml-1 inline-flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                          <span className="ml-1 inline-flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
                         )}
                       </p>
                     )}
@@ -680,19 +685,7 @@ export function LabsManager() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title={
-                          hasSchedule ? "Update schedule" : "Set schedule"
-                        }
-                        onClick={() => {
-                          setSchedulingExercise(exercise);
-                          setScheduleDialog(true);
-                        }}
-                      >
-                        <CalendarClock className="h-3.5 w-3.5 text-primary" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
+                        title="Edit exercise"
                         onClick={() => {
                           setEditingExercise(exercise);
                           setExerciseDialog(true);
@@ -742,7 +735,7 @@ export function LabsManager() {
         </>
       )}
 
-      {/* ΓöÇΓöÇ Dialogs ΓöÇΓöÇ */}
+      {/* ── Dialogs ── */}
       <LabFormDialog
         open={labDialog}
         onClose={() => setLabDialog(false)}
@@ -773,17 +766,6 @@ export function LabsManager() {
                   collectionId: data.collectionId ?? null,
                 });
           }}
-        />
-      )}
-      {schedulingExercise && (
-        <ScheduleDialog
-          open={scheduleDialog}
-          onClose={() => {
-            setScheduleDialog(false);
-            setSchedulingExercise(null);
-          }}
-          onSaved={() => selectedLab && fetchExercises(selectedLab.id)}
-          exercise={schedulingExercise}
         />
       )}
     </div>

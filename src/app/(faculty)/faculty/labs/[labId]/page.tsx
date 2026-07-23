@@ -42,7 +42,7 @@ export default async function FacultyLabExercisesPage({
   if (!lab) notFound();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 overflow-y-auto min-h-0 pr-1">
       {/* Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">

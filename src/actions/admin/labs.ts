@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -36,6 +36,14 @@ export async function createLab(data: {
   try {
     const _perm = await checkEntityPermission({ entity: "labs", action: "create" });
     if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+
+    const existing = await db.query.labs.findFirst({
+      where: sql`lower(${labs.name}) = lower(${data.name})`,
+    });
+    if (existing) {
+      return { success: false, error: `A lab named "${existing.name}" already exists.` };
+    }
+
     const [newLab] = await db.insert(labs).values(data).returning();
     revalidatePath("/admin/labs");
     revalidatePath("/faculty/labs");
@@ -55,6 +63,19 @@ export async function updateLab(data: {
   try {
     const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
     if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+
+    if (data.name) {
+      const duplicate = await db.query.labs.findFirst({
+        where: and(
+          sql`lower(${labs.name}) = lower(${data.name})`,
+          sql`${labs.id} != ${data.id}`
+        ),
+      });
+      if (duplicate) {
+        return { success: false, error: `A lab named "${duplicate.name}" already exists.` };
+      }
+    }
+
     const { id, ...rest } = data;
     const [updated] = await db
       .update(labs)
@@ -114,8 +135,11 @@ export async function createExercise(data: {
       where: eq(exercises.labId, data.labId),
     });
 
-    if (existing.length >= 12) {
-      return { success: false, error: "A lab can have a maximum of 12 exercises" };
+    const duplicate = existing.find(
+      (e) => e.title.trim().toLowerCase() === data.title.trim().toLowerCase()
+    );
+    if (duplicate) {
+      return { success: false, error: `An exercise named "${duplicate.title}" already exists in this lab.` };
     }
 
     const [newExercise] = await db.insert(exercises).values(data).returning();
@@ -138,6 +162,25 @@ export async function updateExercise(data: {
   try {
     const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
     if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+
+    if (data.title) {
+      // Fetch the current exercise to get its labId for scoped uniqueness check
+      const current = await db.query.exercises.findFirst({
+        where: eq(exercises.id, data.id),
+      });
+      if (!current) return { success: false, error: "Exercise not found" };
+
+      const sibling = await db.query.exercises.findFirst({
+        where: and(
+          eq(exercises.labId, current.labId),
+          sql`lower(${exercises.title}) = lower(${data.title})`,
+          sql`${exercises.id} != ${data.id}`
+        ),
+      });
+      if (sibling) {
+        return { success: false, error: `An exercise named "${sibling.title}" already exists in this lab.` };
+      }
+    }
 
     const { id, ...rest } = data;
     const [updated] = await db

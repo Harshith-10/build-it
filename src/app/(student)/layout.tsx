@@ -29,7 +29,7 @@ export default async function DashboardLayout({
       <AppSidebar role={role} />
       <SidebarInset>
         <DashboardHeader />
-        <main className="flex-1 h-full space-y-4 p-6 overflow-hidden min-h-0">
+        <main className="flex-1 h-full space-y-4 p-6 overflow-y-auto min-h-0">
           {children}
         </main>
       </SidebarInset>

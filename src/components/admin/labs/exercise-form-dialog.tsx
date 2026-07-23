@@ -67,7 +67,7 @@ type Exercise = {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const exerciseSchema = z.object({
-  exerciseNo: z.coerce.number().min(1).max(12),
+  exerciseNo: z.coerce.number().min(1),
   title: z.string().min(2, "Title must be at least 2 characters"),
   description: z.string().optional(),
   collectionId: z.string().optional().nullable(),
@@ -106,7 +106,7 @@ export function ExerciseFormDialog({
     description?: string;
     collectionId?: string | null;
     labId: string;
-  }) => Promise<{ success: boolean; error?: string }>;
+  }) => Promise<{ success: boolean; error?: string; exercise?: { id: string } }>;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -118,6 +118,7 @@ export function ExerciseFormDialog({
     { groupId: string; startTime: string; endTime: string }[]
   >([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [invalidWindows, setInvalidWindows] = useState<Set<string>>(new Set());
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const form = useForm<z.input<typeof exerciseSchema>, unknown, ExerciseFormValues>({
@@ -138,6 +139,7 @@ export function ExerciseFormDialog({
       description: initial?.description ?? "",
       collectionId: initial?.collectionId ?? null,
     });
+
     if (initial?.groups) {
       setWindows(
         initial.groups.map((g) => ({
@@ -151,6 +153,7 @@ export function ExerciseFormDialog({
     }
     setSelectedGroupId("");
     setCollectionSearch("");
+    setInvalidWindows(new Set());
   }, [initial, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch groups and collections when dialog opens
@@ -214,6 +217,32 @@ export function ExerciseFormDialog({
   // ── Submit ───────────────────────────────────────────────────────────────
 
   const onSubmit = async (data: ExerciseFormValues) => {
+    // If a group is selected in the dropdown but not yet added via "+", warn the user
+    if (selectedGroupId) {
+      toast.error(
+        "You have a group selected but haven't added it yet. Click the \"+\" button to add it, or clear the selection before saving."
+      );
+      return;
+    }
+
+    // Validate that every added group window has both times filled in
+    const incomplete = windows
+      .filter((w) => !w.startTime || !w.endTime)
+      .map((w) => w.groupId);
+
+    if (incomplete.length > 0) {
+      setInvalidWindows(new Set(incomplete));
+      toast.error(
+        `Please set both start and end times for ${
+          incomplete.length === 1
+            ? "the highlighted group"
+            : `all ${incomplete.length} highlighted groups`
+        }.`
+      );
+      return;
+    }
+
+    setInvalidWindows(new Set());
     setIsSubmitting(true);
     try {
       const res = await onUpdateExercise({
@@ -240,9 +269,8 @@ export function ExerciseFormDialog({
         for (const groupId of removed) {
           await removeExerciseGroup(exerciseId, groupId);
         }
-        // Upsert current windows
+        // Upsert current windows (all guaranteed to have times now)
         for (const window of windows) {
-          if (!window.startTime || !window.endTime) continue;
           await assignExerciseGroup({
             exerciseId,
             groupId: window.groupId,
@@ -291,9 +319,9 @@ export function ExerciseFormDialog({
                   name="exerciseNo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Exercise Number (1–12)</FormLabel>
+                      <FormLabel>Exercise Number</FormLabel>
                       <FormControl>
-                        <Input type="number" min={1} max={12} {...field} value={(field.value as number) ?? ""} />
+                        <Input type="number" min={1} {...field} value={(field.value as number) ?? ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -345,10 +373,15 @@ export function ExerciseFormDialog({
 
                     {windows.map((w) => {
                       const group = groups.find((g) => g.id === w.groupId);
+                      const isInvalid = invalidWindows.has(w.groupId);
                       return (
                         <div
                           key={w.groupId}
-                          className="border rounded-lg p-3 space-y-2"
+                          className={`border rounded-lg p-3 space-y-2 transition-colors ${
+                            isInvalid
+                              ? "border-destructive bg-destructive/5"
+                              : ""
+                          }`}
                         >
                           <div className="flex items-center justify-between">
                             <Badge variant="outline" className="text-xs">
@@ -364,6 +397,11 @@ export function ExerciseFormDialog({
                               <Trash2 className="h-3.5 w-3.5 text-destructive" />
                             </Button>
                           </div>
+                          {isInvalid && (
+                            <p className="text-xs text-destructive font-medium">
+                              Both start and end times are required.
+                            </p>
+                          )}
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <label className="text-xs text-muted-foreground mb-1 block">
@@ -373,14 +411,19 @@ export function ExerciseFormDialog({
                               <Input
                                 type="datetime-local"
                                 value={w.startTime}
-                                onChange={(e) =>
-                                  updateWindow(
-                                    w.groupId,
-                                    "startTime",
-                                    e.target.value
-                                  )
-                                }
-                                className="text-xs"
+                                onChange={(e) => {
+                                  updateWindow(w.groupId, "startTime", e.target.value);
+                                  if (e.target.value)
+                                    setInvalidWindows((prev) => {
+                                      const next = new Set(prev);
+                                      if (windows.find((win) => win.groupId === w.groupId)?.endTime || w.endTime)
+                                        next.delete(w.groupId);
+                                      return next;
+                                    });
+                                }}
+                                className={`text-xs ${
+                                  isInvalid && !w.startTime ? "border-destructive" : ""
+                                }`}
                               />
                             </div>
                             <div>
@@ -391,14 +434,19 @@ export function ExerciseFormDialog({
                               <Input
                                 type="datetime-local"
                                 value={w.endTime}
-                                onChange={(e) =>
-                                  updateWindow(
-                                    w.groupId,
-                                    "endTime",
-                                    e.target.value
-                                  )
-                                }
-                                className="text-xs"
+                                onChange={(e) => {
+                                  updateWindow(w.groupId, "endTime", e.target.value);
+                                  if (e.target.value)
+                                    setInvalidWindows((prev) => {
+                                      const next = new Set(prev);
+                                      if (windows.find((win) => win.groupId === w.groupId)?.startTime || w.startTime)
+                                        next.delete(w.groupId);
+                                      return next;
+                                    });
+                                }}
+                                className={`text-xs ${
+                                  isInvalid && !w.endTime ? "border-destructive" : ""
+                                }`}
                               />
                             </div>
                           </div>
