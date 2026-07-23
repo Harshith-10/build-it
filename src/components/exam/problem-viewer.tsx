@@ -310,7 +310,7 @@ function SubmissionsList({
 
   const handleRestore = (code: string, language: string) => {
     // Confirm restore? Maybe too annoying. Just restore.
-    setCode(assignmentId, questionId, language, code);
+    setCode(userId, assignmentId, questionId, language, code);
     toast.success(`Restored ${language} code to editor`);
   };
 

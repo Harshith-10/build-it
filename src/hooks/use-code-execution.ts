@@ -10,8 +10,8 @@ import { submitQuestion } from "@/actions/student/exams/submit-actions";
 import type { TestcaseResult } from "@/types/problem";
 
 interface UseCodeExecutionProps {
-  assignmentId: string;
-  questionId: string;
+  assignmentId?: string;
+  questionId?: string;
   code: string;
   language: string;
   version?: string;
@@ -139,6 +139,10 @@ export function useCodeExecution() {
     language,
     version,
   }: Omit<UseCodeExecutionProps, "testCases">) => {
+    if (!assignmentId || !questionId) {
+      toast.error("Missing assignment or question parameters");
+      return;
+    }
     if (!version) {
       toast.error(`No ${language} runtime available.`);
       return;

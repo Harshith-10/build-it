@@ -14,6 +14,7 @@ export async function getMyLab() {
 
   return db.query.labs.findMany({
     where: eq(labs.semester, Number(session.user.semester)),
+    with: { exercises: true },
   });
 }
 
