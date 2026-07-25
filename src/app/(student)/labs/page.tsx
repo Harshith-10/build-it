@@ -51,26 +51,26 @@ export default async function StudentLabsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {labs.map((lab) => (
-            <Link key={lab.id} href={`/labs/${lab.id}`}>
-              <Card className="transition-all hover:shadow-md hover:border-primary/30 cursor-pointer h-full">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <FlaskConical className="h-5 w-5 text-muted-foreground" />
+            <Link key={lab.id} href={`/labs/${lab.id}`} className="block min-w-0 h-full">
+              <Card className="transition-all hover:shadow-md hover:border-primary/30 cursor-pointer h-full min-w-0 overflow-hidden">
+                <CardHeader className="pb-2 min-w-0">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <FlaskConical className="h-5 w-5 text-muted-foreground shrink-0" />
                     <Badge
                       variant="outline"
-                      className={SEM_COLORS[lab.semester] ?? ""}
+                      className={`shrink-0 ${SEM_COLORS[lab.semester] ?? ""}`}
                     >
                       Semester {lab.semester}
                     </Badge>
                   </div>
-                  <CardTitle className="text-base mt-2">{lab.name}</CardTitle>
+                  <CardTitle className="text-base mt-2 break-words [overflow-wrap:anywhere] min-w-0">{lab.name}</CardTitle>
                   {lab.description && (
-                    <CardDescription className="text-xs line-clamp-2">
+                    <CardDescription className="text-xs line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0">
                       {lab.description}
                     </CardDescription>
                   )}
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 min-w-0">
                   <p className="text-xs text-muted-foreground">
                     {lab.exercises?.length ?? 0} exercise{(lab.exercises?.length ?? 0) !== 1 ? "s" : ""} added
                   </p>

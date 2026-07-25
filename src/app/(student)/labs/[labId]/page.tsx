@@ -135,7 +135,7 @@ export default async function ExercisesPage({
                 {/* Exercise info */}
                 <div className="flex-1 min-w-0">
                   <p
-                    className={`font-medium text-sm ${
+                    className={`font-medium text-sm break-words [overflow-wrap:anywhere] ${
                       isLocked || isEnded ? "text-muted-foreground" : ""
                     }`}
                   >

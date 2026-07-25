@@ -525,7 +525,7 @@ export function LabsManager() {
                   </Badge>
                 </div>
                 {lab.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 break-words">
+                  <p className="text-xs text-muted-foreground line-clamp-2 break-words [overflow-wrap:anywhere]">
                     {lab.description}
                   </p>
                 )}
