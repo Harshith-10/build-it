@@ -1,10 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { user } from "@/db/schema/auth";
 import { examModerators, exams } from "@/db/schema/exams";
 import { departmentUsers } from "@/db/schema/departments";
+import { exerciseGroups } from "@/db/schema/labs";
+import { userGroupMembers } from "@/db/schema/groups";
 import { auth } from "./auth";
 import {
   canFaculty,
@@ -229,4 +231,67 @@ export async function ensureExamReadAccess(examId: string) {
     userDepartmentId,
     examRecord,
   };
+}
+
+export async function getAwardMarksDeadlines(
+  exerciseId: string,
+  studentIds: string[]
+): Promise<Record<string, boolean>> {
+  if (studentIds.length === 0) return {};
+
+  const schedules = await db.query.exerciseGroups.findMany({
+    where: eq(exerciseGroups.exerciseId, exerciseId),
+  });
+
+  const memberships = await db.query.userGroupMembers.findMany({
+    where: inArray(userGroupMembers.userId, studentIds),
+  });
+
+  const studentGroupMap: Record<string, string[]> = {};
+  for (const m of memberships) {
+    if (!studentGroupMap[m.userId]) {
+      studentGroupMap[m.userId] = [];
+    }
+    studentGroupMap[m.userId].push(m.groupId);
+  }
+
+  const now = new Date();
+  const results: Record<string, boolean> = {};
+
+  for (const studentId of studentIds) {
+    const groupIds = studentGroupMap[studentId] || [];
+    if (groupIds.length === 0 || schedules.length === 0) {
+      results[studentId] = true;
+      continue;
+    }
+
+    const matchedSchedules = schedules.filter((s) => groupIds.includes(s.groupId));
+    if (matchedSchedules.length === 0) {
+      results[studentId] = true;
+      continue;
+    }
+
+    const hasValidWindow = matchedSchedules.some((s) => {
+      const deadline = new Date(s.endTime.getTime() + 4 * 24 * 60 * 60 * 1000);
+      return now <= deadline;
+    });
+
+    results[studentId] = hasValidWindow;
+  }
+
+  return results;
+}
+
+export async function checkAwardMarksWindow(
+  studentId: string,
+  exerciseId: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  const deadlines = await getAwardMarksDeadlines(exerciseId, [studentId]);
+  if (!deadlines[studentId]) {
+    return {
+      allowed: false,
+      reason: "Awarding marks is only allowed within 4 days after the exercise is completed.",
+    };
+  }
+  return { allowed: true };
 }

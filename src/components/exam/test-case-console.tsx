@@ -31,16 +31,16 @@ export default function TestCaseConsole({
   onTabChange,
   isRunning = false,
 }: TestCaseConsoleProps) {
-  // Derive state for which sub-tab (testcase id) is selected
-  // We can just keep local state for that
-  const [selectedCaseId, setSelectedCaseId] = useState<string>(
-    testCases[0]?.id.toString() || "",
-  );
+  const [selectedCaseId, setSelectedCaseId] = useState<string>("");
 
-  // Reset selected case when test cases change (i.e., when switching problems)
   useEffect(() => {
-    if (testCases.length > 0) {
-      setSelectedCaseId(testCases[0].id.toString());
+    const visibleTestCases = testCases.filter((tc) => !tc.isHidden);
+    if (visibleTestCases.length > 0) {
+      setSelectedCaseId(visibleTestCases[0].id.toString());
+    } else if (testCases.length > 0) {
+      setSelectedCaseId("hidden-cases-summary");
+    } else {
+      setSelectedCaseId("");
     }
   }, [testCases]);
 
@@ -70,55 +70,59 @@ export default function TestCaseConsole({
       <div className="flex-1 overflow-hidden p-4">
         {activeTab === "test-cases" && (
           <div className="h-full flex flex-col">
-            {testCases.length === 0 ? (
-              <div className="text-muted-foreground text-sm">
-                No test cases visible.
+            {testCases.filter((tc) => !tc.isHidden).length === 0 ? (
+              <div className="text-muted-foreground text-sm py-4">
+                No public test cases visible.
               </div>
             ) : (
               <div className="flex h-full gap-4">
                 {/* Left List */}
                 <div className="w-32 flex flex-col gap-1 border-r pr-2 shrink-0">
-                  {testCases.map((tc, idx) => (
-                    <button
-                      type="button"
-                      key={tc.id}
-                      onClick={() => setSelectedCaseId(tc.id.toString())}
-                      className={cn(
-                        "text-xs text-left px-3 py-2 rounded-md transition-colors",
-                        selectedCaseId === tc.id.toString()
-                          ? "bg-secondary font-medium text-secondary-foreground"
-                          : "text-muted-foreground hover:bg-muted",
-                      )}
-                    >
-                      Case {idx + 1}
-                    </button>
-                  ))}
+                  {testCases
+                    .filter((tc) => !tc.isHidden)
+                    .map((tc, idx) => (
+                      <button
+                        type="button"
+                        key={tc.id}
+                        onClick={() => setSelectedCaseId(tc.id.toString())}
+                        className={cn(
+                          "text-xs text-left px-3 py-2 rounded-md transition-colors",
+                          selectedCaseId === tc.id.toString()
+                            ? "bg-secondary font-medium text-secondary-foreground"
+                            : "text-muted-foreground hover:bg-muted",
+                        )}
+                      >
+                        Case {idx + 1}
+                      </button>
+                    ))}
                 </div>
                 {/* Right Details */}
                 <ScrollArea className="flex-1 h-full">
-                  {testCases.map(
-                    (tc) =>
-                      tc.id.toString() === selectedCaseId && (
-                        <div key={tc.id} className="space-y-4">
-                          <div>
-                            <Label className="text-xs text-muted-foreground uppercase">
-                              Input
-                            </Label>
-                            <div className="mt-1.5 p-3 rounded-md bg-muted/40 font-mono text-sm whitespace-pre-wrap">
-                              {tc.input}
+                  {testCases
+                    .filter((tc) => !tc.isHidden)
+                    .map(
+                      (tc) =>
+                        tc.id.toString() === selectedCaseId && (
+                          <div key={tc.id} className="space-y-4">
+                            <div>
+                              <Label className="text-xs text-muted-foreground uppercase">
+                                Input
+                              </Label>
+                              <div className="mt-1.5 p-3 rounded-md bg-muted/40 font-mono text-sm whitespace-pre-wrap">
+                                {tc.input}
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground uppercase">
+                                Expected Output
+                              </Label>
+                              <div className="mt-1.5 p-3 rounded-md bg-muted/40 font-mono text-sm whitespace-pre-wrap">
+                                {tc.expectedOutput}
+                              </div>
                             </div>
                           </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground uppercase">
-                              Expected Output
-                            </Label>
-                            <div className="mt-1.5 p-3 rounded-md bg-muted/40 font-mono text-sm whitespace-pre-wrap">
-                              {tc.expectedOutput}
-                            </div>
-                          </div>
-                        </div>
-                      ),
-                  )}
+                        ),
+                    )}
                 </ScrollArea>
               </div>
             )}
@@ -140,98 +144,166 @@ export default function TestCaseConsole({
             ) : (
               <div className="flex h-full gap-4">
                 {/* Left List (Results) */}
-                <div className="w-32 flex flex-col gap-1 border-r pr-2 shrink-0">
-                  {results.map((res, idx) => (
+                <div className="w-32 flex flex-col gap-1 border-r pr-2 shrink-0 overflow-y-auto">
+                  {results
+                    .filter((_, idx) => !testCases[idx]?.isHidden)
+                    .map((res, idx) => (
+                      <button
+                        type="button"
+                        key={res.id}
+                        onClick={() => setSelectedCaseId(res.id.toString())}
+                        className={cn(
+                          "text-xs text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between",
+                          selectedCaseId === res.id.toString()
+                            ? "bg-secondary font-medium text-secondary-foreground"
+                            : "text-muted-foreground hover:bg-muted",
+                        )}
+                      >
+                        <span>Case {idx + 1}</span>
+                        {res.passed ? (
+                          <Check className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                        ) : (
+                          <X className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                        )}
+                      </button>
+                    ))}
+
+                  {/* Hidden Cases Summary Row */}
+                  {results.some((_, idx) => testCases[idx]?.isHidden) && (
                     <button
                       type="button"
-                      key={res.id}
-                      onClick={() => setSelectedCaseId(res.id.toString())}
+                      onClick={() => setSelectedCaseId("hidden-cases-summary")}
                       className={cn(
-                        "text-xs text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between",
-                        selectedCaseId === res.id.toString()
+                        "text-xs text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between mt-2 border-t pt-3 border-dashed",
+                        selectedCaseId === "hidden-cases-summary"
                           ? "bg-secondary font-medium text-secondary-foreground"
                           : "text-muted-foreground hover:bg-muted",
                       )}
                     >
-                      <span>Case {idx + 1}</span>
-                      {res.passed ? (
-                        <Check className="w-3.5 h-3.5 text-green-500" />
+                      <span className="font-semibold">Hidden Cases</span>
+                      {results.filter((res, idx) => testCases[idx]?.isHidden).every((r) => r.passed) ? (
+                        <Check className="w-3.5 h-3.5 text-green-500 shrink-0" />
                       ) : (
-                        <X className="w-3.5 h-3.5 text-red-500" />
+                        <X className="w-3.5 h-3.5 text-red-500 shrink-0" />
                       )}
                     </button>
-                  ))}
+                  )}
                 </div>
+
                 {/* Right Details */}
                 <ScrollArea className="flex-1 h-full">
-                  {results.map(
-                    (res) =>
-                      res.id.toString() === selectedCaseId && (
-                        <div key={res.id} className="space-y-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span
-                              className={cn(
-                                "text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider",
-                                res.passed
-                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                                  : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-                              )}
-                            >
-                              {res.passed ? "Passed" : "Failed"}
-                            </span>
-                          </div>
+                  {/* Public Results Details */}
+                  {results
+                    .filter((_, idx) => !testCases[idx]?.isHidden)
+                    .map(
+                      (res) =>
+                        res.id.toString() === selectedCaseId && (
+                          <div key={res.id} className="space-y-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span
+                                className={cn(
+                                  "text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider",
+                                  res.passed
+                                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                                    : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+                                )}
+                              >
+                                {res.passed ? "Passed" : "Failed"}
+                              </span>
+                            </div>
 
-                          {res.run_details.stderr && (
+                            {res.run_details.stderr && (
+                              <div>
+                                <Label className="text-xs text-red-500 uppercase">
+                                  Error Helper
+                                </Label>
+                                <div className="mt-1.5 p-3 rounded-md bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-mono text-xs whitespace-pre-wrap">
+                                  {res.run_details.stderr}
+                                </div>
+                              </div>
+                            )}
+
                             <div>
-                              <Label className="text-xs text-red-500 uppercase">
-                                Error Helper
+                              <Label className="text-xs text-muted-foreground uppercase">
+                                Input
                               </Label>
-                              <div className="mt-1.5 p-3 rounded-md bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-mono text-xs whitespace-pre-wrap">
-                                {res.run_details.stderr}
+                              <div className="mt-1.5 p-3 rounded-md bg-muted/40 font-mono text-sm whitespace-pre-wrap">
+                                {res.input}
                               </div>
                             </div>
-                          )}
 
-                          <div>
-                            <Label className="text-xs text-muted-foreground uppercase">
-                              Input
-                            </Label>
-                            <div className="mt-1.5 p-3 rounded-md bg-muted/40 font-mono text-sm whitespace-pre-wrap">
-                              {res.input}
+                            <div>
+                              <Label className="text-xs text-muted-foreground uppercase">
+                                Output
+                              </Label>
+                              <div
+                                className={cn(
+                                  "mt-1.5 p-3 rounded-md font-mono text-sm whitespace-pre-wrap",
+                                  res.passed
+                                    ? "bg-muted/40"
+                                    : "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900",
+                                )}
+                              >
+                                {res.actualOutput || (
+                                  <span className="text-muted-foreground italic">
+                                    No output
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-xs text-muted-foreground uppercase">
+                                Expected
+                              </Label>
+                              <div className="mt-1.5 p-3 rounded-md bg-muted/40 font-mono text-sm whitespace-pre-wrap">
+                                {res.expectedOutput}
+                              </div>
                             </div>
                           </div>
+                        ),
+                    )}
 
-                          <div>
-                            <Label className="text-xs text-muted-foreground uppercase">
-                              Output
-                            </Label>
-                            <div
-                              className={cn(
-                                "mt-1.5 p-3 rounded-md font-mono text-sm whitespace-pre-wrap",
-                                res.passed
-                                  ? "bg-muted/40"
-                                  : "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900",
-                              )}
+                  {/* Hidden Results Summary Details */}
+                  {selectedCaseId === "hidden-cases-summary" &&
+                    results.some((_, idx) => testCases[idx]?.isHidden) && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span
+                            className={cn(
+                              "text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider",
+                              results.filter((res, idx) => testCases[idx]?.isHidden).every((r) => r.passed)
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+                            )}
+                          >
+                            {results.filter((res, idx) => testCases[idx]?.isHidden).every((r) => r.passed)
+                              ? "Passed"
+                              : "Failed"}
+                          </span>
+                        </div>
+
+                        <div className="p-4 rounded-md bg-muted/20 border border-dashed text-sm">
+                          <p className="font-semibold text-muted-foreground">Hidden Evaluation Cases</p>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Inputs, expected outputs, and execution console outputs are hidden to ensure evaluation integrity.
+                          </p>
+                          <div className="mt-4 flex items-center gap-2 text-xs font-medium">
+                            <span>Status:</span>
+                            <span
+                              className={
+                                results.filter((res, idx) => testCases[idx]?.isHidden).every((r) => r.passed)
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-red-500"
+                              }
                             >
-                              {res.actualOutput || (
-                                <span className="text-muted-foreground italic">
-                                  No output
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <Label className="text-xs text-muted-foreground uppercase">
-                              Expected
-                            </Label>
-                            <div className="mt-1.5 p-3 rounded-md bg-muted/40 font-mono text-sm whitespace-pre-wrap">
-                              {res.expectedOutput}
-                            </div>
+                              {results.filter((res, idx) => testCases[idx]?.isHidden && res.passed).length} /{" "}
+                              {results.filter((res, idx) => testCases[idx]?.isHidden).length} passed
+                            </span>
                           </div>
                         </div>
-                      ),
-                  )}
+                      </div>
+                    )}
                 </ScrollArea>
               </div>
             )}

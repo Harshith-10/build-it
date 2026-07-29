@@ -17,7 +17,10 @@ import {
 } from "lucide-react";
 import { getGroups } from "@/actions/admin/groups";
 import { getCollections } from "@/actions/admin/collections";
-import { assignExerciseGroup, removeExerciseGroup } from "@/actions/admin/labs";
+import {
+  assignExerciseGroup,
+  removeExerciseGroup,
+} from "@/actions/admin/labs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -210,7 +213,25 @@ export function ExerciseFormDialog({
     value: string
   ) => {
     setWindows((prev) =>
-      prev.map((w) => (w.groupId === groupId ? { ...w, [field]: value } : w))
+      prev.map((w) => {
+        if (w.groupId === groupId) {
+          if (field === "startTime" && value) {
+            const startDate = new Date(value);
+            if (!isNaN(startDate.getTime())) {
+              const endDate = new Date(startDate.getTime() + 3 * 60 * 60 * 1000);
+              const pad = (n: number) => n.toString().padStart(2, "0");
+              const localEndString = `${endDate.getFullYear()}-${pad(
+                endDate.getMonth() + 1
+              )}-${pad(endDate.getDate())}T${pad(endDate.getHours())}:${pad(
+                endDate.getMinutes()
+              )}`;
+              return { ...w, startTime: value, endTime: localEndString };
+            }
+          }
+          return { ...w, [field]: value };
+        }
+        return w;
+      })
     );
   };
 
@@ -257,7 +278,7 @@ export function ExerciseFormDialog({
         return;
       }
 
-      const exerciseId = initial?.id;
+      const exerciseId = initial?.id ?? res.exercise?.id;
 
       if (exerciseId) {
         // Remove deleted windows
@@ -269,7 +290,7 @@ export function ExerciseFormDialog({
         for (const groupId of removed) {
           await removeExerciseGroup(exerciseId, groupId);
         }
-        // Upsert current windows (all guaranteed to have times now)
+        // Upsert current windows
         for (const window of windows) {
           await assignExerciseGroup({
             exerciseId,
@@ -357,21 +378,20 @@ export function ExerciseFormDialog({
                   )}
                 />
 
-                {/* ── Group time windows (only for existing exercises) ── */}
-                {initial && (
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">
-                        Group Time Windows
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Assign a time window per group — students can only submit
-                      during their window.
-                    </p>
+                {/* ── Section Schedule Windows ── */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      Section Schedule Windows
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Set start and end schedule windows per section — students can only access the exercise
+                    during their section's scheduled class time window.
+                  </p>
 
-                    {windows.map((w) => {
+                  {windows.map((w) => {
                       const group = groups.find((g) => g.id === w.groupId);
                       const isInvalid = invalidWindows.has(w.groupId);
                       return (
@@ -444,7 +464,7 @@ export function ExerciseFormDialog({
                                       return next;
                                     });
                                 }}
-                                className={`text-xs ${
+                                 className={`text-xs ${
                                   isInvalid && !w.endTime ? "border-destructive" : ""
                                 }`}
                               />
@@ -465,7 +485,7 @@ export function ExerciseFormDialog({
                               onValueChange={setSelectedGroupId}
                             >
                               <SelectTrigger className="flex-1 text-sm">
-                                <SelectValue placeholder="Select a group..." />
+                                <SelectValue placeholder="Select a section..." />
                               </SelectTrigger>
                               <SelectContent>
                                 {availableGroups.map((g) => (
@@ -491,18 +511,10 @@ export function ExerciseFormDialog({
 
                     {windows.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-2 border rounded-lg border-dashed">
-                        No groups assigned yet.
+                        No section schedules added yet. Select a section above and click "+" to add a schedule window.
                       </p>
                     )}
                   </div>
-                )}
-
-                {!initial && (
-                  <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
-                    💡 You can assign group time windows after creating the
-                    exercise by clicking the edit button.
-                  </p>
-                )}
               </TabsContent>
 
               {/* ── Collection Tab ── */}

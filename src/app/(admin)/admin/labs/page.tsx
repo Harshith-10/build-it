@@ -8,7 +8,7 @@ export default function LabsPage() {
         title="Labs"
         description="Manage lab content for each semester — exercises and programs"
       />
-      <LabsManager />
+      <LabsManager isAdmin={true} />
     </div>
   );
 }

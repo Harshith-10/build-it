@@ -17,6 +17,9 @@ import {
   Eye,
   Clock,
   Library,
+  Award,
+  UserCheck,
+  Users,
 } from "lucide-react";
 
 import {
@@ -29,7 +32,11 @@ import {
   updateExercise,
   deleteExercise,
   scheduleExerciseForSemester,
+  assignLabGroupFaculty,
+  getLabGroupFaculty,
+  getFacultyUsers,
 } from "@/actions/admin/labs";
+import { getGroups } from "@/actions/admin/groups";
 
 import { ExerciseFormDialog } from "@/components/admin/labs/exercise-form-dialog";
 import { ExerciseSubmissionsDialog } from "@/components/admin/labs/exercise-submissions-dialog";
@@ -82,7 +89,6 @@ type View = "labs" | "exercises";
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  semester: z.preprocess((v) => Number(v), z.number().min(1).max(4)),
   description: z.string().optional(),
 });
 
@@ -124,12 +130,18 @@ function LabFormDialog({
   initial?: Lab;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  const [facultyList, setFacultyList] = useState<{ id: string; name: string | null; email: string }[]>([]);
+  const [loadingSectionData, setLoadingSectionData] = useState(false);
+  // groupId -> facultyIds[]
+  const [sectionFaculty, setSectionFaculty] = useState<Record<string, string[]>>({});
+  const [selectedGroupId, setSelectedGroupId] = useState("");
+
   const form = useForm<z.infer<typeof labSchema>>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(labSchema) as any,
     defaultValues: {
       name: initial?.name ?? "",
-      semester: initial?.semester ?? 1,
       description: initial?.description ?? "",
     },
   });
@@ -137,10 +149,61 @@ function LabFormDialog({
   useEffect(() => {
     form.reset({
       name: initial?.name ?? "",
-      semester: initial?.semester ?? 1,
       description: initial?.description ?? "",
     });
+    setSectionFaculty({});
+    setSelectedGroupId("");
   }, [initial, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingSectionData(true);
+    Promise.all([
+      getGroups({ limit: 100 }),
+      getFacultyUsers(),
+      initial?.id ? getLabGroupFaculty(initial.id) : Promise.resolve([]),
+    ])
+      .then(([groupsRes, facultyRes, assignments]) => {
+        setGroups(groupsRes.groups ?? []);
+        setFacultyList(facultyRes ?? []);
+        if (assignments && Array.isArray(assignments)) {
+          const map: Record<string, string[]> = {};
+          for (const item of assignments) {
+            map[item.groupId] = item.faculty.map((f) => f.id);
+          }
+          setSectionFaculty(map);
+        }
+      })
+      .finally(() => setLoadingSectionData(false));
+  }, [open, initial?.id]);
+
+  const addGroupSection = () => {
+    if (!selectedGroupId) return;
+    if (sectionFaculty[selectedGroupId] !== undefined) {
+      toast.error("This group is already added");
+      return;
+    }
+    setSectionFaculty((prev) => ({ ...prev, [selectedGroupId]: [] }));
+    setSelectedGroupId("");
+  };
+
+  const removeGroupSection = (groupId: string) => {
+    setSectionFaculty((prev) => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
+  };
+
+  const toggleFacultyForGroup = (groupId: string, facultyId: string) => {
+    setSectionFaculty((prev) => {
+      const current = prev[groupId] ?? [];
+      const updated = current.includes(facultyId)
+        ? current.filter((id) => id !== facultyId)
+        : [...current, facultyId];
+      return { ...prev, [groupId]: updated };
+    });
+  };
 
   const onSubmit = async (data: z.infer<typeof labSchema>) => {
     setIsSubmitting(true);
@@ -149,7 +212,13 @@ function LabFormDialog({
         ? await updateLab({ id: initial.id, ...data })
         : await createLab(data);
 
-      if (res.success) {
+      if (res.success && res.lab?.id) {
+        const labId = res.lab.id;
+        // Save faculty assignments per section
+        for (const [groupId, facultyIds] of Object.entries(sectionFaculty)) {
+          await assignLabGroupFaculty({ labId, groupId, facultyIds });
+        }
+
         toast.success(initial ? "Lab updated" : "Lab created");
         onSaved();
         onClose();
@@ -161,9 +230,12 @@ function LabFormDialog({
     }
   };
 
+  const assignedGroupIds = Object.keys(sectionFaculty);
+  const availableGroups = groups.filter((g) => !assignedGroupIds.includes(g.id));
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initial ? "Edit Lab" : "Add Lab"}</DialogTitle>
         </DialogHeader>
@@ -184,33 +256,6 @@ function LabFormDialog({
             />
             <FormField
               control={form.control}
-              name="semester"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Semester</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={String(field.value)}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select semester" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {[1, 2, 3, 4].map((s) => (
-                        <SelectItem key={s} value={String(s)}>
-                          {SEM_LABELS[s]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
@@ -222,6 +267,107 @@ function LabFormDialog({
                 </FormItem>
               )}
             />
+
+            {/* ── Section Faculty Assignments ── */}
+            <div className="space-y-3 pt-3 border-t">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  Faculty Assignments per Section
+                </span>
+                {loadingSectionData && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Assign faculty members to handle this lab for each student section.
+              </p>
+
+              {assignedGroupIds.map((groupId) => {
+                const group = groups.find((g) => g.id === groupId);
+                const selectedFacIds = sectionFaculty[groupId] ?? [];
+                return (
+                  <div key={groupId} className="border rounded-lg p-3 space-y-2 bg-muted/10">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs font-semibold">
+                        <Users className="h-3 w-3 mr-1" />
+                        {group?.name ?? groupId}
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeGroupSection(groupId)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <UserCheck className="h-3 w-3" />
+                        Assigned Instructors
+                      </label>
+                      {facultyList.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">No faculty accounts found</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {facultyList.map((f) => {
+                            const isSelected = selectedFacIds.includes(f.id);
+                            return (
+                              <button
+                                key={f.id}
+                                type="button"
+                                onClick={() => toggleFacultyForGroup(groupId, f.id)}
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs border transition-colors cursor-pointer ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                                }`}
+                              >
+                                <UserCheck className="h-3 w-3" />
+                                {f.name ?? f.email}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {availableGroups.length > 0 && (
+                <div className="flex gap-2">
+                  <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                    <SelectTrigger className="flex-1 text-sm">
+                      <SelectValue placeholder="Select a section/group to assign faculty..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableGroups.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addGroupSection}
+                    disabled={!selectedGroupId}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {assignedGroupIds.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2 border rounded-lg border-dashed">
+                  No sections assigned yet. Select a section above to assign faculty.
+                </p>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
@@ -366,9 +512,11 @@ function ScheduleDialog({
   );
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────
+interface LabsManagerProps {
+  isAdmin?: boolean;
+}
 
-export function LabsManager() {
+export function LabsManager({ isAdmin = true }: LabsManagerProps) {
   const [view, setView] = useState<View>("labs");
   const [loading, setLoading] = useState(true);
 
@@ -387,6 +535,8 @@ export function LabsManager() {
   const [schedulingExercise, setSchedulingExercise] =
     useState<Exercise | null>(null);
   const [submissionsExercise, setSubmissionsExercise] =
+    useState<Exercise | null>(null);
+  const [awardsExercise, setAwardsExercise] =
     useState<Exercise | null>(null);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
@@ -491,16 +641,18 @@ export function LabsManager() {
             <p className="text-sm text-muted-foreground">
               {labs.length} lab{labs.length !== 1 ? "s" : ""} configured
             </p>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingLab(undefined);
-                setLabDialog(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Lab
-            </Button>
+            {isAdmin && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingLab(undefined);
+                  setLabDialog(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Lab
+              </Button>
+            )}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -517,12 +669,6 @@ export function LabsManager() {
                       {lab.name}
                     </span>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className={`text-xs shrink-0 ${SEM_COLORS[lab.semester]}`}
-                  >
-                    Sem {lab.semester}
-                  </Badge>
                 </div>
                 {lab.description && (
                   <p className="text-xs text-muted-foreground line-clamp-2 break-words [overflow-wrap:anywhere]">
@@ -533,47 +679,49 @@ export function LabsManager() {
                   <span className="text-xs text-muted-foreground">
                     {lab.exercises?.length ?? 0} exercise{(lab.exercises?.length ?? 0) !== 1 ? "s" : ""}
                   </span>
-                  <div
-                    className="flex gap-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => {
-                        setEditingLab(lab);
-                        setLabDialog(true);
-                      }}
+                  {isAdmin && (
+                    <div
+                      className="flex gap-1"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon-sm">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Lab</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete{" "}
-                            <strong>{lab.name}</strong> and all its exercises.
-                            This cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleDeleteLab(lab.id)}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => {
+                          setEditingLab(lab);
+                          setLabDialog(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon-sm">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Lab</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete{" "}
+                              <strong>{lab.name}</strong> and all its exercises.
+                              This cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => handleDeleteLab(lab.id)}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -696,6 +844,14 @@ export function LabsManager() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        title="Award marks"
+                        onClick={() => setAwardsExercise(exercise)}
+                      >
+                        <Award className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
                         title="Edit exercise"
                         onClick={() => {
                           setEditingExercise(exercise);
@@ -704,33 +860,35 @@ export function LabsManager() {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon-sm">
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Exercise</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will delete Exercise {exercise.exerciseNo}{" "}
-                              permanently.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() =>
-                                handleDeleteExercise(exercise.id)
-                              }
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      {isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon-sm">
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Exercise</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will delete Exercise {exercise.exerciseNo}{" "}
+                                permanently.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() =>
+                                  handleDeleteExercise(exercise.id)
+                                }
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -786,6 +944,16 @@ export function LabsManager() {
           exerciseId={submissionsExercise.id}
           exerciseTitle={submissionsExercise.title}
           exerciseNo={submissionsExercise.exerciseNo}
+        />
+      )}
+      {awardsExercise && (
+        <ExerciseSubmissionsDialog
+          open={!!awardsExercise}
+          onClose={() => setAwardsExercise(null)}
+          exerciseId={awardsExercise.id}
+          exerciseTitle={awardsExercise.title}
+          exerciseNo={awardsExercise.exerciseNo}
+          awardMode={true}
         />
       )}
     </div>

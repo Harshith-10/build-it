@@ -7,35 +7,60 @@ import {
   labs,
   exercises,
   exerciseGroups,
+  labGroupFaculty,
   labSubmissions,
   exerciseMarks,
+  exerciseAttendance,
 } from "@/db/schema/labs";
 import { user } from "@/db/schema/auth";
-import { userGroupMembers } from "@/db/schema/groups";
+import {
+  userGroups,
+  userGroupMembers,
+} from "@/db/schema/groups";
 import {
   checkEntityPermission,
   requireUser,
+  requireAdmin,
+  checkAwardMarksWindow,
 } from "@/lib/auth-access";
 
 // ─── Labs ─────────────────────────────────────────────────────────────────────
 
 export async function getLabs() {
-  await requireUser();
+  const session = await requireUser();
+
+  if (session.user.role === "faculty") {
+    const assignments = await db.query.labGroupFaculty.findMany({
+      where: eq(labGroupFaculty.facultyId, session.user.id),
+      columns: { labId: true },
+    });
+
+    const assignedLabIds = Array.from(new Set(assignments.map((a) => a.labId)));
+
+    if (assignedLabIds.length === 0) {
+      return [];
+    }
+
+    return db.query.labs.findMany({
+      where: inArray(labs.id, assignedLabIds),
+      orderBy: (l, { asc }) => [asc(l.name)],
+      with: { exercises: true },
+    });
+  }
 
   return db.query.labs.findMany({
-    orderBy: (labs, { asc }) => [asc(labs.semester)],
+    orderBy: (l, { asc }) => [asc(l.name)],
     with: { exercises: true },
   });
 }
 
 export async function createLab(data: {
   name: string;
-  semester: number;
+  semester?: number;
   description?: string;
 }) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "create" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    await requireAdmin();
 
     const existing = await db.query.labs.findFirst({
       where: sql`lower(${labs.name}) = lower(${data.name})`,
@@ -44,7 +69,14 @@ export async function createLab(data: {
       return { success: false, error: `A lab named "${existing.name}" already exists.` };
     }
 
-    const [newLab] = await db.insert(labs).values(data).returning();
+    const [newLab] = await db
+      .insert(labs)
+      .values({
+        name: data.name,
+        semester: data.semester ?? 1,
+        description: data.description,
+      })
+      .returning();
     revalidatePath("/admin/labs");
     revalidatePath("/faculty/labs");
     return { success: true, lab: newLab };
@@ -61,8 +93,7 @@ export async function updateLab(data: {
   description?: string;
 }) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    await requireAdmin();
 
     if (data.name) {
       const duplicate = await db.query.labs.findFirst({
@@ -96,8 +127,7 @@ export async function updateLab(data: {
 
 export async function deleteLab(id: string) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "delete" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    await requireAdmin();
     await db.delete(labs).where(eq(labs.id, id));
     revalidatePath("/admin/labs");
     revalidatePath("/faculty/labs");
@@ -398,11 +428,156 @@ export async function getMyExercises(labId: string) {
   });
 }
 
-// ─── Submissions (used by admin + faculty) ────────────────────────────────────
+// ─── Lab Group Faculty Assignments ──────────────────────────────────────────
 
-export async function getExerciseSubmissions(exerciseId: string) {
+/**
+ * Assign a faculty member to handle a specific lab for a specific group/section.
+ * Replaces all existing assignments for that lab+group combination.
+ */
+export async function assignLabGroupFaculty({
+  labId,
+  groupId,
+  facultyIds,
+}: {
+  labId: string;
+  groupId: string;
+  facultyIds: string[];
+}) {
+  try {
+    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
+    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+
+    await db
+      .delete(labGroupFaculty)
+      .where(
+        and(
+          eq(labGroupFaculty.labId, labId),
+          eq(labGroupFaculty.groupId, groupId)
+        )
+      );
+
+    if (facultyIds.length > 0) {
+      await db.insert(labGroupFaculty).values(
+        facultyIds.map((facultyId) => ({ labId, groupId, facultyId }))
+      );
+    }
+
+    revalidatePath("/admin/labs");
+    revalidatePath("/faculty/labs");
+    return { success: true };
+  } catch (err) {
+    console.error("[assignLabGroupFaculty]", err);
+    return { success: false, error: "Failed to update faculty assignments" };
+  }
+}
+
+/**
+ * Get all faculty assignments for a lab, grouped by section.
+ * Returns: { groupId, groupName, faculty: { id, name, email }[] }[]
+ */
+export async function getLabGroupFaculty(labId: string) {
   try {
     await requireUser();
+    const rows = await db.query.labGroupFaculty.findMany({
+      where: eq(labGroupFaculty.labId, labId),
+      with: {
+        faculty: { columns: { id: true, name: true, email: true } },
+        group: { columns: { id: true, name: true } },
+      },
+    });
+
+    const byGroup = new Map<
+      string,
+      { groupId: string; groupName: string; faculty: { id: string; name: string | null; email: string }[] }
+    >();
+    for (const row of rows) {
+      if (!byGroup.has(row.groupId)) {
+        byGroup.set(row.groupId, { groupId: row.groupId, groupName: row.group.name, faculty: [] });
+      }
+      byGroup.get(row.groupId)!.faculty.push({
+        id: row.faculty.id,
+        name: row.faculty.name,
+        email: row.faculty.email,
+      });
+    }
+    return Array.from(byGroup.values());
+  } catch (err) {
+    console.error("[getLabGroupFaculty]", err);
+    return [];
+  }
+}
+
+/** Returns all users with role=faculty — used in the exercise form dialog faculty picker. */
+export async function getFacultyUsers() {
+  try {
+    await requireUser();
+    return await db.query.user.findMany({
+      where: eq(user.role, "faculty"),
+      columns: { id: true, name: true, email: true },
+      orderBy: (u, { asc }) => [asc(u.name)],
+    });
+  } catch (err) {
+    console.error("[getFacultyUsers]", err);
+    return [];
+  }
+}
+
+// ─── Submissions (used by admin + faculty) ────────────────────────────────────
+
+export async function getExerciseSubmissions(
+  exerciseId: string,
+  filterGroupId?: string
+) {
+  try {
+    const session = await requireUser();
+
+    let allowedStudentIds: Set<string> | null = null;
+
+    if (session.user.role === "faculty") {
+      const ex = await db.query.exercises.findFirst({
+        where: eq(exercises.id, exerciseId),
+        columns: { labId: true },
+      });
+      if (!ex) return { success: false, error: "Exercise not found" };
+
+      // Faculty can only see students from groups assigned to them for this lab
+      const assigned = await db.query.labGroupFaculty.findMany({
+        where: and(
+          eq(labGroupFaculty.labId, ex.labId),
+          eq(labGroupFaculty.facultyId, session.user.id)
+        ),
+      });
+
+      const assignedGroupIds = assigned.map((a) => a.groupId);
+      if (assignedGroupIds.length === 0) {
+        return {
+          success: true,
+          data: {
+            exercise: { id: exerciseId, exerciseNo: 0, title: "", programs: [] },
+            students: [],
+            message: "No student groups/sections are assigned to you for this lab.",
+          },
+        };
+      }
+
+      const targetGroupIds = filterGroupId && filterGroupId !== "all"
+        ? (assignedGroupIds.includes(filterGroupId) ? [filterGroupId] : [])
+        : assignedGroupIds;
+
+      if (targetGroupIds.length === 0) {
+        return { success: false, error: "Section not assigned to you for this lab" };
+      }
+
+      const members = await db.query.userGroupMembers.findMany({
+        where: inArray(userGroupMembers.groupId, targetGroupIds),
+      });
+      allowedStudentIds = new Set(members.map((m) => m.userId));
+    } else if (filterGroupId && filterGroupId !== "all") {
+      const members = await db.query.userGroupMembers.findMany({
+        where: eq(userGroupMembers.groupId, filterGroupId),
+      });
+      allowedStudentIds = new Set(members.map((m) => m.userId));
+    }
 
     const exercise = await db.query.exercises.findFirst({
       where: eq(exercises.id, exerciseId),
@@ -429,25 +604,37 @@ export async function getExerciseSubmissions(exerciseId: string) {
     );
 
     const programIds = programList.map((p) => p.id);
-    const submissions =
+    let submissions =
       programIds.length > 0
         ? await db.query.labSubmissions.findMany({
-            where: inArray(labSubmissions.programId, programIds),
+            where: and(
+              eq(labSubmissions.exerciseId, exerciseId),
+              inArray(labSubmissions.programId, programIds)
+            ),
             with: {
               user: {
                 columns: {
                   id: true,
                   name: true,
                   email: true,
+                  username: true,
                 },
               },
             },
           })
         : [];
 
-    const marks = await db.query.exerciseMarks.findMany({
+    if (allowedStudentIds) {
+      submissions = submissions.filter((s) => allowedStudentIds!.has(s.userId));
+    }
+
+    let marks = await db.query.exerciseMarks.findMany({
       where: eq(exerciseMarks.exerciseId, exerciseId),
     });
+
+    if (allowedStudentIds) {
+      marks = marks.filter((m) => allowedStudentIds!.has(m.userId));
+    }
 
     const studentMap = new Map<
       string,
@@ -455,10 +642,40 @@ export async function getExerciseSubmissions(exerciseId: string) {
         id: string;
         name: string;
         email: string;
+        username: string | null;
         solvedProgramIds: string[];
         marks: number | null;
+        implementationMarks: number | null;
+        writeUpMarks: number | null;
+        vivaMarks: number | null;
       }
     >();
+
+    if (allowedStudentIds && allowedStudentIds.size > 0) {
+      const studentUsers = await db.query.user.findMany({
+        where: inArray(user.id, Array.from(allowedStudentIds)),
+        columns: {
+          id: true,
+          name: true,
+          email: true,
+          username: true,
+        },
+      });
+
+      for (const u of studentUsers) {
+        studentMap.set(u.id, {
+          id: u.id,
+          name: u.name ?? "Unknown",
+          email: u.email ?? "",
+          username: u.username ?? null,
+          solvedProgramIds: [],
+          marks: null,
+          implementationMarks: null,
+          writeUpMarks: null,
+          vivaMarks: null,
+        });
+      }
+    }
 
     for (const sub of submissions) {
       const sid = sub.userId;
@@ -467,16 +684,51 @@ export async function getExerciseSubmissions(exerciseId: string) {
           id: sid,
           name: sub.user?.name ?? "Unknown",
           email: sub.user?.email ?? "",
+          username: sub.user?.username ?? null,
           solvedProgramIds: [],
           marks: null,
+          implementationMarks: null,
+          writeUpMarks: null,
+          vivaMarks: null,
         });
       }
-      studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
+      if (sub.programId !== "00000000-0000-0000-0000-000000000000") {
+        studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
+      }
     }
 
     for (const m of marks) {
       const entry = studentMap.get(m.userId);
-      if (entry) entry.marks = parseFloat(m.marks);
+      if (entry) {
+        entry.marks = parseFloat(m.marks);
+        entry.implementationMarks = m.implementationMarks !== null ? parseFloat(m.implementationMarks) : null;
+        entry.writeUpMarks = m.writeUpMarks !== null ? parseFloat(m.writeUpMarks) : null;
+        entry.vivaMarks = m.vivaMarks !== null ? parseFloat(m.vivaMarks) : null;
+      }
+    }
+
+    // Nullify marks for students marked absent
+    const studentIds = Array.from(studentMap.keys());
+    if (studentIds.length > 0) {
+      const attendanceRecords = await db.query.exerciseAttendance.findMany({
+        where: and(
+          eq(exerciseAttendance.exerciseId, exerciseId),
+          inArray(exerciseAttendance.userId, studentIds),
+        ),
+      });
+      const absentStudentSet = new Set(
+        attendanceRecords.filter((a) => !a.present).map((a) => a.userId),
+      );
+
+      for (const absentId of absentStudentSet) {
+        const entry = studentMap.get(absentId);
+        if (entry) {
+          entry.marks = null;
+          entry.implementationMarks = null;
+          entry.writeUpMarks = null;
+          entry.vivaMarks = null;
+        }
+      }
     }
 
     return {
@@ -500,28 +752,91 @@ export async function getExerciseSubmissions(exerciseId: string) {
 export async function awardMarks({
   studentId,
   exerciseId,
+  implementationMarks,
+  writeUpMarks,
+  vivaMarks,
   marks,
 }: {
   studentId: string;
   exerciseId: string;
-  marks: number;
+  implementationMarks?: number;
+  writeUpMarks?: number;
+  vivaMarks?: number;
+  marks?: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const session = await requireUser();
     const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
     if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+
+    if (session.user.role === "faculty") {
+      const windowCheck = await checkAwardMarksWindow(studentId, exerciseId);
+      if (!windowCheck.allowed) {
+        return { success: false, error: windowCheck.reason ?? "Grading period has expired" };
+      }
+
+      const ex = await db.query.exercises.findFirst({
+        where: eq(exercises.id, exerciseId),
+        columns: { labId: true },
+      });
+      if (!ex) return { success: false, error: "Exercise not found" };
+
+      // Verify student belongs to a group this faculty is assigned to for this lab
+      const assigned = await db.query.labGroupFaculty.findMany({
+        where: and(
+          eq(labGroupFaculty.labId, ex.labId),
+          eq(labGroupFaculty.facultyId, session.user.id)
+        ),
+      });
+      const assignedGroupIds = assigned.map((a) => a.groupId);
+      if (assignedGroupIds.length > 0) {
+        const studentMember = await db.query.userGroupMembers.findFirst({
+          where: and(
+            eq(userGroupMembers.userId, studentId),
+            inArray(userGroupMembers.groupId, assignedGroupIds)
+          ),
+        });
+        if (!studentMember) {
+          return { success: false, error: "Student is not in your assigned section for this lab" };
+        }
+      }
+    }
+
+    const attendanceRecord = await db.query.exerciseAttendance.findFirst({
+      where: and(
+        eq(exerciseAttendance.exerciseId, exerciseId),
+        eq(exerciseAttendance.userId, studentId),
+      ),
+      columns: { present: true },
+    });
+    if (attendanceRecord && !attendanceRecord.present) {
+      return {
+        success: false,
+        error: "Cannot award marks to a student marked absent",
+      };
+    }
+
+    const hasDetailed = implementationMarks !== undefined && writeUpMarks !== undefined && vivaMarks !== undefined;
+    const total = hasDetailed ? (implementationMarks! + writeUpMarks! + vivaMarks!) : (marks ?? 0);
 
     await db
       .insert(exerciseMarks)
       .values({
         userId: studentId,
         exerciseId,
-        marks: String(marks),
+        implementationMarks: hasDetailed ? String(implementationMarks) : null,
+        writeUpMarks: hasDetailed ? String(writeUpMarks) : null,
+        vivaMarks: hasDetailed ? String(vivaMarks) : null,
+        marks: String(total), // keep legacy column updated with total
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [exerciseMarks.userId, exerciseMarks.exerciseId],
         set: {
-          marks: String(marks),
+          implementationMarks: hasDetailed ? String(implementationMarks) : null,
+          writeUpMarks: hasDetailed ? String(writeUpMarks) : null,
+          vivaMarks: hasDetailed ? String(vivaMarks) : null,
+          marks: String(total),
           updatedAt: new Date(),
         },
       });

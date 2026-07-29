@@ -143,13 +143,13 @@ export function LabCodeEditor({
 
       if (res.success) {
         setIsSolved(true);
-        toast.success("Program marked as solved!");
+        toast.success("Code submitted successfully!");
         // Go back to exercise page after a short delay
         setTimeout(() => {
           router.push(`/labs/${labId}/${exercise.id}`);
         }, 1000);
       } else {
-        toast.error(res.error ?? "Failed to mark as solved");
+        toast.error(res.error ?? "Failed to submit code");
       }
     } finally {
       setIsMarking(false);
@@ -202,7 +202,7 @@ export function LabCodeEditor({
           ) : (
             <Circle className="h-4 w-4" />
           )}
-          {isSolved ? "Solved" : "Mark as Solved"}
+          {isSolved ? "Submitted" : "Submit"}
         </Button>
       </div>
 

@@ -6,9 +6,9 @@ export default function FacultyLabsPage() {
     <div className="flex flex-1 flex-col gap-4 min-h-0 overflow-hidden">
       <PageHeader
         title="Labs"
-        description="Manage lab content for each semester — exercises and programs"
+        description="View assigned labs, student submissions, attendance, and evaluation"
       />
-      <LabsManager />
+      <LabsManager isAdmin={false} />
     </div>
   );
 }

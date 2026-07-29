@@ -12,8 +12,12 @@ interface DownloadSubmissionsButtonProps {
     id: string;
     name: string;
     email: string;
+    username: string | null;
     solvedProgramIds: string[];
     marks: number | null;
+    implementationMarks: number | null;
+    writeUpMarks: number | null;
+    vivaMarks: number | null;
   }[];
 }
 

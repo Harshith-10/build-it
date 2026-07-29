@@ -54,12 +54,6 @@ export default async function FacultyLabExercisesPage({
         </div>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight">{lab.name}</h1>
-          <Badge
-            variant="outline"
-            className={SEM_COLORS[lab.semester] ?? ""}
-          >
-            Semester {lab.semester}
-          </Badge>
         </div>
         <p className="text-muted-foreground text-sm">
           {lab.exercises.length} exercise{lab.exercises.length !== 1 ? "s" : ""}

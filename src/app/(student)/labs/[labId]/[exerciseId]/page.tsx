@@ -25,19 +25,32 @@ export default async function ExercisePage({
 
   const result = await getProgramsForExercise(exerciseId);
 
-  // Show blocked page if window has ended or exercise unavailable
+  // Show blocked page with specific reason
   if (!result.success) {
+    const isAttendanceLockout =
+      result.error === "You were not marked as present for this exercise" ||
+      result.error === "You were marked absent for this exercise";
+    const isWindowEnded = result.error === "Exercise window has ended";
+
     return (
       <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col items-center justify-center gap-4">
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center max-w-md">
           <div className="bg-muted mb-4 rounded-full p-4">
             <Lock className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium">Exercise Unavailable</h3>
+          <h3 className="text-lg font-medium">
+            {isAttendanceLockout
+              ? "Attendance Lockout"
+              : isWindowEnded
+              ? "Exercise Window Ended"
+              : "Exercise Unavailable"}
+          </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            {result.error === "Exercise window has ended"
+            {isAttendanceLockout
+              ? "You were marked absent by the faculty for this exercise. Access has been restricted."
+              : isWindowEnded
               ? "The time window for this exercise has ended. You can no longer access it."
-              : "This exercise is not available right now."}
+              : result.error || "This exercise is not available right now."}
           </p>
           <Button className="mt-4" asChild>
             <Link href={`/labs/${labId}`}>Back to Exercises</Link>
@@ -49,7 +62,7 @@ export default async function ExercisePage({
 
   const { exercise, programs, solvedIds } = result.data!;
 
-  // ✅ Go directly into the IDE — no separate programs list page
+  // ✅ Go directly into the IDE editor page
   return (
     <LabIDEShell
       programs={programs}

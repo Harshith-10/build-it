@@ -24,6 +24,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const groupSchema = z.object({
   id: z.string().optional(),
@@ -53,7 +60,6 @@ export function GroupForm({ group }: GroupFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Member management state
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<User[]>(
     group?.members.map((m) => m.user) || [],
@@ -81,10 +87,10 @@ export function GroupForm({ group }: GroupFormProps) {
 
   // Initial load of users
   useEffect(() => {
-    getUsers({ limit: 50 }).then((res) => {
+    getUsers({ limit: 100 }).then((res) => {
       setAvailableUsers(res.users as User[]);
     });
-  }, []);
+  }, [group?.id]);
 
   // Debounced search
   const handleSearch = useCallback((query: string) => {
@@ -128,16 +134,12 @@ export function GroupForm({ group }: GroupFormProps) {
 
       const groupId = result.id;
 
-      // 2. Calculate Diffs
+      // 2. Calculate Member Diffs
       const initialIds = new Set(initialMembers.map((m) => m.id));
       const currentIds = new Set(selectedMembers.map((m) => m.id));
 
       const toAdd = selectedMembers.filter((m) => !initialIds.has(m.id));
       const toRemove = initialMembers.filter((m) => !currentIds.has(m.id));
-
-      // 3. Apply Changes
-      // Note: We're doing this sequentially for now, but could be parallelized
-      // Ideally backend should support bulk update
 
       for (const user of toAdd) {
         await addGroupMember(groupId, user.email);
@@ -207,6 +209,7 @@ export function GroupForm({ group }: GroupFormProps) {
             )}
           />
         </div>
+
 
         {isVirtualGroup && (
           <div className="flex-1 min-h-0 border rounded-lg flex flex-col overflow-hidden">

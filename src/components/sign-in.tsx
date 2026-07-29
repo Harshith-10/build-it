@@ -46,7 +46,8 @@ export default function SignIn() {
   });
 
   const onSubmit = async (data: SignInValues) => {
-    const isEmail = z.email().safeParse(data.identifier).success;
+    const rawIdentifier = data.identifier.trim();
+    const isEmail = z.email().safeParse(rawIdentifier).success;
 
     const callbacks = {
       onRequest: () => {
@@ -66,7 +67,7 @@ export default function SignIn() {
     if (isEmail) {
       await signIn.email(
         {
-          email: data.identifier,
+          email: rawIdentifier,
           password: data.password,
         },
         callbacks,
@@ -74,10 +75,26 @@ export default function SignIn() {
     } else {
       await signIn.username(
         {
-          username: data.identifier,
+          username: rawIdentifier,
           password: data.password,
         },
-        callbacks,
+        {
+          ...callbacks,
+          onError: async (ctx: { error: { message: string } }) => {
+            // Fallback: If roll number / username login fails and identifier has no domain, try email lookup
+            if (!rawIdentifier.includes("@")) {
+              await signIn.email(
+                {
+                  email: `${rawIdentifier}@iare.ac.in`,
+                  password: data.password,
+                },
+                callbacks,
+              );
+            } else {
+              callbacks.onError(ctx);
+            }
+          },
+        },
       );
     }
   };

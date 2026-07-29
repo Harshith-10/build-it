@@ -3,7 +3,7 @@
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { labSubmissions, exerciseGroups, exercises, labs } from "@/db/schema/labs";
+import { labSubmissions, exerciseGroups, exercises, labs, exerciseMarks, exerciseAttendance, labGroupFaculty } from "@/db/schema/labs";
 import { userGroupMembers } from "@/db/schema/groups";
 import { requireUser } from "@/lib/auth-access";
 
@@ -12,9 +12,44 @@ import { requireUser } from "@/lib/auth-access";
 export async function getMyLab() {
   const session = await requireUser();
 
+  // Get student's group memberships
+  const userMemberships = await db.query.userGroupMembers.findMany({
+    where: eq(userGroupMembers.userId, session.user.id),
+  });
+
+  const studentGroupIds = userMemberships.map((m) => m.groupId);
+
+  if (studentGroupIds.length === 0) {
+    return [];
+  }
+
+  // 1. Labs assigned to student's groups directly
+  const labAssignments = await db.query.labGroupFaculty.findMany({
+    where: inArray(labGroupFaculty.groupId, studentGroupIds),
+  });
+  const labIdsFromLabFaculty = labAssignments.map((a) => a.labId);
+
+  // 2. Labs with exercise time windows assigned to student's groups
+  const exerciseAssignments = await db.query.exerciseGroups.findMany({
+    where: inArray(exerciseGroups.groupId, studentGroupIds),
+    with: {
+      exercise: { columns: { labId: true } },
+    },
+  });
+  const labIdsFromExerciseGroups = exerciseAssignments.map((a) => a.exercise.labId);
+
+  const allowedLabIds = Array.from(
+    new Set([...labIdsFromLabFaculty, ...labIdsFromExerciseGroups])
+  );
+
+  if (allowedLabIds.length === 0) {
+    return [];
+  }
+
   return db.query.labs.findMany({
-    where: eq(labs.semester, Number(session.user.semester)),
+    where: inArray(labs.id, allowedLabIds),
     with: { exercises: true },
+    orderBy: (l, { asc }) => [asc(l.name)],
   });
 }
 
@@ -32,6 +67,19 @@ export async function getMyExercises(labId: string) {
   const allExercises = await db.query.exercises.findMany({
     where: eq(exercises.labId, labId),
     orderBy: (exercises, { asc }) => [asc(exercises.exerciseNo)],
+    with: {
+      collection: {
+        with: {
+          questions: true,
+        },
+      },
+      submissions: {
+        where: eq(labSubmissions.userId, session.user.id),
+      },
+      marks: {
+        where: eq(exerciseMarks.userId, session.user.id),
+      },
+    },
   });
 
   if (allExercises.length === 0) {
@@ -50,20 +98,48 @@ export async function getMyExercises(labId: string) {
   const windows =
     groupIds.length > 0
       ? await db.query.exerciseGroups.findMany({
+        where: and(
+          inArray(exerciseGroups.exerciseId, exerciseIds),
+          inArray(exerciseGroups.groupId, groupIds)
+        ),
+      })
+      : [];
+
+  const attendanceRecords =
+    exerciseIds.length > 0
+      ? await db.query.exerciseAttendance.findMany({
           where: and(
-            inArray(exerciseGroups.exerciseId, exerciseIds),
-            inArray(exerciseGroups.groupId, groupIds)
+            inArray(exerciseAttendance.exerciseId, exerciseIds),
+            eq(exerciseAttendance.userId, session.user.id),
           ),
         })
       : [];
 
-  // Attach startTime/endTime to each exercise from the window
+  // Attach startTime/endTime/submissions/marks info to each exercise
   const exercisesWithWindow = allExercises.map((exercise) => {
     const window = windows.find((w) => w.exerciseId === exercise.id);
+    const attRecord = attendanceRecords.find(
+      (a) => a.exerciseId === exercise.id,
+    );
+    const isAbsent = attRecord ? !attRecord.present : false;
+
+    const totalPrograms = exercise.collection?.questions?.length ?? 0;
+    const solvedCount = isAbsent ? 0 : (exercise.submissions?.length ?? 0);
+    const markEntry = isAbsent ? null : (exercise.marks?.[0] ?? null);
+    const isSubmitted = markEntry !== null;
+
     return {
       ...exercise,
       windowStart: window?.startTime ?? null,
       windowEnd: window?.endTime ?? null,
+      totalPrograms,
+      solvedCount,
+      isSubmitted,
+      isAbsent,
+      marks: markEntry ? parseFloat(markEntry.marks) : null,
+      implementationMarks: markEntry?.implementationMarks ? parseFloat(markEntry.implementationMarks) : null,
+      writeUpMarks: markEntry?.writeUpMarks ? parseFloat(markEntry.writeUpMarks) : null,
+      vivaMarks: markEntry?.vivaMarks ? parseFloat(markEntry.vivaMarks) : null,
     };
   });
 
@@ -117,6 +193,32 @@ export async function getProgramsForExercise(exerciseId: string) {
     }
   }
 
+  // Attendance gate — block if marked absent, or if posted and not present
+  const attendanceRecord = await db.query.exerciseAttendance.findFirst({
+    where: and(
+      eq(exerciseAttendance.exerciseId, exerciseId),
+      eq(exerciseAttendance.userId, session.user.id),
+    ),
+    columns: { present: true },
+  });
+
+  if (attendanceRecord && !attendanceRecord.present) {
+    return {
+      success: false as const,
+      error: "You were marked absent for this exercise",
+    };
+  }
+
+  if (
+    exercise.attendancePosted &&
+    (!attendanceRecord || !attendanceRecord.present)
+  ) {
+    return {
+      success: false as const,
+      error: "You were not marked as present for this exercise",
+    };
+  }
+
   // Map collection questions to programs
   const programs = exercise.collection?.questions.map((cq, idx) => ({
     id: cq.questionId,
@@ -132,12 +234,12 @@ export async function getProgramsForExercise(exerciseId: string) {
   const submissions =
     programIds.length > 0
       ? await db.query.labSubmissions.findMany({
-          where: and(
-            eq(labSubmissions.userId, session.user.id),
-            inArray(labSubmissions.programId, programIds),
-            eq(labSubmissions.exerciseId, exerciseId)
-          ),
-        })
+        where: and(
+          eq(labSubmissions.userId, session.user.id),
+          inArray(labSubmissions.programId, programIds),
+          eq(labSubmissions.exerciseId, exerciseId)
+        ),
+      })
       : [];
 
   const solvedIds = submissions.map((s) => s.programId);
@@ -190,6 +292,35 @@ export async function markProgramSolved(data: {
       return { success: false, error: "Not an active window" };
     }
 
+    // Attendance gate
+    const attendanceRecord = await db.query.exerciseAttendance.findFirst({
+      where: and(
+        eq(exerciseAttendance.exerciseId, exerciseId),
+        eq(exerciseAttendance.userId, session.user.id),
+      ),
+      columns: { present: true },
+    });
+    if (attendanceRecord && !attendanceRecord.present) {
+      return {
+        success: false,
+        error: "You were marked absent for this exercise",
+      };
+    }
+
+    const exerciseRecord = await db.query.exercises.findFirst({
+      where: eq(exercises.id, exerciseId),
+      columns: { attendancePosted: true },
+    });
+    if (
+      exerciseRecord?.attendancePosted &&
+      (!attendanceRecord || !attendanceRecord.present)
+    ) {
+      return {
+        success: false,
+        error: "You were not marked as present for this exercise",
+      };
+    }
+
     await db
       .insert(labSubmissions)
       .values({
@@ -204,5 +335,192 @@ export async function markProgramSolved(data: {
   } catch (error) {
     console.error("Failed to mark program as solved:", error);
     return { success: false, error: "Failed to submit" };
+  }
+}
+
+export async function getMyExerciseResult(exerciseId: string) {
+  const session = await requireUser();
+
+  const attendanceRecord = await db.query.exerciseAttendance.findFirst({
+    where: and(
+      eq(exerciseAttendance.exerciseId, exerciseId),
+      eq(exerciseAttendance.userId, session.user.id),
+    ),
+    columns: { present: true },
+  });
+
+  if (attendanceRecord && !attendanceRecord.present) {
+    return {
+      success: false as const,
+      error: "You were marked absent for this exercise",
+    };
+  }
+
+  const exercise = await db.query.exercises.findFirst({
+    where: eq(exercises.id, exerciseId),
+    with: {
+      collection: {
+        with: {
+          questions: {
+            with: { question: true },
+          },
+        },
+      },
+      submissions: {
+        where: eq(labSubmissions.userId, session.user.id),
+      },
+      marks: {
+        where: eq(exerciseMarks.userId, session.user.id),
+      },
+    },
+  });
+
+  if (!exercise) return { success: false as const, error: "Exercise not found" };
+
+  if (
+    exercise.attendancePosted &&
+    (!attendanceRecord || !attendanceRecord.present)
+  ) {
+    return {
+      success: false as const,
+      error: "You were marked absent for this exercise",
+    };
+  }
+
+  const totalPrograms = exercise.collection?.questions?.length ?? 0;
+  const solvedCount = exercise.submissions?.length ?? 0;
+  const markEntry = exercise.marks?.[0] ?? null;
+
+  return {
+    success: true as const,
+    data: {
+      exercise: {
+        id: exercise.id,
+        exerciseNo: exercise.exerciseNo,
+        title: exercise.title,
+        maxMarks: parseFloat(String(exercise.maxMarks ?? 10)),
+      },
+      totalPrograms,
+      solvedCount,
+      marks: markEntry ? parseFloat(markEntry.marks) : null,
+      implementationMarks: markEntry?.implementationMarks ? parseFloat(markEntry.implementationMarks) : null,
+      writeUpMarks: markEntry?.writeUpMarks ? parseFloat(markEntry.writeUpMarks) : null,
+      vivaMarks: markEntry?.vivaMarks ? parseFloat(markEntry.vivaMarks) : null,
+    }
+  };
+}
+
+export async function submitExercise(exerciseId: string) {
+  const session = await requireUser();
+
+  try {
+    const now = new Date();
+    const studentGroups = await db.query.userGroupMembers.findMany({
+      where: eq(userGroupMembers.userId, session.user.id),
+    });
+    const groupIds = studentGroups.map((g) => g.groupId);
+
+    if (groupIds.length === 0) {
+      return { success: false, error: "Not in any group" };
+    }
+
+    const activeWindow = await db.query.exerciseGroups.findFirst({
+      where: and(
+        eq(exerciseGroups.exerciseId, exerciseId),
+        inArray(exerciseGroups.groupId, groupIds),
+        lte(exerciseGroups.startTime, now),
+        gte(exerciseGroups.endTime, now),
+      ),
+    });
+
+    if (!activeWindow) {
+      return { success: false, error: "Not an active window" };
+    }
+
+    // Attendance gate
+    const attendanceRecord = await db.query.exerciseAttendance.findFirst({
+      where: and(
+        eq(exerciseAttendance.exerciseId, exerciseId),
+        eq(exerciseAttendance.userId, session.user.id),
+      ),
+      columns: { present: true },
+    });
+    if (attendanceRecord && !attendanceRecord.present) {
+      return {
+        success: false,
+        error: "You were marked absent for this exercise",
+      };
+    }
+
+    const exerciseAttendanceCheck = await db.query.exercises.findFirst({
+      where: eq(exercises.id, exerciseId),
+      columns: { attendancePosted: true },
+    });
+    if (
+      exerciseAttendanceCheck?.attendancePosted &&
+      (!attendanceRecord || !attendanceRecord.present)
+    ) {
+      return {
+        success: false,
+        error: "You were not marked as present for this exercise",
+      };
+    }
+
+    const exercise = await db.query.exercises.findFirst({
+      where: eq(exercises.id, exerciseId),
+      with: {
+        collection: {
+          with: {
+            questions: true,
+          },
+        },
+        submissions: {
+          where: eq(labSubmissions.userId, session.user.id),
+        },
+      },
+    });
+
+    if (!exercise) {
+      return { success: false, error: "Exercise not found" };
+    }
+
+
+    const totalPrograms = exercise.collection?.questions?.length ?? 0;
+    const solvedCount = exercise.submissions?.length ?? 0;
+    const implementationMarks = totalPrograms > 0 ? (solvedCount / totalPrograms) * 12 : 0;
+
+    const existingMark = await db.query.exerciseMarks.findFirst({
+      where: and(
+        eq(exerciseMarks.userId, session.user.id),
+        eq(exerciseMarks.exerciseId, exerciseId)
+      ),
+    });
+
+    const writeUp = existingMark?.writeUpMarks ? parseFloat(existingMark.writeUpMarks) : 0;
+    const viva = existingMark?.vivaMarks ? parseFloat(existingMark.vivaMarks) : 0;
+    const totalMarks = implementationMarks + writeUp + viva;
+
+    await db
+      .insert(exerciseMarks)
+      .values({
+        userId: session.user.id,
+        exerciseId,
+        marks: String(totalMarks),
+        implementationMarks: String(implementationMarks),
+      })
+      .onConflictDoUpdate({
+        target: [exerciseMarks.userId, exerciseMarks.exerciseId],
+        set: {
+          implementationMarks: String(implementationMarks),
+          marks: String(totalMarks),
+          updatedAt: new Date(),
+        },
+      });
+
+    revalidatePath("/labs");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to submit exercise:", error);
+    return { success: false, error: "Failed to submit exercise" };
   }
 }

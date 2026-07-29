@@ -158,6 +158,24 @@ export async function bulkImportUsers({
       },
     });
 
+    if (newUser?.user?.id) {
+      const usernameToSet =
+        userData.username?.trim() ||
+        (userData.email.includes("@")
+          ? userData.email.split("@")[0].trim()
+          : undefined);
+
+      if (usernameToSet) {
+        await db
+          .update(user)
+          .set({
+            username: usernameToSet,
+            displayUsername: usernameToSet,
+          })
+          .where(eq(user.id, newUser.user.id));
+      }
+    }
+
     if (userData.role === "faculty" && newUser?.user?.id) {
       await db
         .update(user)
@@ -339,12 +357,16 @@ export async function createUser(data: {
       return { success: false, error: "Failed to create user" };
     }
 
-    if (data.username !== undefined) {
+    const usernameToSet =
+      data.username?.trim() ||
+      (data.email.includes("@") ? data.email.split("@")[0].trim() : null);
+
+    if (created?.user?.id && usernameToSet) {
       await db
         .update(user)
         .set({
-          username: data.username || null,
-          displayUsername: data.username || null,
+          username: usernameToSet,
+          displayUsername: usernameToSet,
         })
         .where(eq(user.id, created.user.id));
     }
@@ -500,3 +522,43 @@ export async function deleteUser(userId: string) {
     return { success: false, error: "Failed to delete user" };
   }
 }
+
+export async function backfillMissingUsernames() {
+  await requireAdmin();
+  try {
+    const usersWithoutUsername = await db
+      .select({ id: user.id, email: user.email })
+      .from(user)
+      .where(sql`${user.username} IS NULL`);
+
+    let updatedCount = 0;
+    for (const u of usersWithoutUsername) {
+      if (u.email && u.email.includes("@")) {
+        const derivedUsername = u.email.split("@")[0].trim();
+        if (derivedUsername) {
+          await db
+            .update(user)
+            .set({
+              username: derivedUsername,
+              displayUsername: derivedUsername,
+            })
+            .where(eq(user.id, u.id));
+          updatedCount++;
+        }
+      }
+    }
+
+    revalidatePath("/admin/users");
+    return { success: true, count: updatedCount };
+  } catch (error) {
+    console.error("Failed to backfill usernames:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to backfill usernames",
+    };
+  }
+}
+
