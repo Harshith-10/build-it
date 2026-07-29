@@ -40,6 +40,7 @@ import { getGroups } from "@/actions/admin/groups";
 
 import { ExerciseFormDialog } from "@/components/admin/labs/exercise-form-dialog";
 import { ExerciseSubmissionsDialog } from "@/components/admin/labs/exercise-submissions-dialog";
+import { ScheduleWindowDialog } from "@/components/faculty/labs/schedule-window-dialog";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -741,30 +742,35 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
             <p className="text-sm text-muted-foreground">
               {exercises.length} exercise{exercises.length !== 1 ? "s" : ""}
             </p>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingExercise(undefined);
-                setExerciseDialog(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Exercise
-            </Button>
+            {isAdmin && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingExercise(undefined);
+                  setExerciseDialog(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Exercise
+              </Button>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
             {exercises.map((exercise) => {
-              const hasSchedule =
-                exercise.groups && exercise.groups.length > 0;
-              const window = exercise.groups?.[0];
               const now = new Date();
-              const isActive =
-                hasSchedule &&
-                window?.startTime &&
-                window?.endTime &&
-                now >= new Date(window.startTime) &&
-                now <= new Date(window.endTime);
+              const validWindows = (exercise.groups ?? []).filter(
+                (w) => w.startTime && w.endTime
+              );
+              const activeWindow = validWindows.find((w) => {
+                const s = new Date(w.startTime).getTime();
+                const e = new Date(w.endTime).getTime();
+                const n = now.getTime();
+                return n >= s && n <= e;
+              });
+              const window = activeWindow ?? validWindows[0];
+              const hasSchedule = !!window;
+              const isActive = !!activeWindow;
 
               // collection info
               const collection = (exercise as any).collection;
@@ -852,14 +858,24 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title="Edit exercise"
-                        onClick={() => {
-                          setEditingExercise(exercise);
-                          setExerciseDialog(true);
-                        }}
+                        title="Schedule time window"
+                        onClick={() => setSchedulingExercise(exercise)}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Edit exercise"
+                          onClick={() => {
+                            setEditingExercise(exercise);
+                            setExerciseDialog(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {isAdmin && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -894,24 +910,20 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                 </div>
               );
             })}
-            {exercises.length === 0 && (
-              <div className="text-center py-12 border rounded-lg text-sm text-muted-foreground">
-                No exercises yet. Click &quot;Add Exercise&quot; to get
-                started.
-              </div>
-            )}
           </div>
         </>
       )}
 
       {/* ── Dialogs ── */}
-      <LabFormDialog
-        open={labDialog}
-        onClose={() => setLabDialog(false)}
-        onSaved={fetchLabs}
-        initial={editingLab}
-      />
-      {selectedLab && (
+      {labDialog && (
+        <LabFormDialog
+          open={labDialog}
+          onClose={() => setLabDialog(false)}
+          onSaved={fetchLabs}
+          initial={editingLab}
+        />
+      )}
+      {exerciseDialog && selectedLab && (
         <ExerciseFormDialog
           open={exerciseDialog}
           onClose={() => setExerciseDialog(false)}
@@ -919,14 +931,8 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
           labId={selectedLab.id}
           initial={editingExercise}
           onUpdateExercise={async (data) => {
-            return data.id
-              ? await updateExercise({
-                  id: data.id,
-                  exerciseNo: data.exerciseNo,
-                  title: data.title,
-                  description: data.description,
-                  collectionId: data.collectionId ?? null,
-                })
+            return editingExercise
+              ? await updateExercise({ id: editingExercise.id, ...data })
               : await createExercise({
                   labId: data.labId,
                   exerciseNo: data.exerciseNo,
@@ -935,6 +941,20 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                   collectionId: data.collectionId ?? null,
                 });
           }}
+        />
+      )}
+      {schedulingExercise && (
+        <ScheduleWindowDialog
+          open={!!schedulingExercise}
+          onClose={() => setSchedulingExercise(null)}
+          onSaved={() => {
+            if (selectedLab) fetchExercises(selectedLab.id);
+          }}
+          exercise={{
+            ...schedulingExercise,
+            labId: selectedLab?.id ?? "",
+          }}
+          isAdmin={isAdmin}
         />
       )}
       {submissionsExercise && (

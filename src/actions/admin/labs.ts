@@ -158,8 +158,7 @@ export async function createExercise(data: {
   collectionId?: string | null;
 }) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "create" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    await requireAdmin();
 
     const existing = await db.query.exercises.findMany({
       where: eq(exercises.labId, data.labId),
@@ -190,8 +189,7 @@ export async function updateExercise(data: {
   collectionId?: string | null;
 }) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    await requireAdmin();
 
     if (data.title) {
       // Fetch the current exercise to get its labId for scoped uniqueness check
@@ -232,8 +230,7 @@ export async function updateExercise(data: {
 
 export async function deleteExercise(id: string) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "delete" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    await requireAdmin();
     await db.delete(exercises).where(eq(exercises.id, id));
     revalidatePath("/admin/labs");
     revalidatePath("/faculty/labs");
@@ -253,8 +250,28 @@ export async function assignExerciseGroup(data: {
   endTime: Date;
 }) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    const session = await requireUser();
+    
+    if (session.user.role === "faculty") {
+      const ex = await db.query.exercises.findFirst({
+        where: eq(exercises.id, data.exerciseId),
+        columns: { labId: true },
+      });
+      if (!ex) return { success: false, error: "Exercise not found" };
+
+      const assigned = await db.query.labGroupFaculty.findFirst({
+        where: and(
+          eq(labGroupFaculty.labId, ex.labId),
+          eq(labGroupFaculty.groupId, data.groupId),
+          eq(labGroupFaculty.facultyId, session.user.id)
+        ),
+      });
+      if (!assigned) {
+        return { success: false, error: "You are not assigned to this student section/group for this lab." };
+      }
+    } else if (session.user.role !== "admin") {
+      return { success: false, error: "Permission denied" };
+    }
 
     const [assigned] = await db
       .insert(exerciseGroups)

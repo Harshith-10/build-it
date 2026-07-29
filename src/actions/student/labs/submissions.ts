@@ -10,47 +10,45 @@ import { requireUser } from "@/lib/auth-access";
 // ─── Get my lab ───────────────────────────────────────────────────────────────
 
 export async function getMyLab() {
-  const session = await requireUser();
+  try {
+    const session = await requireUser();
 
-  // Get student's group memberships
-  const userMemberships = await db.query.userGroupMembers.findMany({
-    where: eq(userGroupMembers.userId, session.user.id),
-  });
+    // Get student's group memberships
+    const userMemberships = await db.query.userGroupMembers.findMany({
+      where: eq(userGroupMembers.userId, session.user.id),
+    });
 
-  const studentGroupIds = userMemberships.map((m) => m.groupId);
+    const studentGroupIds = userMemberships.map((m) => m.groupId);
 
-  if (studentGroupIds.length === 0) {
+    if (studentGroupIds.length === 0) {
+      return [];
+    }
+
+    // Labs with exercise time windows assigned to student's groups
+    const exerciseAssignments = await db.query.exerciseGroups.findMany({
+      where: inArray(exerciseGroups.groupId, studentGroupIds),
+      with: {
+        exercise: { columns: { labId: true } },
+      },
+    });
+    
+    const allowedLabIds = Array.from(
+      new Set(exerciseAssignments.map((a) => a.exercise?.labId).filter(Boolean))
+    );
+
+    if (allowedLabIds.length === 0) {
+      return [];
+    }
+
+    return await db.query.labs.findMany({
+      where: inArray(labs.id, allowedLabIds),
+      with: { exercises: true },
+      orderBy: (l, { asc }) => [asc(l.name)],
+    });
+  } catch (error) {
+    console.error("[getMyLab] Failed to load student labs:", error);
     return [];
   }
-
-  // 1. Labs assigned to student's groups directly
-  const labAssignments = await db.query.labGroupFaculty.findMany({
-    where: inArray(labGroupFaculty.groupId, studentGroupIds),
-  });
-  const labIdsFromLabFaculty = labAssignments.map((a) => a.labId);
-
-  // 2. Labs with exercise time windows assigned to student's groups
-  const exerciseAssignments = await db.query.exerciseGroups.findMany({
-    where: inArray(exerciseGroups.groupId, studentGroupIds),
-    with: {
-      exercise: { columns: { labId: true } },
-    },
-  });
-  const labIdsFromExerciseGroups = exerciseAssignments.map((a) => a.exercise.labId);
-
-  const allowedLabIds = Array.from(
-    new Set([...labIdsFromLabFaculty, ...labIdsFromExerciseGroups])
-  );
-
-  if (allowedLabIds.length === 0) {
-    return [];
-  }
-
-  return db.query.labs.findMany({
-    where: inArray(labs.id, allowedLabIds),
-    with: { exercises: true },
-    orderBy: (l, { asc }) => [asc(l.name)],
-  });
 }
 
 // ─── Get my exercises ─────────────────────────────────────────────────────────
@@ -139,11 +137,14 @@ export async function getMyExercises(labId: string) {
       marks: markEntry ? parseFloat(markEntry.marks) : null,
       implementationMarks: markEntry?.implementationMarks ? parseFloat(markEntry.implementationMarks) : null,
       writeUpMarks: markEntry?.writeUpMarks ? parseFloat(markEntry.writeUpMarks) : null,
-      vivaMarks: markEntry?.vivaMarks ? parseFloat(markEntry.vivaMarks) : null,
     };
   });
 
-  return { success: true as const, data: { lab, exercises: exercisesWithWindow } };
+  const scheduledExercises = exercisesWithWindow.filter(
+    (e) => e.windowStart && e.windowEnd
+  );
+
+  return { success: true as const, data: { lab, exercises: scheduledExercises } };
 }
 
 // ─── Get programs for exercise ────────────────────────────────────────────────

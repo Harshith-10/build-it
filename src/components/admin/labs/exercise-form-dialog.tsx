@@ -238,30 +238,8 @@ export function ExerciseFormDialog({
   // ── Submit ───────────────────────────────────────────────────────────────
 
   const onSubmit = async (data: ExerciseFormValues) => {
-    // If a group is selected in the dropdown but not yet added via "+", warn the user
-    if (selectedGroupId) {
-      toast.error(
-        "You have a group selected but haven't added it yet. Click the \"+\" button to add it, or clear the selection before saving."
-      );
-      return;
-    }
-
-    // Validate that every added group window has both times filled in
-    const incomplete = windows
-      .filter((w) => !w.startTime || !w.endTime)
-      .map((w) => w.groupId);
-
-    if (incomplete.length > 0) {
-      setInvalidWindows(new Set(incomplete));
-      toast.error(
-        `Please set both start and end times for ${
-          incomplete.length === 1
-            ? "the highlighted group"
-            : `all ${incomplete.length} highlighted groups`
-        }.`
-      );
-      return;
-    }
+    // Filter valid schedule windows that have both startTime and endTime filled
+    const validWindows = windows.filter((w) => w.startTime && w.endTime);
 
     setInvalidWindows(new Set());
     setIsSubmitting(true);
@@ -283,15 +261,15 @@ export function ExerciseFormDialog({
       if (exerciseId) {
         // Remove deleted windows
         const originalGroupIds = initial?.groups?.map((g) => g.groupId) ?? [];
-        const newGroupIds = windows.map((w) => w.groupId);
+        const newGroupIds = validWindows.map((w) => w.groupId);
         const removed = originalGroupIds.filter(
           (id) => !newGroupIds.includes(id)
         );
         for (const groupId of removed) {
           await removeExerciseGroup(exerciseId, groupId);
         }
-        // Upsert current windows
-        for (const window of windows) {
+        // Upsert current valid windows
+        for (const window of validWindows) {
           await assignExerciseGroup({
             exerciseId,
             groupId: window.groupId,
