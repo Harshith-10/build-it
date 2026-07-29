@@ -52,12 +52,7 @@ export function CodePlayground({
   isCodingLocked = false,
   latestSubmissions,
 }: CodePlaygroundProps) {
-  const {
-    code,
-    setCode,
-    userId: storedUserId,
-    assignmentId: storedAssignmentId,
-  } = useExamStore();
+  const { code, setCode } = useExamStore();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -109,13 +104,7 @@ export function CodePlayground({
 
   const latestSubmittedCode = latestSubmissions?.[question.id]?.[selectedLanguage];
 
-  const isSameSession =
-    storedUserId === userId && storedAssignmentId === assignmentId;
-
-  const localDraft =
-    isSameSession && question.id in code && code[question.id]?.[selectedLanguage]
-      ? code[question.id][selectedLanguage]
-      : undefined;
+  const localDraft = code[question.id]?.[selectedLanguage];
 
   // 1. Local Draft (Highest priority)
   // 2. Latest Submitted Code (DB recovery anchor)

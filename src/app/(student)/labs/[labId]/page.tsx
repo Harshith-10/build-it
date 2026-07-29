@@ -5,7 +5,6 @@ import { notFound, redirect } from "next/navigation";
 import { getMyExercises } from "@/actions/student/labs/submissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { LocalDateTimeText } from "@/components/ui/local-date-time-text";
 import { auth } from "@/lib/auth";
 
 function getWindowStatus(startTime: Date | null, endTime: Date | null) {
@@ -16,19 +15,15 @@ function getWindowStatus(startTime: Date | null, endTime: Date | null) {
   return "active";
 }
 
-const statusStyles = {
-  active: "bg-green-500 border-transparent text-white",
-  upcoming: "bg-blue-500 border-transparent text-white",
-  ended: "bg-neutral-500 border-transparent text-white",
-  locked: "bg-neutral-200 border-transparent text-neutral-600",
-};
-
-const statusLabels = {
-  active: "Active",
-  upcoming: "Upcoming",
-  ended: "Ended",
-  locked: "Not Scheduled",
-};
+function formatCloseTime(date: Date) {
+  return date.toLocaleString("en-US", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
 export default async function ExercisesPage({
   params,
@@ -51,22 +46,47 @@ export default async function ExercisesPage({
     notFound();
   }
 
-  const { lab, exercises } = result.data!;
+  const exercises = result.data.exercises;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
+    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6 overflow-y-auto pr-1">
+      {/* Header */}
       <div>
         <p className="text-sm text-muted-foreground mb-1">
           <Link href="/labs" className="hover:underline">
             Labs
           </Link>{" "}
-          / {lab.name}
+          / Exercises
         </p>
-        <h2 className="text-3xl font-bold tracking-tight">{lab.name}</h2>
-        <p className="text-muted-foreground">
-          {exercises.length} of 12 exercises available
-        </p>
+        <h2 className="text-3xl font-bold tracking-tight">Exercises</h2>
+        <div className="flex items-center gap-3 mt-1">
+          <p className="text-muted-foreground">
+            {exercises.length} of 12 exercises available
+          </p>
+          {exercises.filter(
+            (e) =>
+              getWindowStatus(e.windowStart ?? null, e.windowEnd ?? null) ===
+              "active"
+          ).length > 0 && (
+            <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+              <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              {
+                exercises.filter(
+                  (e) =>
+                    getWindowStatus(
+                      e.windowStart ?? null,
+                      e.windowEnd ?? null
+                    ) === "active"
+                ).length
+              }{" "}
+              active now
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Divider */}
+      <div className="border-t" />
 
       {exercises.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
@@ -82,78 +102,86 @@ export default async function ExercisesPage({
         <div className="flex flex-col gap-3">
           {exercises.map((exercise) => {
             const status = getWindowStatus(
-              exercise.startTime ?? null,
-              exercise.endTime ?? null,
+              exercise.windowStart ?? null,
+              exercise.windowEnd ?? null
             );
-            const isAccessible = status === "active";
+            const isActive = status === "active";
+            const isUpcoming = status === "upcoming";
+            const isEnded = status === "ended";
+            const isLocked = status === "locked";
 
             return (
               <div
                 key={exercise.id}
-                className="border rounded-lg p-4 flex items-center gap-4 hover:border-primary/50 transition-colors"
+                className={`border rounded-lg p-4 flex items-center gap-4 transition-colors ${
+                  isActive
+                    ? "border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900"
+                    : isEnded
+                    ? "opacity-60"
+                    : ""
+                }`}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-sm font-semibold shrink-0">
+                {/* Exercise number */}
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-semibold shrink-0 ${
+                    isActive
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
                   {exercise.exerciseNo}
                 </div>
 
+                {/* Exercise info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-sm">{exercise.title}</p>
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${statusStyles[status]}`}
-                    >
-                      {statusLabels[status]}
-                    </Badge>
-                    {status === "active" && (
-                      <span className="flex h-2 w-2 animate-pulse rounded-full bg-green-500" />
-                    )}
-                  </div>
-                  {exercise.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {exercise.description}
+                  <p
+                    className={`font-medium text-sm break-words [overflow-wrap:anywhere] ${
+                      isLocked || isEnded ? "text-muted-foreground" : ""
+                    }`}
+                  >
+                    {exercise.title}
+                  </p>
+                  {isActive && exercise.windowEnd && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
+                      Closes {formatCloseTime(new Date(exercise.windowEnd))}
                     </p>
                   )}
-                  {exercise.startTime && exercise.endTime && (
-                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <LocalDateTimeText
-                        value={exercise.startTime}
-                        options={{
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        }}
-                      />
-                      {" → "}
-                      <LocalDateTimeText
-                        value={exercise.endTime}
-                        options={{
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        }}
-                      />
-                    </div>
+                  {isUpcoming && exercise.windowStart && (
+                    <p className="text-xs text-blue-500 mt-0.5">
+                      Opens {formatCloseTime(new Date(exercise.windowStart))}
+                    </p>
+                  )}
+                  {isEnded && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Closed
+                    </p>
                   )}
                 </div>
 
+                {/* Right side action */}
                 <div className="shrink-0">
-                  {isAccessible ? (
+                  {isActive ? (
                     <Button size="sm" asChild>
-                      <Link href={`/labs/${labId}/${exercise.id}`}>Open</Link>
+                      <Link href={`/labs/${labId}/${exercise.id}`}>
+                        <span className="flex h-2 w-2 rounded-full bg-white mr-2" />
+                        Active
+                      </Link>
                     </Button>
+                  ) : isEnded ? (
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Lock className="h-4 w-4" />
+                      Ended
+                    </div>
+                  ) : isUpcoming ? (
+                    <div className="flex items-center gap-1.5 text-sm text-blue-500">
+                      <Lock className="h-4 w-4" />
+                      Not started
+                    </div>
                   ) : (
-                    <Button size="sm" variant="outline" disabled>
-                      <Lock className="h-3.5 w-3.5 mr-1.5" />
-                      {status === "upcoming"
-                        ? "Not started"
-                        : status === "ended"
-                          ? "Closed"
-                          : "Locked"}
-                    </Button>
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Lock className="h-4 w-4" />
+                      Not Scheduled
+                    </div>
                   )}
                 </div>
               </div>

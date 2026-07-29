@@ -29,6 +29,20 @@
       "when": 1777622383758,
       "tag": "0003_careless_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778777200970,
+      "tag": "0004_dusty_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778812935585,
+      "tag": "0005_groovy_jean_grey",
+      "breakpoints": true
     }
   ]
 }

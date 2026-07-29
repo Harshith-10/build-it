@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { exams } from "./exams";
 import { questions } from "./questions";
+import { exercises } from "./labs";
 import { departments } from "./departments";
 
 export const questionCollections = pgTable("question_collections", {
@@ -66,6 +67,7 @@ export const questionCollectionsRelations = relations(
   ({ many }) => ({
     questions: many(collectionQuestions),
     exams: many(examCollections),
+    exercises: many(exercises),
   }),
 );
 

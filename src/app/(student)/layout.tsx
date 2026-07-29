@@ -25,11 +25,11 @@ export default async function DashboardLayout({
         : "student";
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
+    <SidebarProvider defaultOpen={defaultOpen} className="h-svh" suppressHydrationWarning>
       <AppSidebar role={role} />
       <SidebarInset>
         <DashboardHeader />
-        <main className="flex-1 h-full space-y-4 p-6 overflow-hidden min-h-0">
+        <main className="flex-1 h-full space-y-4 p-6 overflow-y-auto min-h-0">
           {children}
         </main>
       </SidebarInset>

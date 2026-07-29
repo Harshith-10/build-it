@@ -64,6 +64,9 @@ export async function getUserDepartment(userId: string): Promise<string | null> 
   return deptUser?.departmentId ?? null;
 }
 
+// ─── Redirecting version (for pages) ─────────────────────────────────────────
+// Use this in page.tsx files — redirects on failure
+
 export async function ensureEntityPermission(options: {
   entity: FacultyPermissionEntity;
   action: FacultyPermissionAction;
@@ -94,6 +97,39 @@ export async function ensureEntityPermission(options: {
     permissions,
     userDepartmentId,
   };
+}
+
+// ─── Non-redirecting version (for server actions) ─────────────────────────────
+// Use this in actions/*.ts files — returns null on failure instead of redirecting
+
+export async function checkEntityPermission(options: {
+  entity: FacultyPermissionEntity;
+  action: FacultyPermissionAction;
+}): Promise<{ allowed: boolean; reason?: string }> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    return { allowed: false, reason: "Not authenticated" };
+  }
+
+  if (session.user.role !== "admin" && session.user.role !== "faculty") {
+    return { allowed: false, reason: "Not faculty or admin" };
+  }
+
+  if (session.user.role === "admin") {
+    return { allowed: true };
+  }
+
+  const permissions = await getFacultyPermissions(session.user.id);
+  const hasPermission = canFaculty(permissions, options.entity, options.action);
+
+  if (!hasPermission) {
+    return { allowed: false, reason: "Missing faculty permission" };
+  }
+
+  return { allowed: true };
 }
 
 export function ensureOwnership(params: {

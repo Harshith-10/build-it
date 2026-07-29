@@ -1,35 +1,64 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  BookOpen,
-  ChevronRight,
-  Code2,
-  FlaskConical,
-  Loader2,
-  Pencil,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { toast } from "sonner";
+import {
+  ChevronRight,
+  Loader2,
+  Plus,
+  Pencil,
+  Trash2,
+  FlaskConical,
+  BookOpen,
+  CalendarClock,
+  Eye,
+  Clock,
+  Library,
+} from "lucide-react";
 
 import {
-  createExercise,
-  createLab,
-  createProgram,
-  deleteExercise,
-  deleteLab,
-  deleteProgram,
-  getExercises,
   getLabs,
-  getPrograms,
-  updateExercise,
+  createLab,
   updateLab,
-  updateProgram,
+  deleteLab,
+  getExercises,
+  createExercise,
+  updateExercise,
+  deleteExercise,
+  scheduleExerciseForSemester,
 } from "@/actions/admin/labs";
+
+import { ExerciseFormDialog } from "@/components/admin/labs/exercise-form-dialog";
+import { ExerciseSubmissionsDialog } from "@/components/admin/labs/exercise-submissions-dialog";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,58 +70,31 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────
 
 type Lab = Awaited<ReturnType<typeof getLabs>>[number];
 type Exercise = Awaited<ReturnType<typeof getExercises>>[number];
-type Program = Awaited<ReturnType<typeof getPrograms>>[number];
 
-type View = "labs" | "exercises" | "programs";
+type View = "labs" | "exercises";
 
-// ─── Schemas ──────────────────────────────────────────────────────────────────
+// ─── Schemas ────────────────────────────────────────────────────────────────
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  semester: z.number().min(1).max(4),
+  semester: z.preprocess((v) => Number(v), z.number().min(1).max(4)),
   description: z.string().optional(),
 });
 
-const exerciseSchema = z.object({
-  exerciseNo: z.number().min(1).max(12),
-  title: z.string().min(2, "Title must be at least 2 characters"),
-  description: z.string().optional(),
-});
-
-const programSchema = z.object({
-  programNo: z.number().min(1).max(8),
-  title: z.string().min(2, "Title must be at least 2 characters"),
-  description: z.string().optional(),
-});
+const scheduleSchema = z
+  .object({
+    startTime: z.string().min(1, "Start time is required"),
+    endTime: z.string().min(1, "End time is required"),
+  })
+  .refine((d) => new Date(d.endTime) > new Date(d.startTime), {
+    message: "End time must be after start time",
+    path: ["endTime"],
+  });
 
 const SEM_LABELS: Record<number, string> = {
   1: "Semester 1",
@@ -108,7 +110,7 @@ const SEM_COLORS: Record<number, string> = {
   4: "bg-blue-100 text-blue-700 border-blue-200",
 };
 
-// ─── Lab Form Dialog ──────────────────────────────────────────────────────────
+// ─── Lab Form Dialog ────────────────────────────────────────────────────────
 
 function LabFormDialog({
   open,
@@ -122,8 +124,9 @@ function LabFormDialog({
   initial?: Lab;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const form = useForm({
-    resolver: zodResolver(labSchema),
+  const form = useForm<z.infer<typeof labSchema>>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(labSchema) as any,
     defaultValues: {
       name: initial?.name ?? "",
       semester: initial?.semester ?? 1,
@@ -137,7 +140,7 @@ function LabFormDialog({
       semester: initial?.semester ?? 1,
       description: initial?.description ?? "",
     });
-  }, [initial, form.reset]);
+  }, [initial, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSubmit = async (data: z.infer<typeof labSchema>) => {
     setIsSubmitting(true);
@@ -186,7 +189,7 @@ function LabFormDialog({
                 <FormItem>
                   <FormLabel>Semester</FormLabel>
                   <Select
-                    onValueChange={(val) => field.onChange(Number(val))}
+                    onValueChange={field.onChange}
                     defaultValue={String(field.value)}
                   >
                     <FormControl>
@@ -237,52 +240,61 @@ function LabFormDialog({
   );
 }
 
-// ─── Exercise Form Dialog ─────────────────────────────────────────────────────
+// ─── Schedule Dialog ────────────────────────────────────────────────────────
 
-function ExerciseFormDialog({
+function ScheduleDialog({
   open,
   onClose,
   onSaved,
-  labId,
-  initial,
+  exercise,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
-  labId: string;
-  initial?: Exercise;
+  exercise: Exercise;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const form = useForm({
-    resolver: zodResolver(exerciseSchema),
+
+  const existingWindow = exercise.groups?.[0];
+  const toDatetimeLocal = (d: Date | string | null | undefined) => {
+    if (!d) return "";
+    return new Date(d).toISOString().slice(0, 16);
+  };
+
+  const form = useForm<z.infer<typeof scheduleSchema>>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(scheduleSchema) as any,
     defaultValues: {
-      exerciseNo: initial?.exerciseNo ?? 1,
-      title: initial?.title ?? "",
-      description: initial?.description ?? "",
+      startTime: toDatetimeLocal(existingWindow?.startTime),
+      endTime: toDatetimeLocal(existingWindow?.endTime),
     },
   });
 
   useEffect(() => {
+    const w = exercise.groups?.[0];
     form.reset({
-      exerciseNo: initial?.exerciseNo ?? 1,
-      title: initial?.title ?? "",
-      description: initial?.description ?? "",
+      startTime: toDatetimeLocal(w?.startTime),
+      endTime: toDatetimeLocal(w?.endTime),
     });
-  }, [initial, form.reset]);
+  }, [exercise, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onSubmit = async (data: z.infer<typeof exerciseSchema>) => {
+  const onSubmit = async (data: z.infer<typeof scheduleSchema>) => {
     setIsSubmitting(true);
     try {
-      const res = initial
-        ? await updateExercise({ id: initial.id, ...data })
-        : await createExercise({ labId, ...data });
+      const res = await scheduleExerciseForSemester({
+        exerciseId: exercise.id,
+        startTime: new Date(data.startTime),
+        endTime: new Date(data.endTime),
+      });
 
       if (res.success) {
-        toast.success(initial ? "Exercise updated" : "Exercise created");
+        toast.success(
+          `Scheduled for ${res.groupsScheduled} group${res.groupsScheduled !== 1 ? "s" : ""}`
+        );
         onSaved();
         onClose();
       } else {
-        toast.error(res.error ?? "Something went wrong");
+        toast.error(res.error ?? "Failed to schedule");
       }
     } finally {
       setIsSubmitting(false);
@@ -293,26 +305,25 @@ function ExerciseFormDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {initial ? "Edit Exercise" : "Add Exercise"}
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4" />
+            Schedule Exercise {exercise.exerciseNo}
           </DialogTitle>
+          <DialogDescription>
+            Set the time window for <strong>{exercise.title}</strong>. This
+            will automatically apply to all students in this semester.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="exerciseNo"
+              name="startTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Exercise Number (1–12)</FormLabel>
+                  <FormLabel>Start Time</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={12}
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
+                    <Input type="datetime-local" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -320,30 +331,23 @@ function ExerciseFormDialog({
             />
             <FormField
               control={form.control}
-              name="title"
+              name="endTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel>End Time</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Classes and Objects" {...field} />
+                    <Input type="datetime-local" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Brief description..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {existingWindow && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Currently scheduled — saving will update all groups.
+              </p>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
@@ -352,7 +356,7 @@ function ExerciseFormDialog({
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Save
+                {existingWindow ? "Update Schedule" : "Set Schedule"}
               </Button>
             </div>
           </form>
@@ -362,136 +366,7 @@ function ExerciseFormDialog({
   );
 }
 
-// ─── Program Form Dialog ──────────────────────────────────────────────────────
-
-function ProgramFormDialog({
-  open,
-  onClose,
-  onSaved,
-  exerciseId,
-  initial,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSaved: () => void;
-  exerciseId: string;
-  initial?: Program;
-}) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const form = useForm({
-    resolver: zodResolver(programSchema),
-    defaultValues: {
-      programNo: initial?.programNo ?? 1,
-      title: initial?.title ?? "",
-      description: initial?.description ?? "",
-    },
-  });
-
-  useEffect(() => {
-    form.reset({
-      programNo: initial?.programNo ?? 1,
-      title: initial?.title ?? "",
-      description: initial?.description ?? "",
-    });
-  }, [initial, form.reset]);
-
-  const onSubmit = async (data: z.infer<typeof programSchema>) => {
-    setIsSubmitting(true);
-    try {
-      const res = initial
-        ? await updateProgram({ id: initial.id, ...data })
-        : await createProgram({ exerciseId, ...data });
-
-      if (res.success) {
-        toast.success(initial ? "Program updated" : "Program created");
-        onSaved();
-        onClose();
-      } else {
-        toast.error(res.error ?? "Something went wrong");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{initial ? "Edit Program" : "Add Program"}</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="programNo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Program Number (1–8)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={8}
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g. Create a Student class"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="What should the student do..."
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Save
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────
 
 export function LabsManager() {
   const [view, setView] = useState<View>("labs");
@@ -499,26 +374,24 @@ export function LabsManager() {
 
   const [labs, setLabs] = useState<Lab[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
 
   const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(
-    null,
-  );
 
-  // Dialog state
   const [labDialog, setLabDialog] = useState(false);
   const [exerciseDialog, setExerciseDialog] = useState(false);
-  const [programDialog, setProgramDialog] = useState(false);
+  const [scheduleDialog, setScheduleDialog] = useState(false);
   const [editingLab, setEditingLab] = useState<Lab | undefined>();
   const [editingExercise, setEditingExercise] = useState<
     Exercise | undefined
   >();
-  const [editingProgram, setEditingProgram] = useState<Program | undefined>();
+  const [schedulingExercise, setSchedulingExercise] =
+    useState<Exercise | null>(null);
+  const [submissionsExercise, setSubmissionsExercise] =
+    useState<Exercise | null>(null);
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
+  // ── Data fetching ─────────────────────────────────────────────────────────
 
-  const fetchLabs = useCallback(async () => {
+  const fetchLabs = async () => {
     setLoading(true);
     try {
       const data = await getLabs();
@@ -526,9 +399,9 @@ export function LabsManager() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  const fetchExercises = useCallback(async (labId: string) => {
+  const fetchExercises = async (labId: string) => {
     setLoading(true);
     try {
       const data = await getExercises(labId);
@@ -536,21 +409,11 @@ export function LabsManager() {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const fetchPrograms = useCallback(async (exerciseId: string) => {
-    setLoading(true);
-    try {
-      const data = await getPrograms(exerciseId);
-      setPrograms(data);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  };
 
   useEffect(() => {
     fetchLabs();
-  }, [fetchLabs]);
+  }, []);
 
   // ── Navigation ─────────────────────────────────────────────────────────────
 
@@ -560,25 +423,12 @@ export function LabsManager() {
     setView("exercises");
   };
 
-  const openExercise = (exercise: Exercise) => {
-    setSelectedExercise(exercise);
-    fetchPrograms(exercise.id);
-    setView("programs");
-  };
-
   const goToLabs = () => {
     setView("labs");
     setSelectedLab(null);
-    setSelectedExercise(null);
   };
 
-  const goToExercises = () => {
-    setView("exercises");
-    setSelectedExercise(null);
-    if (selectedLab) fetchExercises(selectedLab.id);
-  };
-
-  // ── Delete handlers ────────────────────────────────────────────────────────
+  // ── Delete handlers ─────────────────────────────────────────────────────────
 
   const handleDeleteLab = async (id: string) => {
     const res = await deleteLab(id);
@@ -600,16 +450,6 @@ export function LabsManager() {
     }
   };
 
-  const handleDeleteProgram = async (id: string) => {
-    const res = await deleteProgram(id);
-    if (res.success) {
-      toast.success("Program deleted");
-      if (selectedExercise) fetchPrograms(selectedExercise.id);
-    } else {
-      toast.error(res.error ?? "Failed to delete");
-    }
-  };
-
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -625,7 +465,6 @@ export function LabsManager() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-1 text-sm text-muted-foreground">
         <button
-          type="button"
           onClick={goToLabs}
           className={
             view === "labs"
@@ -638,24 +477,8 @@ export function LabsManager() {
         {selectedLab && (
           <>
             <ChevronRight className="h-4 w-4" />
-            <button
-              type="button"
-              onClick={goToExercises}
-              className={
-                view === "exercises"
-                  ? "font-medium text-foreground"
-                  : "hover:text-foreground transition-colors"
-              }
-            >
-              {selectedLab.name}
-            </button>
-          </>
-        )}
-        {selectedExercise && (
-          <>
-            <ChevronRight className="h-4 w-4" />
             <span className="font-medium text-foreground">
-              Exercise {selectedExercise.exerciseNo}
+              {selectedLab.name}
             </span>
           </>
         )}
@@ -684,22 +507,15 @@ export function LabsManager() {
             {labs.map((lab) => (
               <div
                 key={lab.id}
-                className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                // eslint-disable-next-line
-                role="button"
-                tabIndex={0}
+                className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 transition-colors cursor-pointer min-w-0"
                 onClick={() => openLab(lab)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    openLab(lab);
-                  }
-                }}
               >
-                <div className="flex items-start justify-between gap-2 w-full">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium text-sm">{lab.name}</span>
+                    <span className="font-medium text-sm truncate">
+                      {lab.name}
+                    </span>
                   </div>
                   <Badge
                     variant="outline"
@@ -709,20 +525,17 @@ export function LabsManager() {
                   </Badge>
                 </div>
                 {lab.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 w-full text-left">
+                  <p className="text-xs text-muted-foreground line-clamp-2 break-words [overflow-wrap:anywhere]">
                     {lab.description}
                   </p>
                 )}
-                <div className="flex items-center justify-between mt-auto pt-2 border-t w-full">
+                <div className="flex items-center justify-between mt-auto pt-2 border-t">
                   <span className="text-xs text-muted-foreground">
-                    {lab.exercises?.length ?? 0}/12 exercises
+                    {lab.exercises?.length ?? 0} exercise{(lab.exercises?.length ?? 0) !== 1 ? "s" : ""}
                   </span>
-                  {/* eslint-disable-next-line */}
                   <div
                     className="flex gap-1"
-                    role="presentation"
                     onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
                   >
                     <Button
                       variant="ghost"
@@ -745,8 +558,8 @@ export function LabsManager() {
                           <AlertDialogTitle>Delete Lab</AlertDialogTitle>
                           <AlertDialogDescription>
                             This will permanently delete{" "}
-                            <strong>{lab.name}</strong> and all its exercises
-                            and programs. This cannot be undone.
+                            <strong>{lab.name}</strong> and all its exercises.
+                            This cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -778,11 +591,10 @@ export function LabsManager() {
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {exercises.length}/12 exercises
+              {exercises.length} exercise{exercises.length !== 1 ? "s" : ""}
             </p>
             <Button
               size="sm"
-              disabled={exercises.length >= 12}
               onClick={() => {
                 setEditingExercise(undefined);
                 setExerciseDialog(true);
@@ -794,173 +606,140 @@ export function LabsManager() {
           </div>
 
           <div className="flex flex-col gap-2">
-            {exercises.map((exercise) => (
-              <div
-                key={exercise.id}
-                className="border rounded-lg p-4 flex items-center gap-4 hover:border-primary/50 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                // eslint-disable-next-line
-                role="button"
-                tabIndex={0}
-                onClick={() => openExercise(exercise)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    openExercise(exercise);
-                  }
-                }}
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-sm font-medium shrink-0">
-                  {exercise.exerciseNo}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{exercise.title}</p>
-                  {exercise.description && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {exercise.description}
+            {exercises.map((exercise) => {
+              const hasSchedule =
+                exercise.groups && exercise.groups.length > 0;
+              const window = exercise.groups?.[0];
+              const now = new Date();
+              const isActive =
+                hasSchedule &&
+                window?.startTime &&
+                window?.endTime &&
+                now >= new Date(window.startTime) &&
+                now <= new Date(window.endTime);
+
+              // collection info
+              const collection = (exercise as any).collection;
+
+              return (
+                <div
+                  key={exercise.id}
+                  className="border rounded-lg p-4 flex items-center gap-4 hover:border-primary/50 transition-colors min-w-0"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-sm font-medium shrink-0">
+                    {exercise.exerciseNo}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {exercise.title}
                     </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-muted-foreground">
-                    <BookOpen className="inline h-3 w-3 mr-1" />
-                    {exercise.programs?.length ?? 0}/8
-                  </span>
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: propagation stopping div */}
-                  <div
-                    className="flex gap-1"
-                    role="presentation"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => {
-                        setEditingExercise(exercise);
-                        setExerciseDialog(true);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon-sm">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Exercise</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will delete Exercise {exercise.exerciseNo} and
-                            all its programs permanently.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleDeleteExercise(exercise.id)}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    {/* Collection info */}
+                    {collection ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Library className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{collection.name}</span>
+                        {collection.questions?.length != null && (
+                          <span className="ml-1 shrink-0">
+                            · {collection.questions.length} programs
+                          </span>
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
+                        <BookOpen className="h-3 w-3 shrink-0" />
+                        No collection linked
+                      </p>
+                    )}
+                    {/* Schedule info */}
+                    {hasSchedule && window?.startTime && window?.endTime && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span className="truncate">
+                          {new Date(window.startTime).toLocaleString()} →{" "}
+                          {new Date(window.endTime).toLocaleString()}
+                        </span>
+                        {isActive && (
+                          <span className="ml-1 inline-flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {hasSchedule ? (
+                      <Badge
+                        variant="outline"
+                        className={
+                          isActive
+                            ? "text-xs bg-green-50 text-green-700 border-green-200"
+                            : "text-xs bg-muted text-muted-foreground"
+                        }
+                      >
+                        {isActive ? "Active" : "Scheduled"}
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Not Scheduled
+                      </Badge>
+                    )}
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="View submissions"
+                        onClick={() => setSubmissionsExercise(exercise)}
+                      >
+                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Edit exercise"
+                        onClick={() => {
+                          setEditingExercise(exercise);
+                          setExerciseDialog(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon-sm">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Exercise</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will delete Exercise {exercise.exerciseNo}{" "}
+                              permanently.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() =>
+                                handleDeleteExercise(exercise.id)
+                              }
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {exercises.length === 0 && (
               <div className="text-center py-12 border rounded-lg text-sm text-muted-foreground">
-                No exercises yet. Click &quot;Add Exercise&quot; to get started.
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* ── Programs View ── */}
-      {view === "programs" && selectedExercise && (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {programs.length}/8 programs
-            </p>
-            <Button
-              size="sm"
-              disabled={programs.length >= 8}
-              onClick={() => {
-                setEditingProgram(undefined);
-                setProgramDialog(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Program
-            </Button>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {programs.map((program) => (
-              <div
-                key={program.id}
-                className="border rounded-lg p-4 flex items-center gap-4"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-sm font-medium shrink-0">
-                  <Code2 className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">
-                    {program.programNo}. {program.title}
-                  </p>
-                  {program.description && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {program.description}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => {
-                      setEditingProgram(program);
-                      setProgramDialog(true);
-                    }}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon-sm">
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Program</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete &quot;{program.title}
-                          &quot;.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          onClick={() => handleDeleteProgram(program.id)}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-            ))}
-            {programs.length === 0 && (
-              <div className="text-center py-12 border rounded-lg text-sm text-muted-foreground">
-                No programs yet. Click &quot;Add Program&quot; to get started.
+                No exercises yet. Click &quot;Add Exercise&quot; to get
+                started.
               </div>
             )}
           </div>
@@ -981,15 +760,32 @@ export function LabsManager() {
           onSaved={() => fetchExercises(selectedLab.id)}
           labId={selectedLab.id}
           initial={editingExercise}
+          onUpdateExercise={async (data) => {
+            return data.id
+              ? await updateExercise({
+                  id: data.id,
+                  exerciseNo: data.exerciseNo,
+                  title: data.title,
+                  description: data.description,
+                  collectionId: data.collectionId ?? null,
+                })
+              : await createExercise({
+                  labId: data.labId,
+                  exerciseNo: data.exerciseNo,
+                  title: data.title,
+                  description: data.description,
+                  collectionId: data.collectionId ?? null,
+                });
+          }}
         />
       )}
-      {selectedExercise && (
-        <ProgramFormDialog
-          open={programDialog}
-          onClose={() => setProgramDialog(false)}
-          onSaved={() => fetchPrograms(selectedExercise.id)}
-          exerciseId={selectedExercise.id}
-          initial={editingProgram}
+      {submissionsExercise && (
+        <ExerciseSubmissionsDialog
+          open={!!submissionsExercise}
+          onClose={() => setSubmissionsExercise(null)}
+          exerciseId={submissionsExercise.id}
+          exerciseTitle={submissionsExercise.title}
+          exerciseNo={submissionsExercise.exerciseNo}
         />
       )}
     </div>

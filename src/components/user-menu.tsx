@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import {
   ChevronsUpDown,
   LogOut,
@@ -39,9 +41,14 @@ export function UserMenu() {
   const { data: session } = useSession();
   const { setTheme } = useTheme();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
-  // If no session, we render nothing (or a skeleton could be added)
-  if (!session) return null;
+  useEffect(() => setMounted(true), []);
+
+  // Render nothing until client-side hydration is complete.
+  // useSession() starts as null on the client even when the server has session
+  // data, so we must agree on an initial render state to avoid hydration mismatch.
+  if (!mounted || !session) return null;
 
   const user = session.user;
 

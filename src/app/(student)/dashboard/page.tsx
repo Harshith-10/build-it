@@ -4,7 +4,6 @@ import {
   BookOpen,
   Calendar,
   CheckCircle2,
-  Clock,
   Timer,
   TrendingUp,
   Trophy,
@@ -128,18 +127,6 @@ export default async function DashboardPage() {
     .sort((a, b) => b.effectiveEnd.getTime() - a.effectiveEnd.getTime())
     .slice(0, 5);
 
-  // ── Date/time display ──────────────────────────────────────────────────────
-  const dateStr = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const timeStr = now.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
   return (
     <ScrollArea className="h-full">
       <div className="mx-auto max-w-screen-xl flex flex-col gap-6">
@@ -152,16 +139,6 @@ export default async function DashboardPage() {
             <p className="text-muted-foreground mt-0.5">
               Stay consistent and keep improving every day.
             </p>
-          </div>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Calendar className="h-4 w-4" />
-              {dateStr}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4" />
-              {timeStr}
-            </span>
           </div>
         </div>
 

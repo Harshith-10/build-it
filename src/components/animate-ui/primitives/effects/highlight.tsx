@@ -520,6 +520,7 @@ function HighlightItem<T extends React.ElementType>({
           key: childValue,
           ref: refCallback,
           className: cn("relative", element.props.className),
+          suppressHydrationWarning: true,
           ...getNonOverridingDataAttributes(element, {
             ...dataAttributes,
             "data-slot": "motion-highlight-item-container",
@@ -571,6 +572,7 @@ function HighlightItem<T extends React.ElementType>({
 
     return React.cloneElement(element, {
       ref: refCallback,
+      suppressHydrationWarning: true,
       ...getNonOverridingDataAttributes(element, {
         ...dataAttributes,
         "data-slot": "motion-highlight-item",
@@ -586,6 +588,7 @@ function HighlightItem<T extends React.ElementType>({
       ref={localRef}
       data-slot="motion-highlight-item-container"
       className={cn(mode === "children" && "relative", className)}
+      suppressHydrationWarning
       {...dataAttributes}
       {...props}
       {...commonHandlers}

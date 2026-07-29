@@ -76,6 +76,11 @@ const adminNavMain = [
     icon: GraduationCap,
   },
   {
+    title: "Labs",
+    url: "/admin/labs",
+    icon: FlaskConical,
+  },
+  {
     title: "Jet Stats",
     url: "/admin/jet-stats",
     icon: Activity,
@@ -135,6 +140,11 @@ const facultyNavMain = [
     title: "Exams",
     url: "/faculty/exams",
     icon: GraduationCap,
+  },
+  {
+    title: "Labs",
+    url: "/faculty/labs",
+    icon: FlaskConical,
   },
 ];
 
@@ -216,6 +226,7 @@ export function AppSidebar({
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
+                    value={item.url}
                     isActive={
                       item.url === "/admin" || item.url === "/dashboard"
                         ? pathname === item.url
