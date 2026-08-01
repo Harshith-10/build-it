@@ -90,6 +90,8 @@ type View = "labs" | "exercises";
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
+  semester: z.coerce.number().min(1).max(4),
+  branch: z.string().min(1, "Branch is required"),
   description: z.string().optional(),
 });
 
@@ -117,6 +119,10 @@ const SEM_COLORS: Record<number, string> = {
   4: "bg-blue-100 text-blue-700 border-blue-200",
 };
 
+const BRANCHES = [
+  "CSE", "ECE", "EEE", "MECH", "CIVIL", "IT", "CSM", "CSD", "AERO",
+] as const;
+
 // ─── Lab Form Dialog ────────────────────────────────────────────────────────
 
 function LabFormDialog({
@@ -143,6 +149,8 @@ function LabFormDialog({
     resolver: zodResolver(labSchema) as any,
     defaultValues: {
       name: initial?.name ?? "",
+      semester: initial?.semester ?? 1,
+      branch: initial?.branch ?? "CSE",
       description: initial?.description ?? "",
     },
   });
@@ -150,6 +158,8 @@ function LabFormDialog({
   useEffect(() => {
     form.reset({
       name: initial?.name ?? "",
+      semester: initial?.semester ?? 1,
+      branch: initial?.branch ?? "CSE",
       description: initial?.description ?? "",
     });
     setSectionFaculty({});
@@ -178,13 +188,14 @@ function LabFormDialog({
       .finally(() => setLoadingSectionData(false));
   }, [open, initial?.id]);
 
-  const addGroupSection = () => {
-    if (!selectedGroupId) return;
-    if (sectionFaculty[selectedGroupId] !== undefined) {
+  const addGroupSection = (groupId?: string) => {
+    const idToAdd = groupId ?? selectedGroupId;
+    if (!idToAdd) return;
+    if (sectionFaculty[idToAdd] !== undefined) {
       toast.error("This group is already added");
       return;
     }
-    setSectionFaculty((prev) => ({ ...prev, [selectedGroupId]: [] }));
+    setSectionFaculty((prev) => ({ ...prev, [idToAdd]: [] }));
     setSelectedGroupId("");
   };
 
@@ -207,6 +218,20 @@ function LabFormDialog({
   };
 
   const onSubmit = async (data: z.infer<typeof labSchema>) => {
+    const assignedGroupIds = Object.keys(sectionFaculty);
+    if (assignedGroupIds.length === 0) {
+      toast.error("Please assign at least one student section/group to this lab");
+      return;
+    }
+
+    for (const groupId of assignedGroupIds) {
+      if ((sectionFaculty[groupId] ?? []).length === 0) {
+        const grp = groups.find((g) => g.id === groupId);
+        toast.error(`Please assign at least one faculty member for section "${grp?.name ?? groupId}"`);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const res = initial
@@ -232,7 +257,13 @@ function LabFormDialog({
   };
 
   const assignedGroupIds = Object.keys(sectionFaculty);
-  const availableGroups = groups.filter((g) => !assignedGroupIds.includes(g.id));
+  const availableGroups = groups.filter(
+    (g) =>
+      g.name.toLowerCase() !== "all" &&
+      g.name.toLowerCase() !== "all users" &&
+      g.id !== "all-users-virtual" &&
+      !assignedGroupIds.includes(g.id)
+  );
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -251,6 +282,60 @@ function LabFormDialog({
                   <FormControl>
                     <Input placeholder="e.g. OOPS Lab" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="semester"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Semester</FormLabel>
+                  <Select
+                    value={String(field.value)}
+                    onValueChange={(val) => field.onChange(Number(val))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select semester" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {[1, 2, 3, 4].map((sem) => (
+                        <SelectItem key={sem} value={String(sem)}>
+                          {SEM_LABELS[sem]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="branch"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Branch</FormLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {BRANCHES.map((branch) => (
+                        <SelectItem key={branch} value={branch}>
+                          {branch}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -338,7 +423,12 @@ function LabFormDialog({
 
               {availableGroups.length > 0 && (
                 <div className="flex gap-2">
-                  <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                  <Select
+                    value=""
+                    onValueChange={(val) => {
+                      if (val) addGroupSection(val);
+                    }}
+                  >
                     <SelectTrigger className="flex-1 text-sm">
                       <SelectValue placeholder="Select a section/group to assign faculty..." />
                     </SelectTrigger>
@@ -350,15 +440,6 @@ function LabFormDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addGroupSection}
-                    disabled={!selectedGroupId}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
                 </div>
               )}
 
@@ -566,9 +647,33 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
     fetchLabs();
   }, []);
 
+  // ── Popstate / Swipe Back Navigation Handling ─────────────────────────────
+  useEffect(() => {
+    const handlePopState = () => {
+      if (labDialog || exerciseDialog || schedulingExercise || submissionsExercise || awardsExercise) {
+        setLabDialog(false);
+        setExerciseDialog(false);
+        setSchedulingExercise(null);
+        setSubmissionsExercise(null);
+        setAwardsExercise(null);
+        return;
+      }
+      if (view === "exercises") {
+        setView("labs");
+        setSelectedLab(null);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [view, labDialog, exerciseDialog, schedulingExercise, submissionsExercise, awardsExercise]);
+
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   const openLab = (lab: Lab) => {
+    if (typeof window !== "undefined") {
+      window.history.pushState({ view: "exercises", labId: lab.id }, "");
+    }
     setSelectedLab(lab);
     fetchExercises(lab.id);
     setView("exercises");
@@ -577,6 +682,43 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
   const goToLabs = () => {
     setView("labs");
     setSelectedLab(null);
+  };
+
+  const openLabModal = (lab?: Lab) => {
+    if (typeof window !== "undefined") {
+      window.history.pushState({ modal: "lab" }, "");
+    }
+    setEditingLab(lab);
+    setLabDialog(true);
+  };
+
+  const openExerciseModal = (exercise?: Exercise) => {
+    if (typeof window !== "undefined") {
+      window.history.pushState({ modal: "exercise" }, "");
+    }
+    setEditingExercise(exercise);
+    setExerciseDialog(true);
+  };
+
+  const openScheduleModal = (exercise: Exercise) => {
+    if (typeof window !== "undefined") {
+      window.history.pushState({ modal: "schedule" }, "");
+    }
+    setSchedulingExercise(exercise);
+  };
+
+  const openSubmissionsModal = (exercise: Exercise) => {
+    if (typeof window !== "undefined") {
+      window.history.pushState({ modal: "submissions" }, "");
+    }
+    setSubmissionsExercise(exercise);
+  };
+
+  const openAwardsModal = (exercise: Exercise) => {
+    if (typeof window !== "undefined") {
+      window.history.pushState({ modal: "awards" }, "");
+    }
+    setAwardsExercise(exercise);
   };
 
   // ── Delete handlers ─────────────────────────────────────────────────────────
@@ -645,10 +787,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
             {isAdmin && (
               <Button
                 size="sm"
-                onClick={() => {
-                  setEditingLab(undefined);
-                  setLabDialog(true);
-                }}
+                onClick={() => openLabModal(undefined)}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Lab
@@ -688,10 +827,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => {
-                          setEditingLab(lab);
-                          setLabDialog(true);
-                        }}
+                        onClick={() => openLabModal(lab)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -745,10 +881,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
             {isAdmin && (
               <Button
                 size="sm"
-                onClick={() => {
-                  setEditingExercise(undefined);
-                  setExerciseDialog(true);
-                }}
+                onClick={() => openExerciseModal(undefined)}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Exercise
@@ -843,7 +976,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                         variant="ghost"
                         size="icon-sm"
                         title="View submissions"
-                        onClick={() => setSubmissionsExercise(exercise)}
+                        onClick={() => openSubmissionsModal(exercise)}
                       >
                         <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
@@ -851,7 +984,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                         variant="ghost"
                         size="icon-sm"
                         title="Award marks"
-                        onClick={() => setAwardsExercise(exercise)}
+                        onClick={() => openAwardsModal(exercise)}
                       >
                         <Award className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
@@ -859,7 +992,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                         variant="ghost"
                         size="icon-sm"
                         title="Schedule time window"
-                        onClick={() => setSchedulingExercise(exercise)}
+                        onClick={() => openScheduleModal(exercise)}
                       >
                         <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
@@ -868,10 +1001,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                           variant="ghost"
                           size="icon-sm"
                           title="Edit exercise"
-                          onClick={() => {
-                            setEditingExercise(exercise);
-                            setExerciseDialog(true);
-                          }}
+                          onClick={() => openExerciseModal(exercise)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>

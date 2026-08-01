@@ -13,7 +13,7 @@ const groupsConfig: EntityTableConfig<GroupType> = {
   deleteDescription:
     "This will permanently delete this group and remove all member associations. This action cannot be undone.",
   fetchFn: async (params) => {
-    const result = await getGroups(params);
+    const result = await getGroups({ ...params, includeVirtual: true });
     return { data: result.groups as GroupType[], total: result.total };
   },
   deleteFn: deleteGroup,

@@ -62,7 +62,7 @@ export function GroupSelectionDialog({
           limit: 50, // Fetch more for selection
           search: debouncedSearch,
         });
-        setGroups(res.groups);
+        setGroups(res.groups.filter((g) => g.id !== "all-users-virtual"));
       } catch (_error) {
         toast.error("Failed to load groups");
       } finally {

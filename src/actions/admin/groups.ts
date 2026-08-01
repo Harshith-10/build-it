@@ -14,14 +14,16 @@ export async function getGroups({
   search = "",
   sort = "",
   order = "desc",
+  includeVirtual = false,
 }: {
   page?: number;
   limit?: number;
   search?: string;
   sort?: string;
   order?: "asc" | "desc";
+  includeVirtual?: boolean;
 }) {
-const session = await requireFacultyOrAdmin();
+  const session = await requireFacultyOrAdmin();
   const userDepartmentId = await getUserDepartment(session.user.id);
   const offset = (page - 1) * limit;
 
@@ -69,20 +71,25 @@ const session = await requireFacultyOrAdmin();
 
   const total = Number(totalCountResult[0]?.count || 0);
 
-  // Manually add the "All Users" group
-  const allUsersGroup = {
-    id: "all-users-virtual",
-    name: "All Users",
-    description: "A group containing all users in the system.",
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
-  };
-
-  const groups = [allUsersGroup, ...data];
+  if (includeVirtual) {
+    const allUsersGroup = {
+      id: "all-users-virtual",
+      name: "All Users",
+      description: "A group containing all users in the system.",
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    };
+    return {
+      groups: [allUsersGroup, ...data],
+      total: total + 1,
+      page,
+      limit,
+    };
+  }
 
   return {
-    groups: groups,
-    total: total + 1, // Add 1 for the virtual group
+    groups: data,
+    total,
     page,
     limit,
   };

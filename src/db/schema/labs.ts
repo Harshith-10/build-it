@@ -19,6 +19,7 @@ export const labs = pgTable("labs", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(), // e.g. "OOPS Lab"
   semester: integer("semester").notNull(), // 1 | 2 | 3 | 4
+  branch: text("branch").notNull().default("CSE"),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")

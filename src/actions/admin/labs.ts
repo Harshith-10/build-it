@@ -57,6 +57,7 @@ export async function getLabs() {
 export async function createLab(data: {
   name: string;
   semester?: number;
+  branch?: string;
   description?: string;
 }) {
   try {
@@ -74,6 +75,7 @@ export async function createLab(data: {
       .values({
         name: data.name,
         semester: data.semester ?? 1,
+        branch: data.branch ?? "CSE",
         description: data.description,
       })
       .returning();
@@ -90,6 +92,7 @@ export async function updateLab(data: {
   id: string;
   name?: string;
   semester?: number;
+  branch?: string;
   description?: string;
 }) {
   try {
@@ -494,9 +497,15 @@ export async function assignLabGroupFaculty({
  */
 export async function getLabGroupFaculty(labId: string) {
   try {
-    await requireUser();
+    const session = await requireUser();
+
+    // Faculty should only see their own assigned sections
+    const isFaculty = session.user.role === "faculty";
+
     const rows = await db.query.labGroupFaculty.findMany({
-      where: eq(labGroupFaculty.labId, labId),
+      where: isFaculty
+        ? and(eq(labGroupFaculty.labId, labId), eq(labGroupFaculty.facultyId, session.user.id))
+        : eq(labGroupFaculty.labId, labId),
       with: {
         faculty: { columns: { id: true, name: true, email: true } },
         group: { columns: { id: true, name: true } },

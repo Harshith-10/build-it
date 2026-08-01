@@ -47,6 +47,7 @@ export default function SignIn() {
 
   const onSubmit = async (data: SignInValues) => {
     const rawIdentifier = data.identifier.trim();
+    const normalizedIdentifier = rawIdentifier.toLowerCase();
     const isEmail = z.email().safeParse(rawIdentifier).success;
 
     const callbacks = {
@@ -67,32 +68,29 @@ export default function SignIn() {
     if (isEmail) {
       await signIn.email(
         {
-          email: rawIdentifier,
+          email: normalizedIdentifier,
           password: data.password,
         },
         callbacks,
       );
     } else {
-      await signIn.username(
+      // Try email first with default domain to prevent Better Auth 'User not found' logs for null usernames
+      await signIn.email(
         {
-          username: rawIdentifier,
+          email: `${normalizedIdentifier}@iare.ac.in`,
           password: data.password,
         },
         {
           ...callbacks,
           onError: async (ctx: { error: { message: string } }) => {
-            // Fallback: If roll number / username login fails and identifier has no domain, try email lookup
-            if (!rawIdentifier.includes("@")) {
-              await signIn.email(
-                {
-                  email: `${rawIdentifier}@iare.ac.in`,
-                  password: data.password,
-                },
-                callbacks,
-              );
-            } else {
-              callbacks.onError(ctx);
-            }
+            // Fallback: If domain email lookup fails, try direct username sign-in
+            await signIn.username(
+              {
+                username: normalizedIdentifier,
+                password: data.password,
+              },
+              callbacks,
+            );
           },
         },
       );

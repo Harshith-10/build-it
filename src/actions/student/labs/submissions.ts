@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { labSubmissions, exerciseGroups, exercises, labs, exerciseMarks, exerciseAttendance, labGroupFaculty } from "@/db/schema/labs";
 import { userGroupMembers } from "@/db/schema/groups";
+import { user } from "@/db/schema/auth";
 import { requireUser } from "@/lib/auth-access";
 
 // ─── Get my lab ───────────────────────────────────────────────────────────────
@@ -12,6 +13,19 @@ import { requireUser } from "@/lib/auth-access";
 export async function getMyLab() {
   try {
     const session = await requireUser();
+
+    // Get student's branch and semester from DB
+    const studentProfile = await db.query.user.findFirst({
+      where: eq(user.id, session.user.id),
+      columns: { branch: true, semester: true },
+    });
+
+    if (!studentProfile?.branch || !studentProfile?.semester) {
+      // Student must have branch and semester set to see labs
+      return [];
+    }
+
+    const studentSemester = Number(studentProfile.semester);
 
     // Get student's group memberships
     const userMemberships = await db.query.userGroupMembers.findMany({
@@ -40,8 +54,13 @@ export async function getMyLab() {
       return [];
     }
 
+    // Filter by section assignment + branch + semester
     return await db.query.labs.findMany({
-      where: inArray(labs.id, allowedLabIds),
+      where: and(
+        inArray(labs.id, allowedLabIds),
+        eq(labs.branch, studentProfile.branch),
+        eq(labs.semester, studentSemester),
+      ),
       with: { exercises: true },
       orderBy: (l, { asc }) => [asc(l.name)],
     });

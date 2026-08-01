@@ -66,15 +66,31 @@ export function ScheduleWindowDialog({
     try {
       if (isAdmin) {
         const res = await getGroups({ limit: 100 });
-        setAvailableGroups(res.groups.map((g) => ({ id: g.id, name: g.name })));
+        setAvailableGroups(
+          res.groups
+            .filter(
+              (g) =>
+                g.name.toLowerCase() !== "all" &&
+                g.name.toLowerCase() !== "all users" &&
+                g.id !== "all-users-virtual"
+            )
+            .map((g) => ({ id: g.id, name: g.name }))
+        );
       } else {
         // Fetch groups assigned to this faculty member for this lab
         const facultyAssignments = await getLabGroupFaculty(exercise.labId);
         // Map assignments to group list format
-        const assignedGroups = facultyAssignments.map((fa) => ({
-          id: fa.groupId,
-          name: fa.groupName,
-        }));
+        const assignedGroups = facultyAssignments
+          .filter(
+            (fa) =>
+              fa.groupName.toLowerCase() !== "all" &&
+              fa.groupName.toLowerCase() !== "all users" &&
+              fa.groupId !== "all-users-virtual"
+          )
+          .map((fa) => ({
+            id: fa.groupId,
+            name: fa.groupName,
+          }));
         setAvailableGroups(assignedGroups);
       }
     } catch (err) {
@@ -134,6 +150,7 @@ export function ScheduleWindowDialog({
         setEndTime("");
         router.refresh();
         onSaved();
+        onClose();
       } else {
         toast.error(res.error ?? "Failed to save schedule window");
       }
