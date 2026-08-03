@@ -38,23 +38,21 @@ export async function getMyLab() {
       return [];
     }
 
-    // Labs with exercise time windows assigned to student's groups
-    const exerciseAssignments = await db.query.exerciseGroups.findMany({
-      where: inArray(exerciseGroups.groupId, studentGroupIds),
-      with: {
-        exercise: { columns: { labId: true } },
-      },
+    // Labs where the student's group is assigned (via labGroupFaculty)
+    const labAssignments = await db.query.labGroupFaculty.findMany({
+      where: inArray(labGroupFaculty.groupId, studentGroupIds),
+      columns: { labId: true },
     });
-    
+
     const allowedLabIds = Array.from(
-      new Set(exerciseAssignments.map((a) => a.exercise?.labId).filter(Boolean))
+      new Set(labAssignments.map((a) => a.labId))
     );
 
     if (allowedLabIds.length === 0) {
       return [];
     }
 
-    // Filter by section assignment + branch + semester
+    // Filter by branch + semester
     return await db.query.labs.findMany({
       where: and(
         inArray(labs.id, allowedLabIds),
@@ -69,6 +67,7 @@ export async function getMyLab() {
     return [];
   }
 }
+
 
 // ─── Get my exercises ─────────────────────────────────────────────────────────
 

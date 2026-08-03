@@ -15,7 +15,7 @@ import {
   Library,
   X,
 } from "lucide-react";
-import { getGroups } from "@/actions/admin/groups";
+import { getLabGroupFaculty } from "@/actions/admin/labs";
 import { getCollections } from "@/actions/admin/collections";
 import {
   assignExerciseGroup,
@@ -163,8 +163,19 @@ export function ExerciseFormDialog({
   useEffect(() => {
     if (!open) return;
     setLoadingGroups(true);
-    getGroups({ limit: 100 })
-      .then((res) => setGroups(res.groups))
+    getLabGroupFaculty(labId)
+      .then((res) =>
+        setGroups(
+          res
+            .filter(
+              (fa) =>
+                fa.groupName.toLowerCase() !== "all" &&
+                fa.groupName.toLowerCase() !== "all users" &&
+                fa.groupId !== "all-users-virtual"
+            )
+            .map((fa) => ({ id: fa.groupId, name: fa.groupName }))
+        )
+      )
       .finally(() => setLoadingGroups(false));
 
     setLoadingCollections(true);

@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Clock, Plus, Trash2, Loader2, Calendar } from "lucide-react";
-import { getGroups } from "@/actions/admin/groups";
 import {
   assignExerciseGroup,
   removeExerciseGroup,
@@ -64,41 +63,26 @@ export function ScheduleWindowDialog({
     if (!exercise) return;
     setLoadingGroups(true);
     try {
-      if (isAdmin) {
-        const res = await getGroups({ limit: 100 });
-        setAvailableGroups(
-          res.groups
-            .filter(
-              (g) =>
-                g.name.toLowerCase() !== "all" &&
-                g.name.toLowerCase() !== "all users" &&
-                g.id !== "all-users-virtual"
-            )
-            .map((g) => ({ id: g.id, name: g.name }))
-        );
-      } else {
-        // Fetch groups assigned to this faculty member for this lab
-        const facultyAssignments = await getLabGroupFaculty(exercise.labId);
-        // Map assignments to group list format
-        const assignedGroups = facultyAssignments
-          .filter(
-            (fa) =>
-              fa.groupName.toLowerCase() !== "all" &&
-              fa.groupName.toLowerCase() !== "all users" &&
-              fa.groupId !== "all-users-virtual"
-          )
-          .map((fa) => ({
-            id: fa.groupId,
-            name: fa.groupName,
-          }));
-        setAvailableGroups(assignedGroups);
-      }
+      // Both admin and faculty: only show groups assigned to this lab
+      const facultyAssignments = await getLabGroupFaculty(exercise.labId);
+      const assignedGroups = facultyAssignments
+        .filter(
+          (fa) =>
+            fa.groupName.toLowerCase() !== "all" &&
+            fa.groupName.toLowerCase() !== "all users" &&
+            fa.groupId !== "all-users-virtual"
+        )
+        .map((fa) => ({
+          id: fa.groupId,
+          name: fa.groupName,
+        }));
+      setAvailableGroups(assignedGroups);
     } catch (err) {
       console.error("Failed to load groups:", err);
     } finally {
       setLoadingGroups(false);
     }
-  }, [exercise, isAdmin]);
+  }, [exercise]);
 
   useEffect(() => {
     if (open && exercise) {

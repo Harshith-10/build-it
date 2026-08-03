@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getMyLab } from "@/actions/student/labs/submissions";
@@ -10,7 +10,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -53,9 +52,12 @@ export default async function StudentLabsPage() {
           {labs.map((lab) => (
             <Link key={lab.id} href={`/labs/${lab.id}`} className="block min-w-0 h-full">
               <Card className="transition-all hover:shadow-md hover:border-primary/30 cursor-pointer h-full min-w-0 overflow-hidden">
-                <CardHeader className="pb-2 min-w-0">
+                <CardHeader className="pb-3 min-w-0">
                   <div className="flex items-center justify-between gap-2 min-w-0">
                     <FlaskConical className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <Badge variant="outline" className={`text-[10px] shrink-0 ${SEM_COLORS[lab.semester] ?? ""}`}>
+                      Sem {lab.semester}
+                    </Badge>
                   </div>
                   <CardTitle className="text-base mt-2 break-words [overflow-wrap:anywhere] min-w-0">{lab.name}</CardTitle>
                   {lab.description && (
@@ -65,8 +67,8 @@ export default async function StudentLabsPage() {
                   )}
                 </CardHeader>
                 <CardContent className="pt-0 min-w-0">
-                  <p className="text-xs text-muted-foreground">
-                    {lab.exercises?.length ?? 0} exercise{(lab.exercises?.length ?? 0) !== 1 ? "s" : ""} added
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    View exercises <ArrowRight className="h-3 w-3" />
                   </p>
                 </CardContent>
               </Card>

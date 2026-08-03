@@ -144,13 +144,32 @@ export async function deleteLab(id: string) {
 // ─── Exercises ────────────────────────────────────────────────────────────────
 
 export async function getExercises(labId: string) {
-  await requireUser();
+  const session = await requireUser();
 
-  return db.query.exercises.findMany({
+  const allExercises = await db.query.exercises.findMany({
     where: eq(exercises.labId, labId),
     orderBy: (exercises, { asc }) => [asc(exercises.exerciseNo)],
     with: { groups: true, collection: true },
   });
+
+  // Faculty: filter exercise groups to only their assigned sections
+  if (session.user.role === "faculty") {
+    const assigned = await db.query.labGroupFaculty.findMany({
+      where: and(
+        eq(labGroupFaculty.labId, labId),
+        eq(labGroupFaculty.facultyId, session.user.id)
+      ),
+      columns: { groupId: true },
+    });
+    const assignedGroupIds = new Set(assigned.map((a) => a.groupId));
+
+    return allExercises.map((ex) => ({
+      ...ex,
+      groups: ex.groups.filter((g) => assignedGroupIds.has(g.groupId)),
+    }));
+  }
+
+  return allExercises;
 }
 
 export async function createExercise(data: {
