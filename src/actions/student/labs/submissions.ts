@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { labSubmissions, exerciseGroups, exercises, labs, exerciseMarks, exerciseAttendance, labGroupFaculty } from "@/db/schema/labs";
@@ -26,6 +26,7 @@ export async function getMyLab() {
     }
 
     const studentSemester = Number(studentProfile.semester);
+    const normalizedBranch = studentProfile.branch.trim().toUpperCase();
 
     // Get student's group memberships
     const userMemberships = await db.query.userGroupMembers.findMany({
@@ -56,7 +57,7 @@ export async function getMyLab() {
     return await db.query.labs.findMany({
       where: and(
         inArray(labs.id, allowedLabIds),
-        eq(labs.branch, studentProfile.branch),
+        ilike(labs.branch, normalizedBranch),
         eq(labs.semester, studentSemester),
       ),
       with: { exercises: true },

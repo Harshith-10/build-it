@@ -75,7 +75,7 @@ export async function createLab(data: {
       .values({
         name: data.name,
         semester: data.semester ?? 1,
-        branch: data.branch ?? "CSE",
+        branch: (data.branch ?? "CSE").trim().toUpperCase(),
         description: data.description,
       })
       .returning();
@@ -110,10 +110,15 @@ export async function updateLab(data: {
       }
     }
 
-    const { id, ...rest } = data;
+    const { id, branch, ...rest } = data;
+    const updateValues: Record<string, any> = { ...rest };
+    if (branch !== undefined) {
+      updateValues.branch = branch.trim().toUpperCase();
+    }
+
     const [updated] = await db
       .update(labs)
-      .set(rest)
+      .set(updateValues)
       .where(eq(labs.id, id))
       .returning();
 

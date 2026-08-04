@@ -140,6 +140,8 @@ export async function bulkImportUsers({
       password = userData.dob.replace(/[^0-9]/g, "");
     }
 
+    const normalizedBranch = userData.branch?.trim()?.toUpperCase() || undefined;
+
     const newUser = await auth.api.createUser({
       body: {
         email: userData.email,
@@ -148,7 +150,7 @@ export async function bulkImportUsers({
         role: toAuthCreateUserRole((userData.role || "student") as AppRole),
         data: {
           username: userData.username,
-          branch: userData.branch,
+          branch: normalizedBranch,
           semester: userData.semester,
           section: userData.section,
           gender: gender,
@@ -343,7 +345,7 @@ export async function createUser(data: {
         role: toAuthCreateUserRole(data.role),
         data: {
           username: data.username || undefined,
-          branch: data.branch || undefined,
+          branch: data.branch ? data.branch.trim().toUpperCase() : undefined,
           gender: data.gender || undefined,
           semester: data.semester || undefined,
           section: data.section || undefined,
@@ -439,7 +441,7 @@ export async function updateUser(
           name: data.name,
           role: data.role,
           gender: data.gender || undefined,
-          branch: data.branch || undefined,
+          branch: data.branch ? data.branch.trim().toUpperCase() : undefined,
           semester: data.semester || undefined,
           section: data.section || undefined,
           dob: data.dob ? new Date(data.dob) : undefined,
