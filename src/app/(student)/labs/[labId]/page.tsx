@@ -1,4 +1,4 @@
-import { BookOpen, Clock, Lock } from "lucide-react";
+import { BookOpen, CheckCircle2, Clock, Lock } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -160,7 +160,14 @@ export default async function ExercisesPage({
 
                 {/* Right side action */}
                 <div className="shrink-0">
-                  {isActive ? (
+                  {exercise.isSubmitted ? (
+                    <Button size="sm" variant="outline" className="border-green-600 text-green-700 dark:text-green-400 gap-1.5 font-medium" asChild>
+                      <Link href={`/labs/${labId}/${exercise.id}/results`}>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                        View Results
+                      </Link>
+                    </Button>
+                  ) : isActive ? (
                     <Button size="sm" asChild>
                       <Link href={`/labs/${labId}/${exercise.id}`}>
                         <span className="flex h-2 w-2 rounded-full bg-white mr-2" />

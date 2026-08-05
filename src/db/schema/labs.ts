@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  boolean,
   integer,
   numeric,
   pgTable,
@@ -18,6 +19,7 @@ export const labs = pgTable("labs", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(), // e.g. "OOPS Lab"
   semester: integer("semester").notNull(), // 1 | 2 | 3 | 4
+  branch: text("branch").notNull().default("CSE"),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -45,10 +47,29 @@ export const exercises = pgTable(
     ),
     maxMarks: numeric("max_marks", { precision: 5, scale: 2 })
       .notNull()
-      .default("10"),
+      .default("20"),
+    attendancePosted: boolean("attendance_posted").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [unique().on(t.labId, t.exerciseNo)]
+);
+
+// ─── Exercise Attendance ──────────────────────────────────────────────────────
+
+export const exerciseAttendance = pgTable(
+  "exercise_attendance",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercises.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    present: boolean("present").notNull().default(false),
+    markedAt: timestamp("marked_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.exerciseId, t.userId)]
 );
 
 // ─── Exercise Groups ─────────────────────────────────────────────────────────
@@ -68,6 +89,27 @@ export const exerciseGroups = pgTable(
     assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   },
   (t) => [unique().on(t.exerciseId, t.groupId)]
+);
+
+// ─── Lab Group Faculty ───────────────────────────────────────────────────────
+// Maps which faculty member handles a specific lab for a specific group/section.
+
+export const labGroupFaculty = pgTable(
+  "lab_group_faculty",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    labId: uuid("lab_id")
+      .notNull()
+      .references(() => labs.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => userGroups.id, { onDelete: "cascade" }),
+    facultyId: text("faculty_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.labId, t.groupId, t.facultyId)]
 );
 
 // ─── Lab Submissions ─────────────────────────────────────────────────────────
@@ -102,6 +144,9 @@ export const exerciseMarks = pgTable(
       .notNull()
       .references(() => exercises.id, { onDelete: "cascade" }),
     marks: numeric("marks", { precision: 5, scale: 2 }).notNull().default("0"),
+    implementationMarks: numeric("implementation_marks", { precision: 5, scale: 2 }),
+    writeUpMarks: numeric("write_up_marks", { precision: 5, scale: 2 }),
+    vivaMarks: numeric("viva_marks", { precision: 5, scale: 2 }),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -114,6 +159,7 @@ export const exerciseMarks = pgTable(
 
 export const labsRelations = relations(labs, ({ many }) => ({
   exercises: many(exercises),
+  facultyAssignments: many(labGroupFaculty),
 }));
 
 export const exercisesRelations = relations(exercises, ({ one, many }) => ({
@@ -129,6 +175,18 @@ export const exercisesRelations = relations(exercises, ({ one, many }) => ({
   marks: many(exerciseMarks),
   groups: many(exerciseGroups),
   submissions: many(labSubmissions),
+  attendance: many(exerciseAttendance),
+}));
+
+export const exerciseAttendanceRelations = relations(exerciseAttendance, ({ one }) => ({
+  exercise: one(exercises, {
+    fields: [exerciseAttendance.exerciseId],
+    references: [exercises.id],
+  }),
+  user: one(user, {
+    fields: [exerciseAttendance.userId],
+    references: [user.id],
+  }),
 }));
 
 export const exerciseGroupsRelations = relations(exerciseGroups, ({ one }) => ({
@@ -139,6 +197,21 @@ export const exerciseGroupsRelations = relations(exerciseGroups, ({ one }) => ({
   group: one(userGroups, {
     fields: [exerciseGroups.groupId],
     references: [userGroups.id],
+  }),
+}));
+
+export const labGroupFacultyRelations = relations(labGroupFaculty, ({ one }) => ({
+  lab: one(labs, {
+    fields: [labGroupFaculty.labId],
+    references: [labs.id],
+  }),
+  group: one(userGroups, {
+    fields: [labGroupFaculty.groupId],
+    references: [userGroups.id],
+  }),
+  faculty: one(user, {
+    fields: [labGroupFaculty.facultyId],
+    references: [user.id],
   }),
 }));
 

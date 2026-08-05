@@ -31,11 +31,14 @@ export function DashboardHeader() {
 
   const crumbs = segments.map((seg, idx) => {
     const href = `/${segments.slice(0, idx + 1).join("/")}`;
-    const label =
-      labelMap[seg] ||
-      (seg.match(/^[0-9a-f-]{36}$/) // ✅ only UUIDs become "Details"
-        ? "Details"
-        : seg.charAt(0).toUpperCase() + seg.slice(1));
+    let label = labelMap[seg];
+    if (!label) {
+      if (seg.match(/^[0-9a-f-]{36}$/)) {
+        label = idx === 1 ? "Exercises" : "Workspace";
+      } else {
+        label = seg.charAt(0).toUpperCase() + seg.slice(1);
+      }
+    }
     const isLast = idx === segments.length - 1;
     return { href, label, isLast };
   });

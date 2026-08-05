@@ -33,6 +33,8 @@ import { useCodeExecution } from "@/hooks/use-code-execution";
 import { useCodeRuntime } from "@/hooks/use-code-runtime";
 import TestCaseConsole from "@/components/exam/test-case-console";
 import type { LabProgram, LabExercise } from "./lab-ide-shell";
+import { markProgramSolved } from "@/actions/student/labs/submissions";
+import { toast } from "sonner";
 
 interface LabCodePlaygroundProps {
   program: LabProgram;
@@ -97,21 +99,78 @@ export function LabCodePlayground({
     handleRun,
   } = useCodeExecution();
 
-  useEffect(() => { setMounted(true); }, []);
+  const storageKey = `lab_code_${exercise.id}_${program.id}`;
+  const langKey = `lab_lang_${exercise.id}_${program.id}`;
 
   useEffect(() => {
-    setCode("");
-  }, [program.id]);
+    setMounted(true);
+  }, []);
 
-  // ✅ Notify parent when canMarkSolved changes
+  // Load code & language from localStorage when program or exercise changes
   useEffect(() => {
-    const allPassed =
-      results.length > 0 &&
-      results.length === program.testCases.length &&
-      results.every((r) => r.passed);
-    const canMark = program.testCases.length === 0 ? true : allPassed;
+    if (typeof window === "undefined") return;
+    const savedCode = localStorage.getItem(storageKey) ?? "";
+    setCode(savedCode);
+
+    const savedLang = localStorage.getItem(langKey);
+    if (savedLang) {
+      setSelectedLanguage(savedLang);
+    }
+  }, [exercise.id, program.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCodeChange = (val: string) => {
+    setCode(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(storageKey, val);
+    }
+  };
+
+  const handleLanguageChange = (lang: string) => {
+    setSelectedLanguage(lang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(langKey, lang);
+    }
+  };
+
+  // ✅ Notify parent when canMarkSolved changes and auto-submit if all hidden test cases pass
+  useEffect(() => {
+    // Check results against corresponding testCase.isHidden
+    const hiddenResults = results.filter(
+      (_, index) => program.testCases[index]?.isHidden === true
+    );
+    const allHiddenPassed =
+      hiddenResults.length > 0 && hiddenResults.every((r) => r.passed);
+
+    // Fallback to checking all test cases if there are no hidden ones
+    const hasHidden = program.testCases.some((tc) => tc.isHidden);
+    const canMark = hasHidden
+      ? allHiddenPassed
+      : results.length > 0 &&
+        results.length === program.testCases.length &&
+        results.every((r) => r.passed);
+
     onCanMarkSolvedChange?.(canMark);
-  }, [results, program.testCases.length, onCanMarkSolvedChange]);
+
+    if (canMark && !initialSolved) {
+      const autoSubmit = async () => {
+        try {
+          const res = await markProgramSolved({
+            programId: program.id,
+            exerciseId: exercise.id,
+          });
+          if (res.success) {
+            onSolved();
+            toast.success("All hidden test cases passed! Code submitted successfully.");
+          } else {
+            toast.error(res.error ?? "Failed to auto-submit code");
+          }
+        } catch (err) {
+          console.error("Auto-submit error:", err);
+        }
+      };
+      autoSubmit();
+    }
+  }, [results, initialSolved, program.id, exercise.id, onSolved, onCanMarkSolvedChange, program.testCases.length]);
 
   if (!mounted) {
     return (
@@ -143,7 +202,7 @@ export function LabCodePlayground({
             <div className="flex items-center gap-3">
               <Select
                 value={selectedLanguage}
-                onValueChange={setSelectedLanguage}
+                onValueChange={handleLanguageChange}
                 disabled={runtimeLoading || availableLanguages.length === 0}
               >
                 <SelectTrigger className="w-[100px] h-7 text-xs">
@@ -226,14 +285,14 @@ export function LabCodePlayground({
           {/* Editor */}
           <div className="flex-1 overflow-hidden text-[14px]">
             <CodeMirror
-              key={program.id}
+              key={`${exercise.id}_${program.id}`}
               value={code}
               height="100%"
               extensions={[
                 getLanguageExtension(selectedLanguage),
                 EditorState.tabSize.of(4),
               ]}
-              onChange={(val) => setCode(val)}
+              onChange={(val) => handleCodeChange(val)}
               theme={theme === "dark" ? "dark" : "light"}
               className="h-full"
               basicSetup={{ lineNumbers: true, foldGutter: true }}

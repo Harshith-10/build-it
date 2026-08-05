@@ -185,7 +185,7 @@ export function EditUserDialog({
         role: data.role,
         username: data.username || undefined,
         gender: data.gender || undefined,
-        branch: data.branch || undefined,
+        branch: data.branch ? data.branch.trim().toUpperCase() : undefined,
         semester: data.semester || undefined,
         section: data.section || undefined,
         dob: data.dob || undefined,

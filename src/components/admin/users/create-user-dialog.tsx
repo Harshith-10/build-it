@@ -133,7 +133,7 @@ export function CreateUserDialog() {
         name: data.name,
         role: data.role,
         username: data.username || undefined,
-        branch: data.branch || undefined,
+        branch: data.branch ? data.branch.trim().toUpperCase() : undefined,
         gender: data.gender || undefined,
         semester: data.semester || undefined,
         section: data.section || undefined,

@@ -11,12 +11,14 @@ interface MarksEditorProps {
   studentId: string;
   exerciseId: string;
   currentMarks: number | null;
+  disabled?: boolean;
 }
 
 export function MarksEditor({
   studentId,
   exerciseId,
   currentMarks,
+  disabled = false,
 }: MarksEditorProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(
@@ -60,14 +62,16 @@ export function MarksEditor({
         <span className="text-sm font-medium min-w-[2rem] text-center">
           {saved !== null ? saved : "—"}
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => setEditing(true)}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
+        {!disabled && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => setEditing(true)}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
     );
   }

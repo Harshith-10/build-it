@@ -322,7 +322,27 @@ function ScheduleDialog({
                 <FormItem>
                   <FormLabel>Start Time</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" {...field} />
+                    <Input
+                      type="datetime-local"
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        const val = e.target.value;
+                        if (val) {
+                          const startDate = new Date(val);
+                          if (!isNaN(startDate.getTime())) {
+                            const endDate = new Date(startDate.getTime() + 3 * 60 * 60 * 1000);
+                            const pad = (n: number) => n.toString().padStart(2, "0");
+                            const localEndString = `${endDate.getFullYear()}-${pad(
+                              endDate.getMonth() + 1
+                            )}-${pad(endDate.getDate())}T${pad(endDate.getHours())}:${pad(
+                              endDate.getMinutes()
+                            )}`;
+                            form.setValue("endTime", localEndString);
+                          }
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -46,7 +46,9 @@ export default function SignIn() {
   });
 
   const onSubmit = async (data: SignInValues) => {
-    const isEmail = z.email().safeParse(data.identifier).success;
+    const rawIdentifier = data.identifier.trim();
+    const normalizedIdentifier = rawIdentifier.toLowerCase();
+    const isEmail = z.email().safeParse(rawIdentifier).success;
 
     const callbacks = {
       onRequest: () => {
@@ -66,18 +68,31 @@ export default function SignIn() {
     if (isEmail) {
       await signIn.email(
         {
-          email: data.identifier,
+          email: normalizedIdentifier,
           password: data.password,
         },
         callbacks,
       );
     } else {
-      await signIn.username(
+      // Try email first with default domain to prevent Better Auth 'User not found' logs for null usernames
+      await signIn.email(
         {
-          username: data.identifier,
+          email: `${normalizedIdentifier}@iare.ac.in`,
           password: data.password,
         },
-        callbacks,
+        {
+          ...callbacks,
+          onError: async (ctx: { error: { message: string } }) => {
+            // Fallback: If domain email lookup fails, try direct username sign-in
+            await signIn.username(
+              {
+                username: normalizedIdentifier,
+                password: data.password,
+              },
+              callbacks,
+            );
+          },
+        },
       );
     }
   };

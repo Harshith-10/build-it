@@ -140,6 +140,8 @@ export async function bulkImportUsers({
       password = userData.dob.replace(/[^0-9]/g, "");
     }
 
+    const normalizedBranch = userData.branch?.trim()?.toUpperCase() || undefined;
+
     const newUser = await auth.api.createUser({
       body: {
         email: userData.email,
@@ -148,7 +150,7 @@ export async function bulkImportUsers({
         role: toAuthCreateUserRole((userData.role || "student") as AppRole),
         data: {
           username: userData.username,
-          branch: userData.branch,
+          branch: normalizedBranch,
           semester: userData.semester,
           section: userData.section,
           gender: gender,
@@ -157,6 +159,24 @@ export async function bulkImportUsers({
         },
       },
     });
+
+    if (newUser?.user?.id) {
+      const usernameToSet =
+        userData.username?.trim() ||
+        (userData.email.includes("@")
+          ? userData.email.split("@")[0].trim()
+          : undefined);
+
+      if (usernameToSet) {
+        await db
+          .update(user)
+          .set({
+            username: usernameToSet,
+            displayUsername: usernameToSet,
+          })
+          .where(eq(user.id, newUser.user.id));
+      }
+    }
 
     if (userData.role === "faculty" && newUser?.user?.id) {
       await db
@@ -325,7 +345,7 @@ export async function createUser(data: {
         role: toAuthCreateUserRole(data.role),
         data: {
           username: data.username || undefined,
-          branch: data.branch || undefined,
+          branch: data.branch ? data.branch.trim().toUpperCase() : undefined,
           gender: data.gender || undefined,
           semester: data.semester || undefined,
           section: data.section || undefined,
@@ -339,12 +359,16 @@ export async function createUser(data: {
       return { success: false, error: "Failed to create user" };
     }
 
-    if (data.username !== undefined) {
+    const usernameToSet =
+      data.username?.trim() ||
+      (data.email.includes("@") ? data.email.split("@")[0].trim() : null);
+
+    if (created?.user?.id && usernameToSet) {
       await db
         .update(user)
         .set({
-          username: data.username || null,
-          displayUsername: data.username || null,
+          username: usernameToSet,
+          displayUsername: usernameToSet,
         })
         .where(eq(user.id, created.user.id));
     }
@@ -417,7 +441,7 @@ export async function updateUser(
           name: data.name,
           role: data.role,
           gender: data.gender || undefined,
-          branch: data.branch || undefined,
+          branch: data.branch ? data.branch.trim().toUpperCase() : undefined,
           semester: data.semester || undefined,
           section: data.section || undefined,
           dob: data.dob ? new Date(data.dob) : undefined,
@@ -500,3 +524,43 @@ export async function deleteUser(userId: string) {
     return { success: false, error: "Failed to delete user" };
   }
 }
+
+export async function backfillMissingUsernames() {
+  await requireAdmin();
+  try {
+    const usersWithoutUsername = await db
+      .select({ id: user.id, email: user.email })
+      .from(user)
+      .where(sql`${user.username} IS NULL`);
+
+    let updatedCount = 0;
+    for (const u of usersWithoutUsername) {
+      if (u.email && u.email.includes("@")) {
+        const derivedUsername = u.email.split("@")[0].trim();
+        if (derivedUsername) {
+          await db
+            .update(user)
+            .set({
+              username: derivedUsername,
+              displayUsername: derivedUsername,
+            })
+            .where(eq(user.id, u.id));
+          updatedCount++;
+        }
+      }
+    }
+
+    revalidatePath("/admin/users");
+    return { success: true, count: updatedCount };
+  } catch (error) {
+    console.error("Failed to backfill usernames:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to backfill usernames",
+    };
+  }
+}
+

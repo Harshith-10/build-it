@@ -11,11 +11,7 @@ interface LabHeaderProps {
   exerciseTitle: string;
   labId: string;
   exerciseId: string;
-  // ✅ Mark as Solved moved here from toolbar
-  isSolved: boolean;
-  isMarking: boolean;
-  canMarkSolved: boolean;
-  onMarkSolved: () => void;
+  onSubmit: () => void;
 }
 
 export function LabHeader({
@@ -23,10 +19,7 @@ export function LabHeader({
   exerciseTitle,
   labId,
   exerciseId,
-  isSolved,
-  isMarking,
-  canMarkSolved,
-  onMarkSolved,
+  onSubmit,
 }: LabHeaderProps) {
   return (
     <header className="relative flex w-full items-center justify-between border-b bg-background px-4 py-2 shrink-0 transition-all duration-200 ease-in-out">
@@ -55,32 +48,14 @@ export function LabHeader({
 
       {/* Right */}
       <div className="flex items-center gap-3">
-        {/* ✅ Mark as Solved lives here */}
+        {/* ✅ Submit Exercise Button */}
         <Button
           size="sm"
-          onClick={onMarkSolved}
-          disabled={isMarking || isSolved || !canMarkSolved}
-          className={
-            isSolved
-              ? "bg-green-600 hover:bg-green-600 text-white gap-1.5"
-              : canMarkSolved
-              ? "bg-green-600 hover:bg-green-700 text-white gap-1.5"
-              : "gap-1.5"
-          }
-          title={
-            !canMarkSolved
-              ? "Pass all test cases to mark as solved"
-              : undefined
-          }
+          onClick={onSubmit}
+          className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
         >
-          {isMarking ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : isSolved ? (
-            <CheckCircle2 className="h-3.5 w-3.5" />
-          ) : (
-            <Circle className="h-3.5 w-3.5" />
-          )}
-          {isSolved ? "Solved" : "Mark as Solved"}
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Submit Exercise
         </Button>
 
         <div className="h-5 w-px bg-border" />
