@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { getMyExerciseResult } from "@/actions/student/labs/submissions";
+import { DownloadReportButton } from "@/components/labs/download-report-button";
 
 interface ResultsPageProps {
   params: Promise<{
@@ -218,13 +219,17 @@ export default async function LabExerciseResultsPage({ params }: ResultsPageProp
           </div>
         </CardContent>
 
-        <CardFooter className="justify-center">
+        <CardFooter className="justify-center gap-3">
           <Button variant="outline" asChild>
             <Link href={`/labs/${labId}`} className="gap-1.5">
               <ArrowLeft className="h-4 w-4" />
               Back to Exercises
             </Link>
           </Button>
+          <DownloadReportButton
+            exerciseId={exerciseId}
+            exerciseTitle={exercise.title}
+          />
         </CardFooter>
       </Card>
     </div>

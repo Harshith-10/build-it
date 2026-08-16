@@ -90,6 +90,7 @@ type View = "labs" | "exercises";
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
+  code: z.string().optional(),
   semester: z.coerce.number().min(1).max(4),
   branch: z.string().min(1, "Branch is required"),
   description: z.string().optional(),
@@ -149,6 +150,7 @@ function LabFormDialog({
     resolver: zodResolver(labSchema) as any,
     defaultValues: {
       name: initial?.name ?? "",
+      code: initial?.code ?? "",
       semester: initial?.semester ?? 1,
       branch: initial?.branch ?? "CSE",
       description: initial?.description ?? "",
@@ -158,6 +160,7 @@ function LabFormDialog({
   useEffect(() => {
     form.reset({
       name: initial?.name ?? "",
+      code: initial?.code ?? "",
       semester: initial?.semester ?? 1,
       branch: initial?.branch ?? "CSE",
       description: initial?.description ?? "",
@@ -281,6 +284,19 @@ function LabFormDialog({
                   <FormLabel>Lab Name</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. OOPS Lab" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Course Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. AH2105 or CS301" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
