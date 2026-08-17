@@ -38,17 +38,16 @@ export function DownloadReportButton({
 
       const data = res.data;
 
-      // Read code solutions from localStorage for each program
+      // Prioritize submitted code stored in DB, fallback to localStorage
       const progsWithCode: ProgramSolution[] = data.programs.map((prog) => {
-        const storageKey = `lab_code_${exerciseId}_${prog.id}`;
-        const langKey = `lab_lang_${exerciseId}_${prog.id}`;
+        let code = prog.code || "";
+        let language = prog.language || "java";
 
-        let code = "";
-        let language = "java";
-
-        if (typeof window !== "undefined") {
+        if (!code && typeof window !== "undefined") {
+          const storageKey = `lab_code_${exerciseId}_${prog.id}`;
+          const langKey = `lab_lang_${exerciseId}_${prog.id}`;
           code = localStorage.getItem(storageKey) || "";
-          language = localStorage.getItem(langKey) || "java";
+          language = localStorage.getItem(langKey) || language;
         }
 
         return {

@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 import { setUserPassword, updateUser } from "@/actions/admin/users";
+import { STANDARD_BRANCHES, normalizeBranch } from "@/lib/branch-utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -407,9 +408,23 @@ export function EditUserDialog({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Branch / Department</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g. CSE, ECE" {...field} />
-                          </FormControl>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value ? normalizeBranch(field.value) : ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select branch" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {STANDARD_BRANCHES.map((b) => (
+                                <SelectItem key={b} value={b}>
+                                  {b}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

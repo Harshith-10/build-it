@@ -4,6 +4,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ExerciseReportData } from "@/actions/student/labs/report";
+import { normalizeBranch } from "@/lib/branch-utils";
 
 export type ProgramSolution = {
   id: string;
@@ -35,6 +36,86 @@ function chunkCode(code: string, firstPageLines = 24, subPageLines = 38): string
   return chunks;
 }
 
+function highlightCode(code: string): React.ReactNode {
+  if (!code) return null;
+  const lines = code.split("\n");
+
+  const keywords = new Set([
+    "public", "private", "protected", "class", "interface", "extends", "implements",
+    "static", "final", "void", "int", "double", "float", "long", "short", "byte",
+    "char", "boolean", "bool", "string", "String", "if", "else", "for", "while",
+    "do", "return", "new", "import", "package", "try", "catch", "finally", "throw",
+    "throws", "def", "lambda", "elif", "True", "False", "None", "self", "struct",
+    "typedef", "include", "#include", "#define", "#ifndef", "#endif", "using",
+    "namespace", "std", "cout", "cin", "endl", "printf", "scanf", "const", "let", "var", "function"
+  ]);
+
+  return (
+    <>
+      {lines.map((line, lineIdx) => {
+        const commentIdx =
+          line.indexOf("//") !== -1
+            ? line.indexOf("//")
+            : line.trim().startsWith("#") && !line.trim().startsWith("#include")
+            ? line.indexOf("#")
+            : -1;
+
+        let codePart = line;
+        let commentPart = "";
+
+        if (commentIdx !== -1) {
+          codePart = line.slice(0, commentIdx);
+          commentPart = line.slice(commentIdx);
+        }
+
+        const tokenRegex = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b\d+(?:\.\d+)?\b|\b[A-Za-z_][A-Za-z0-9_]*\b|[^\sA-Za-z0-9_]+|\s+)/g;
+        const tokens = codePart.match(tokenRegex) || [codePart];
+
+        return (
+          <div key={lineIdx} className="leading-snug min-h-[1.1rem]">
+            {tokens.map((token, tokIdx) => {
+              if (token.startsWith('"') || token.startsWith("'")) {
+                return (
+                  <span key={tokIdx} className="text-emerald-700 font-medium">
+                    {token}
+                  </span>
+                );
+              }
+              if (/^\d+(\.\d+)?$/.test(token)) {
+                return (
+                  <span key={tokIdx} className="text-amber-700 font-semibold">
+                    {token}
+                  </span>
+                );
+              }
+              if (keywords.has(token)) {
+                return (
+                  <span key={tokIdx} className="text-blue-700 font-bold">
+                    {token}
+                  </span>
+                );
+              }
+              if (/^[A-Z][A-Za-z0-9_]*$/.test(token)) {
+                return (
+                  <span key={tokIdx} className="text-purple-800 font-semibold">
+                    {token}
+                  </span>
+                );
+              }
+              return <span key={tokIdx}>{token}</span>;
+            })}
+            {commentPart && (
+              <span className="text-slate-500 italic font-normal">
+                {commentPart}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
   const { student, course, exercise, faculty } = data;
   const todayStr = new Date().toLocaleDateString("en-IN", {
@@ -47,7 +128,7 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
   const normalizedRoll = (student.rollNumber || "—").toUpperCase();
   const rollChars = normalizedRoll.padEnd(10, " ").slice(0, 10).split("");
 
-  const normalizedBranch = (student.branch || "CSE").toUpperCase();
+  const normalizedBranch = normalizeBranch(student.branch || "CSE");
   const normalizedSection = (student.section || "A").toUpperCase();
   const normalizedCourseCode = (course.courseCode || "CS301").toUpperCase();
   const normalizedFacultyId = (faculty?.facultyId || "").toUpperCase();
@@ -420,12 +501,12 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                         Submitted Code Solution {totalParts > 1 ? `(Part ${partIndex + 1} of ${totalParts})` : ""}:
                       </span>
                       {codeChunk ? (
-                        <pre className="bg-gray-900 text-gray-100 p-3.5 rounded text-[11px] font-mono whitespace-pre-wrap word-break break-words overflow-x-auto border border-gray-800 leading-relaxed">
-                          <code>{codeChunk}</code>
+                        <pre className="bg-slate-50 text-slate-900 p-3.5 rounded text-[11px] font-mono whitespace-pre-wrap word-break break-words overflow-x-auto border border-slate-300 leading-relaxed shadow-sm">
+                          <code>{highlightCode(codeChunk)}</code>
                         </pre>
                       ) : (
                         <div className="p-3 border border-dashed border-gray-300 rounded text-center text-gray-500 text-xs italic bg-gray-50">
-                          No code submission saved in browser local storage for this program.
+                          No submitted code solution found for this program.
                         </div>
                       )}
                     </div>

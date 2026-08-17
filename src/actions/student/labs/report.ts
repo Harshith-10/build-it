@@ -2,7 +2,7 @@
 
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { exercises, labs, labGroupFaculty, exerciseMarks } from "@/db/schema/labs";
+import { exercises, labs, labGroupFaculty, exerciseMarks, labSubmissions } from "@/db/schema/labs";
 import { userGroupMembers } from "@/db/schema/groups";
 import { user } from "@/db/schema/auth";
 import { requireUser } from "@/lib/auth-access";
@@ -12,6 +12,8 @@ export type ReportProgram = {
   programNo: number;
   title: string;
   problemStatement: string;
+  code?: string;
+  language?: string;
 };
 
 export type RubricMarks = {
@@ -186,14 +188,27 @@ export async function getExerciseReportData(exerciseId: string) {
     const currentEvaluation = evaluations.find((e) => e.exerciseId === exerciseId);
     const marksData = currentEvaluation?.marks ?? null;
 
-    // 5. Format programs list
+    // 5. Fetch code submissions from database for this exercise
+    const dbSubmissions = await db.query.labSubmissions.findMany({
+      where: and(
+        eq(labSubmissions.userId, session.user.id),
+        eq(labSubmissions.exerciseId, exerciseId)
+      ),
+    });
+
+    // 6. Format programs list
     const programs: ReportProgram[] =
-      exercise.collection?.questions.map((cq, idx) => ({
-        id: cq.questionId,
-        programNo: idx + 1,
-        title: cq.question.title,
-        problemStatement: cq.question.problemStatement,
-      })) ?? [];
+      exercise.collection?.questions.map((cq, idx) => {
+        const sub = dbSubmissions.find((s) => s.programId === cq.questionId);
+        return {
+          id: cq.questionId,
+          programNo: idx + 1,
+          title: cq.question.title,
+          problemStatement: cq.question.problemStatement,
+          code: sub?.code || "",
+          language: sub?.language || "java",
+        };
+      }) ?? [];
 
     const rollNumber =
       studentUser.username || studentUser.displayUsername || "—";

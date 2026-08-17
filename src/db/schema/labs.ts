@@ -127,6 +127,8 @@ export const labSubmissions = pgTable(
     exerciseId: uuid("exercise_id")
       .notNull()
       .references(() => exercises.id, { onDelete: "cascade" }),
+    code: text("code"),
+    language: text("language").default("java"),
     solvedAt: timestamp("solved_at").defaultNow().notNull(),
   },
   (t) => [unique().on(t.userId, t.programId, t.exerciseId)]

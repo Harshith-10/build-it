@@ -6,6 +6,7 @@ import {
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardHeader } from "@/components/layouts/dashboard-header";
 import { requireUser } from "@/lib/auth-access";
+import { BranchConfirmDialog } from "@/components/student/branch-confirm-dialog";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -27,12 +28,14 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider defaultOpen={defaultOpen} className="h-svh" suppressHydrationWarning>
       <AppSidebar role={role} />
-      <SidebarInset>
+      <SidebarInset className="overflow-hidden min-h-0">
         <DashboardHeader />
-        <main className="flex-1 h-full space-y-4 p-6 overflow-y-auto min-h-0">
+        <main className="flex flex-1 flex-col gap-6 p-6 min-h-0 overflow-y-auto">
+          {role === "student" && <BranchConfirmDialog />}
           {children}
         </main>
       </SidebarInset>
     </SidebarProvider>
   );
 }
+

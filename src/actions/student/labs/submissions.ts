@@ -7,6 +7,7 @@ import { labSubmissions, exerciseGroups, exercises, labs, exerciseMarks, exercis
 import { userGroupMembers } from "@/db/schema/groups";
 import { user } from "@/db/schema/auth";
 import { requireUser } from "@/lib/auth-access";
+import { getBranchVariants } from "@/lib/branch-utils";
 
 // ─── Get my lab ───────────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ export async function getMyLab() {
     }
 
     const studentSemester = Number(studentProfile.semester);
-    const normalizedBranch = studentProfile.branch.trim().toUpperCase();
+    const branchVariants = getBranchVariants(studentProfile.branch);
 
     // Get student's group memberships
     const userMemberships = await db.query.userGroupMembers.findMany({
@@ -57,7 +58,7 @@ export async function getMyLab() {
     return await db.query.labs.findMany({
       where: and(
         inArray(labs.id, allowedLabIds),
-        ilike(labs.branch, normalizedBranch),
+        inArray(labs.branch, branchVariants),
         eq(labs.semester, studentSemester),
       ),
       with: { exercises: true },
@@ -284,9 +285,11 @@ export async function getProgramsForExercise(exerciseId: string) {
 export async function markProgramSolved(data: {
   programId: string;
   exerciseId: string;
+  code?: string;
+  language?: string;
 }) {
   const session = await requireUser();
-  const { programId, exerciseId } = data;
+  const { programId, exerciseId, code, language } = data;
 
   try {
     const now = new Date();
@@ -347,8 +350,17 @@ export async function markProgramSolved(data: {
         userId: session.user.id,
         programId,
         exerciseId,
+        code: code || "",
+        language: language || "java",
       })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: [labSubmissions.userId, labSubmissions.programId, labSubmissions.exerciseId],
+        set: {
+          code: code || "",
+          language: language || "java",
+          solvedAt: new Date(),
+        },
+      });
 
     revalidatePath("/labs");
     return { success: true };
