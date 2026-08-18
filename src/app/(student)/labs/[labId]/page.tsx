@@ -58,9 +58,16 @@ export default async function ExercisesPage({
           <Link href="/labs" className="hover:underline">
             Labs
           </Link>{" "}
-          / Exercises
+          / {result.data.lab.name}
         </p>
-        <h2 className="text-3xl font-bold tracking-tight">Exercises</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-3xl font-bold tracking-tight">{result.data.lab.name}</h2>
+          {result.data.lab.code && (
+            <Badge variant="secondary" className="font-mono text-xs font-semibold px-2.5 py-1">
+              {result.data.lab.code}
+            </Badge>
+          )}
+        </div>
         <div className="flex items-center gap-3 mt-1">
           <p className="text-muted-foreground">
             {exercises.length} of 12 exercises available

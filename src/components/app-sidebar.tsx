@@ -71,12 +71,12 @@ const adminNavMain = [
     icon: Library,
   },
   {
-    title: "Exams",
+    title: "Examinations",
     url: "/admin/exams",
     icon: GraduationCap,
   },
   {
-    title: "Labs",
+    title: "Laboratory",
     url: "/admin/labs",
     icon: FlaskConical,
   },
@@ -104,12 +104,12 @@ const studentNavMain = [
     icon: Terminal,
   },
   {
-    title: "Exams",
+    title: "Examinations",
     url: "/exams",
     icon: GraduationCap,
   },
   {
-    title: "Labs",
+    title: "Laboratory",
     url: "/labs",
     icon: FlaskConical,
   },
@@ -137,7 +137,7 @@ const facultyNavMain = [
     icon: Library,
   },
   {
-    title: "Exams",
+    title: "Examinations",
     url: "/faculty/exams",
     icon: GraduationCap,
   },
