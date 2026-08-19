@@ -1,6 +1,9 @@
 import input from "@inquirer/input";
 import password from "@inquirer/password";
 import select from "@inquirer/select";
+import { eq } from "drizzle-orm";
+import { db } from "../../src/db";
+import { user } from "../../src/db/schema/auth";
 import { auth } from "../../src/lib/auth";
 
 async function createUser() {
@@ -11,6 +14,7 @@ async function createUser() {
     choices: [
       { name: "student", value: "student" },
       { name: "admin", value: "admin" },
+      { name: "faculty", value: "faculty" },
     ],
     default: "student",
   });
@@ -82,7 +86,6 @@ async function createUser() {
         displayUsername: name.split(" ")[0],
         email,
         password: pass,
-        // role,
         gender,
         branch,
         semester,
@@ -92,8 +95,14 @@ async function createUser() {
       },
     });
 
-    if (res) {
-      console.log("✅ User created successfully!");
+    if (res?.user?.id) {
+      if (role !== "student") {
+        await db
+          .update(user)
+          .set({ role })
+          .where(eq(user.id, res.user.id));
+      }
+      console.log(`✅ User created successfully with role '${role}'!`);
     }
   } catch (err) {
     const error = err as { body?: { message?: string } };

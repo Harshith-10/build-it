@@ -173,22 +173,22 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
               <div className="flex items-center gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/iare-logo-light.png"
+                  src="/iare-shield-crest.png"
                   alt="IARE Logo"
-                  className="w-36 h-36 object-contain shrink-0"
-                  style={{ width: "135px", height: "135px", minWidth: "135px", minHeight: "135px", objectFit: "contain" }}
+                  className="h-24 w-auto object-contain shrink-0"
+                  style={{ height: "92px", width: "auto", objectFit: "contain" }}
                 />
                 <div>
-                  <h1 className="text-xl font-black text-blue-950 tracking-wider uppercase leading-tight">
+                  <h1 className="text-2xl font-black text-[#0f3c7e] tracking-wider uppercase leading-tight">
                     IARE
                   </h1>
-                  <h2 className="text-sm font-bold text-gray-900 leading-tight">
+                  <h2 className="text-sm font-bold text-gray-900 leading-tight tracking-wide">
                     INSTITUTE OF AERONAUTICAL ENGINEERING
                   </h2>
-                  <p className="text-[10px] text-gray-700 font-medium">
+                  <p className="text-[11px] text-gray-700 font-medium leading-snug">
                     (An Autonomous Institute affiliated to JNTUH, Hyderabad)
                   </p>
-                  <p className="text-[10px] text-gray-700 font-medium">
+                  <p className="text-[11px] text-gray-700 font-medium leading-snug">
                     Dundigal, Hyderabad - 500 043
                   </p>
                 </div>
