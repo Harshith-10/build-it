@@ -819,11 +819,20 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                 onClick={() => openLab(lab)}
               >
                 <div className="flex items-start justify-between gap-2 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium text-sm truncate">
-                      {lab.name}
-                    </span>
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium text-sm break-words [overflow-wrap:anywhere]">
+                          {lab.name}
+                        </span>
+                        {lab.code && (
+                          <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
+                            {lab.code}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 {lab.description && (
@@ -933,7 +942,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                     {exercise.exerciseNo}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
+                    <p className="font-medium text-sm break-words [overflow-wrap:anywhere]">
                       {exercise.title}
                     </p>
                     {/* Collection info */}

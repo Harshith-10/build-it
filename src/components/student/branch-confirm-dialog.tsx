@@ -44,9 +44,11 @@ export function BranchConfirmDialog() {
           // Keep unselected by default so placeholder "Select your branch" displays
           setSelectedBranch("");
 
-          // Open dialog on login if not yet confirmed in this session
+          // Only open dialog if user's branch in DB is missing or non-standard (needsConfirmation === true)
+          // AND it has not been confirmed in this browser session or localStorage.
           const sessionConfirmed = sessionStorage.getItem(`branch_session_confirmed_${res.data.userId}`);
-          if (!sessionConfirmed) {
+          const localConfirmed = localStorage.getItem(`branch_confirmed_${res.data.userId}`);
+          if (res.data.needsConfirmation && !sessionConfirmed && !localConfirmed) {
             setOpen(true);
           }
         }
