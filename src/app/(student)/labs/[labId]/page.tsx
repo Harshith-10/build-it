@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 
+import { DownloadReportButton } from "@/components/labs/download-report-button";
+
 function getWindowStatus(startTime: Date | null, endTime: Date | null) {
   if (!startTime || !endTime) return "locked";
   const now = new Date();
@@ -49,16 +51,23 @@ export default async function ExercisesPage({
   const exercises = result.data.exercises;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6 overflow-y-auto pr-1">
+    <div className="flex flex-1 flex-col gap-6 min-h-0 w-full">
       {/* Header */}
       <div>
         <p className="text-sm text-muted-foreground mb-1">
           <Link href="/labs" className="hover:underline">
             Labs
           </Link>{" "}
-          / Exercises
+          / {result.data.lab.name}
         </p>
-        <h2 className="text-3xl font-bold tracking-tight">Exercises</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-3xl font-bold tracking-tight">{result.data.lab.name}</h2>
+          {result.data.lab.code && (
+            <Badge variant="secondary" className="font-mono text-xs font-semibold px-2.5 py-1">
+              {result.data.lab.code}
+            </Badge>
+          )}
+        </div>
         <div className="flex items-center gap-3 mt-1">
           <p className="text-muted-foreground">
             {exercises.length} of 12 exercises available
@@ -159,14 +168,20 @@ export default async function ExercisesPage({
                 </div>
 
                 {/* Right side action */}
-                <div className="shrink-0">
-                  {exercise.isSubmitted ? (
-                    <Button size="sm" variant="outline" className="border-green-600 text-green-700 dark:text-green-400 gap-1.5 font-medium" asChild>
-                      <Link href={`/labs/${labId}/${exercise.id}/results`}>
-                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                        View Results
-                      </Link>
-                    </Button>
+                <div className="shrink-0 flex items-center gap-2">
+                  {exercise.isSubmitted || exercise.solvedCount > 0 ? (
+                    <>
+                      <DownloadReportButton
+                        exerciseId={exercise.id}
+                        exerciseTitle={exercise.title}
+                      />
+                      <Button size="sm" variant="outline" className="border-green-600 text-green-700 dark:text-green-400 gap-1.5 font-medium" asChild>
+                        <Link href={`/labs/${labId}/${exercise.id}/results`}>
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                          View Results
+                        </Link>
+                      </Button>
+                    </>
                   ) : isActive ? (
                     <Button size="sm" asChild>
                       <Link href={`/labs/${labId}/${exercise.id}`}>

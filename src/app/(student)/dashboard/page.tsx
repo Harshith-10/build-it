@@ -129,7 +129,7 @@ export default async function DashboardPage() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="mx-auto max-w-screen-xl flex flex-col gap-6">
+      <div className="flex flex-1 flex-col gap-6 w-full">
         {/* ── Header ── */}
         <div className="flex items-start justify-between flex-wrap gap-2">
           <div>

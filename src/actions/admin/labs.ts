@@ -56,6 +56,7 @@ export async function getLabs() {
 
 export async function createLab(data: {
   name: string;
+  code?: string;
   semester?: number;
   branch?: string;
   description?: string;
@@ -74,6 +75,7 @@ export async function createLab(data: {
       .insert(labs)
       .values({
         name: data.name,
+        code: data.code?.trim().toUpperCase(),
         semester: data.semester ?? 1,
         branch: (data.branch ?? "CSE").trim().toUpperCase(),
         description: data.description,
@@ -91,6 +93,7 @@ export async function createLab(data: {
 export async function updateLab(data: {
   id: string;
   name?: string;
+  code?: string;
   semester?: number;
   branch?: string;
   description?: string;
@@ -110,8 +113,11 @@ export async function updateLab(data: {
       }
     }
 
-    const { id, branch, ...rest } = data;
+    const { id, branch, code, ...rest } = data;
     const updateValues: Record<string, any> = { ...rest };
+    if (code !== undefined) {
+      updateValues.code = code ? code.trim().toUpperCase() : null;
+    }
     if (branch !== undefined) {
       updateValues.branch = branch.trim().toUpperCase();
     }

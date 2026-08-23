@@ -125,7 +125,7 @@ export default async function ExamsPage() {
     );
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 min-h-0 w-full">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Exams</h2>
