@@ -1,0 +1,587 @@
+[
+  {
+    "sNo": 1,
+    "rollNumber": "26951A0501",
+    "name": "MAGGAM AADARSH",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0501@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 2,
+    "rollNumber": "26951A0502",
+    "name": "BATHULA AASHRITHA REDDY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0502@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 3,
+    "rollNumber": "26951A0503",
+    "name": "SYED ABDUL HASEEB",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0503@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 4,
+    "rollNumber": "26951A0504",
+    "name": "MOHAMMED ABDUL RAHEMAN",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0504@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 5,
+    "rollNumber": "26951A0505",
+    "name": "DUREDDY ABHIGNA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0505@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 6,
+    "rollNumber": "26951A0506",
+    "name": "BRAHMANA ABHINAV",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0506@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 7,
+    "rollNumber": "26951A0507",
+    "name": "KONDETI ABHINAV",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0507@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 8,
+    "rollNumber": "26951A0508",
+    "name": "NALLAKUNTLA ABHINAV",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0508@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 9,
+    "rollNumber": "26951A0509",
+    "name": "PENDLI ABHINAY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0509@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 10,
+    "rollNumber": "26951A0510",
+    "name": "GOUNDLA ABHINAYA SRI",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0510@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 11,
+    "rollNumber": "26951A0511",
+    "name": "JAKKULA ABHIRAM",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0511@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 12,
+    "rollNumber": "26951A0512",
+    "name": "SIRIGIRI ABHIRAM LAKSHMI REDDY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0512@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 13,
+    "rollNumber": "26951A0513",
+    "name": "ENTENKA ABHISHEK",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0513@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 14,
+    "rollNumber": "26951A0514",
+    "name": "B ADITHYA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0514@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 15,
+    "rollNumber": "26951A0515",
+    "name": "RAJANA ADITRI ROSHINI",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0515@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 16,
+    "rollNumber": "26951A0516",
+    "name": "CHEPURI AISHWARYA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0516@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 17,
+    "rollNumber": "26951A0517",
+    "name": "A AJAY NAIK",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0517@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 18,
+    "rollNumber": "26951A0518",
+    "name": "CHIGURUPATI AJAY SRIMAN",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0518@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 19,
+    "rollNumber": "26951A0519",
+    "name": "JANGAM AKHIL TEJ",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0519@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 20,
+    "rollNumber": "26951A0520",
+    "name": "SUNKARI AKHIL",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0520@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 21,
+    "rollNumber": "26951A0521",
+    "name": "CHAKALI AKHILA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0521@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 22,
+    "rollNumber": "26951A0522",
+    "name": "DATLA AKHILA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0522@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 23,
+    "rollNumber": "26951A0523",
+    "name": "GUNTI AKHILA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0523@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 24,
+    "rollNumber": "26951A0524",
+    "name": "ESLAVATH AKHINDAR",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0524@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 25,
+    "rollNumber": "26951A0525",
+    "name": "J AKSHARA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0525@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 26,
+    "rollNumber": "26951A0526",
+    "name": "PEGADAPALLI AKSHARA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0526@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 27,
+    "rollNumber": "26951A0527",
+    "name": "MANDA AKSHARA REDDY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0527@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 28,
+    "rollNumber": "26951A0528",
+    "name": "CHALLA AKSHAY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0528@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 29,
+    "rollNumber": "26951A0529",
+    "name": "PAMULA AKSHAY SAI",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0529@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 30,
+    "rollNumber": "26951A0530",
+    "name": "BALLA AKSHAYA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0530@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 31,
+    "rollNumber": "26951A0531",
+    "name": "PASULA AKSHAYA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0531@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 32,
+    "rollNumber": "26951A0532",
+    "name": "GADARLA AKSHITH GOUD",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0532@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 33,
+    "rollNumber": "26951A0533",
+    "name": "K AKSHITH KUMAR",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0533@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 34,
+    "rollNumber": "26951A0534",
+    "name": "KOTHAPELLY AKSHITHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0534@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 35,
+    "rollNumber": "26951A0535",
+    "name": "VANKUDOTHU AKSHITHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0535@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 36,
+    "rollNumber": "26951A0536",
+    "name": "MALLISHWARI AMBHARI",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0536@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 37,
+    "rollNumber": "26951A0537",
+    "name": "PURAPATI AMITHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0537@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 38,
+    "rollNumber": "26951A0538",
+    "name": "MALAVATH AMRUTHA VARSHINI",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0538@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 39,
+    "rollNumber": "26951A0539",
+    "name": "RAMAVATH ANIL KUMAR",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0539@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 40,
+    "rollNumber": "26951A0540",
+    "name": "BONGONI ANUDEEP",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0540@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 41,
+    "rollNumber": "26951A0541",
+    "name": "DANTALA ANUSHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0541@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 42,
+    "rollNumber": "26951A0542",
+    "name": "GANDHAMALLA ANUSRI",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0542@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 43,
+    "rollNumber": "26951A0543",
+    "name": "BOBBALA ANVEEKSHA REDDY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0543@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 44,
+    "rollNumber": "26951A0544",
+    "name": "DHARAVATH ANVITHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0544@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 45,
+    "rollNumber": "26951A0545",
+    "name": "SOMARAM ARAVIND",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0545@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 46,
+    "rollNumber": "26951A0546",
+    "name": "PAMULA ARSHITA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0546@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 47,
+    "rollNumber": "26951A0547",
+    "name": "BEGARI ARSHITHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0547@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 48,
+    "rollNumber": "26951A0548",
+    "name": "GAJAVELLI ARUN KUMAR",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0548@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 49,
+    "rollNumber": "26951A0549",
+    "name": "PASTHAM ARUN",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0549@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 50,
+    "rollNumber": "26951A0550",
+    "name": "KESIREDDY ASHISH REDDY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0550@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 51,
+    "rollNumber": "26951A0551",
+    "name": "SHAIK ASHRAF BASHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0551@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 52,
+    "rollNumber": "26951A0552",
+    "name": "DURGAM ASHRITHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0552@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 53,
+    "rollNumber": "26951A0553",
+    "name": "MANDHA ASHWITHA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0553@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 54,
+    "rollNumber": "26951A0554",
+    "name": "LAMMATA AVINASH",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0554@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 55,
+    "rollNumber": "26951A0555",
+    "name": "SHAIK AYAN",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0555@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 56,
+    "rollNumber": "26951A0556",
+    "name": "PARVATANENI BALA SRI VARSHITH",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0556@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 57,
+    "rollNumber": "26951A0557",
+    "name": "MARRAPU BALADITHYA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0557@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 58,
+    "rollNumber": "26951A0558",
+    "name": "VADTHYA BALAJI",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0558@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 59,
+    "rollNumber": "26951A0559",
+    "name": "CHALLEWAR BAS REDDY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0559@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 60,
+    "rollNumber": "26951A0560",
+    "name": "MASOOMA BEGUM",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0560@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 61,
+    "rollNumber": "26951A0561",
+    "name": "DANNY PRAHARSHA JETTY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0561@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 62,
+    "rollNumber": "26951A0562",
+    "name": "GEDALA BHAGYA LAKSHMI",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0562@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 63,
+    "rollNumber": "26951A0563",
+    "name": "KONA BHANU CHANDRIKA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0563@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 64,
+    "rollNumber": "26951A0564",
+    "name": "KALLA BHUVAN KRUTHIK REDDY",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0564@iare.ac.in",
+    "role": "student"
+  },
+  {
+    "sNo": 65,
+    "rollNumber": "26951A0565",
+    "name": "ARUKONDA VINUTHNA",
+    "branch": "CSE",
+    "section": "A",
+    "email": "26951A0565@iare.ac.in",
+    "role": "student"
+  }
+]
