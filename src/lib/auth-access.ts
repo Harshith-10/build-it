@@ -20,7 +20,19 @@ export async function requireAdmin() {
     headers: await headers(),
   });
 
-  if (!session || session.user.role !== "admin") {
+  if (!session) {
+    redirect("/redirect");
+  }
+
+  if (session.user.role !== "admin") {
+    const dbUser = await db.query.user.findFirst({
+      where: eq(user.id, session.user.id),
+      columns: { role: true },
+    });
+    if (dbUser?.role === "admin") {
+      session.user.role = "admin";
+      return session;
+    }
     redirect("/redirect");
   }
 
@@ -42,6 +54,14 @@ export async function requireUser() {
 export async function requireFacultyOrAdmin() {
   const session = await requireUser();
   if (session.user.role !== "admin" && session.user.role !== "faculty") {
+    const dbUser = await db.query.user.findFirst({
+      where: eq(user.id, session.user.id),
+      columns: { role: true },
+    });
+    if (dbUser?.role === "admin" || dbUser?.role === "faculty") {
+      session.user.role = dbUser.role;
+      return session;
+    }
     redirect("/redirect");
   }
   return session;
@@ -114,6 +134,16 @@ export async function checkEntityPermission(options: {
 
   if (!session) {
     return { allowed: false, reason: "Not authenticated" };
+  }
+
+  if (session.user.role !== "admin" && session.user.role !== "faculty") {
+    const dbUser = await db.query.user.findFirst({
+      where: eq(user.id, session.user.id),
+      columns: { role: true },
+    });
+    if (dbUser?.role) {
+      session.user.role = dbUser.role;
+    }
   }
 
   if (session.user.role !== "admin" && session.user.role !== "faculty") {
