@@ -77,7 +77,7 @@ export async function createLab(data: {
         name: data.name,
         code: data.code?.trim().toUpperCase(),
         semester: data.semester ?? 1,
-        branch: (data.branch ?? "CSE").trim().toUpperCase(),
+        branch: data.branch ? data.branch.trim().toUpperCase() : "ALL",
         description: data.description,
       })
       .returning();
@@ -370,30 +370,26 @@ export async function scheduleExerciseForSemester(data: {
       return { success: false, error: "Exercise not found" };
     }
 
-    const semester = String(exercise.lab.semester);
-
-    const semesterUsers = await db.query.user.findMany({
-      where: eq(user.semester, semester),
-      columns: { id: true },
-    });
-
-    if (semesterUsers.length === 0) {
-      return { success: false, error: "No students found for this semester" };
-    }
-
-    const userIds = semesterUsers.map((u) => u.id);
-
-    const memberships = await db.query.userGroupMembers.findMany({
-      where: inArray(userGroupMembers.userId, userIds),
+    // Get groups assigned to this lab via labGroupFaculty
+    const assignedSections = await db.query.labGroupFaculty.findMany({
+      where: eq(labGroupFaculty.labId, exercise.labId),
       columns: { groupId: true },
     });
 
-    const groupIds = [...new Set(memberships.map((m) => m.groupId))];
+    let groupIds = [...new Set(assignedSections.map((s) => s.groupId))];
+
+    // If no sections explicitly assigned in labGroupFaculty, fallback to all user groups
+    if (groupIds.length === 0) {
+      const allGroups = await db.query.userGroups.findMany({
+        columns: { id: true },
+      });
+      groupIds = allGroups.map((g) => g.id);
+    }
 
     if (groupIds.length === 0) {
       return {
         success: false,
-        error: "No groups found for students in this semester",
+        error: "No sections found. Please assign sections to this lab first.",
       };
     }
 
@@ -423,7 +419,7 @@ export async function scheduleExerciseForSemester(data: {
 
     return { success: true, groupsScheduled: groupIds.length };
   } catch (error) {
-    console.error("Failed to schedule exercise for semester:", error);
+    console.error("Failed to schedule exercise:", error);
     return { success: false, error: "Permission denied or failed to schedule exercise" };
   }
 }
@@ -431,13 +427,37 @@ export async function scheduleExerciseForSemester(data: {
 // ─── Student-facing ───────────────────────────────────────────────────────────
 
 export async function getMyLab() {
-  const session = await requireUser();
+  try {
+    const session = await requireUser();
 
-  const lab = await db.query.labs.findMany({
-    where: eq(labs.semester, Number(session.user.semester)),
-  });
+    const userMemberships = await db.query.userGroupMembers.findMany({
+      where: eq(userGroupMembers.userId, session.user.id),
+    });
+    const studentGroupIds = userMemberships.map((m) => m.groupId);
 
-  return lab ?? null;
+    if (studentGroupIds.length === 0) {
+      return [];
+    }
+
+    const labAssignments = await db.query.labGroupFaculty.findMany({
+      where: inArray(labGroupFaculty.groupId, studentGroupIds),
+      columns: { labId: true },
+    });
+
+    const allowedLabIds = Array.from(new Set(labAssignments.map((a) => a.labId)));
+    if (allowedLabIds.length === 0) {
+      return [];
+    }
+
+    return await db.query.labs.findMany({
+      where: inArray(labs.id, allowedLabIds),
+      with: { exercises: true },
+      orderBy: (l, { asc }) => [asc(l.name)],
+    });
+  } catch (error) {
+    console.error("[getMyLab] Failed to load student labs:", error);
+    return [];
+  }
 }
 
 export async function getMyExercises(labId: string) {

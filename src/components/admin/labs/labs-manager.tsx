@@ -91,8 +91,6 @@ type View = "labs" | "exercises";
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   code: z.string().optional(),
-  semester: z.coerce.number().min(1).max(4),
-  branch: z.string().min(1, "Branch is required"),
   description: z.string().optional(),
 });
 
@@ -105,24 +103,6 @@ const scheduleSchema = z
     message: "End time must be after start time",
     path: ["endTime"],
   });
-
-const SEM_LABELS: Record<number, string> = {
-  1: "Semester 1",
-  2: "Semester 2",
-  3: "Semester 3",
-  4: "Semester 4",
-};
-
-const SEM_COLORS: Record<number, string> = {
-  1: "bg-purple-100 text-purple-700 border-purple-200",
-  2: "bg-teal-100 text-teal-700 border-teal-200",
-  3: "bg-amber-100 text-amber-700 border-amber-200",
-  4: "bg-blue-100 text-blue-700 border-blue-200",
-};
-
-const BRANCHES = [
-  "CSE", "ECE", "EEE", "MECH", "CIVIL", "IT", "CSM", "CSD", "AERO",
-] as const;
 
 // ─── Lab Form Dialog ────────────────────────────────────────────────────────
 
@@ -151,8 +131,6 @@ function LabFormDialog({
     defaultValues: {
       name: initial?.name ?? "",
       code: initial?.code ?? "",
-      semester: initial?.semester ?? 1,
-      branch: initial?.branch ?? "CSE",
       description: initial?.description ?? "",
     },
   });
@@ -161,8 +139,6 @@ function LabFormDialog({
     form.reset({
       name: initial?.name ?? "",
       code: initial?.code ?? "",
-      semester: initial?.semester ?? 1,
-      branch: initial?.branch ?? "CSE",
       description: initial?.description ?? "",
     });
     setSectionFaculty({});
@@ -191,14 +167,9 @@ function LabFormDialog({
       .finally(() => setLoadingSectionData(false));
   }, [open, initial?.id]);
 
-  const addGroupSection = (groupId?: string) => {
-    const idToAdd = groupId ?? selectedGroupId;
-    if (!idToAdd) return;
-    if (sectionFaculty[idToAdd] !== undefined) {
-      toast.error("This group is already added");
-      return;
-    }
-    setSectionFaculty((prev) => ({ ...prev, [idToAdd]: [] }));
+  const addGroupSection = (groupId: string) => {
+    if (!groupId) return;
+    setSectionFaculty((prev) => ({ ...prev, [groupId]: [] }));
     setSelectedGroupId("");
   };
 
@@ -298,60 +269,6 @@ function LabFormDialog({
                   <FormControl>
                     <Input placeholder="e.g. AH2105 or CS301" {...field} />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="semester"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Semester</FormLabel>
-                  <Select
-                    value={String(field.value)}
-                    onValueChange={(val) => field.onChange(Number(val))}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select semester" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {[1, 2, 3, 4].map((sem) => (
-                        <SelectItem key={sem} value={String(sem)}>
-                          {SEM_LABELS[sem]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="branch"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Branch</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select branch" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {BRANCHES.map((branch) => (
-                        <SelectItem key={branch} value={branch}>
-                          {branch}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -555,7 +472,7 @@ function ScheduleDialog({
           </DialogTitle>
           <DialogDescription>
             Set the time window for <strong>{exercise.title}</strong>. This
-            will automatically apply to all students in this semester.
+            will automatically apply to all assigned sections for this lab.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
