@@ -18,6 +18,7 @@ export type Problem = {
   title: string;
   difficulty: string;
   createdAt: Date | string;
+  createdByName: string | null;
 };
 
 const difficultyVariant = (d: string) => {
@@ -74,6 +75,16 @@ export const createColumns = (
       return value.includes(row.getValue(id));
     },
     enableSorting: true,
+  },
+  {
+    accessorKey: "createdByName",
+    header: "Created By",
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">
+        {row.getValue("createdByName") || "—"}
+      </span>
+    ),
+    enableSorting: false,
   },
   {
     accessorKey: "createdAt",

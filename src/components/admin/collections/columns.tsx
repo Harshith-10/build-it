@@ -17,6 +17,7 @@ export type Collection = {
   title: string;
   description: string | null;
   createdAt: Date | string;
+  createdByName: string | null;
 };
 
 export const createColumns = (
@@ -49,6 +50,16 @@ export const createColumns = (
     cell: ({ row }) => (
       <span className="text-muted-foreground line-clamp-1">
         {row.getValue("description") || "—"}
+      </span>
+    ),
+    enableSorting: false,
+  },
+  {
+    accessorKey: "createdByName",
+    header: "Created By",
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">
+        {row.getValue("createdByName") || "—"}
       </span>
     ),
     enableSorting: false,
