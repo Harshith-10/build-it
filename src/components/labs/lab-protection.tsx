@@ -14,8 +14,8 @@ import {
 import { toast } from "sonner";
 
 export function LabProtection() {
+  // Default to true on initial render & SSR so server HTML matches client hydration identically
   const [isFullscreen, setIsFullscreen] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
 
   // Track internal clipboard content for smart copy-paste
   const internalClipboard = useRef<string>("");
@@ -26,8 +26,7 @@ export function LabProtection() {
   }, []);
 
   useEffect(() => {
-    setIsMounted(true);
-    // Check initial status on mount
+    // Check initial status on mount (client-only)
     checkFullscreen();
 
     const handleFullscreenChange = () => {
@@ -126,8 +125,6 @@ export function LabProtection() {
       toast.error("Could not enter full-screen mode. Please click and try again.");
     }
   };
-
-  if (!isMounted) return null;
 
   return (
     <AlertDialog open={!isFullscreen}>

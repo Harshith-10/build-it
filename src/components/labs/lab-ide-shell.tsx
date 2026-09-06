@@ -148,7 +148,6 @@ export function LabIDEShell({
   return (
     // ✅ fixed inset-0 z-50 overlays the entire student layout
     <div className="fixed inset-0 z-50">
-      <LabProtection />
       <SidebarProvider>
         <LabSidebar
           exerciseTitle={exercise.title}
@@ -190,6 +189,8 @@ export function LabIDEShell({
           </div>
         </SidebarInset>
       </SidebarProvider>
+
+      <LabProtection />
 
       <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
         <AlertDialogContent className="md:ml-32">
