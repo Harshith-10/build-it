@@ -81,7 +81,8 @@ type View = "labs" | "exercises";
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  semester: z.preprocess((v) => Number(v), z.number().min(1).max(4)),
+  code: z.string().optional(),
+  semester: z.coerce.number().min(1).max(4),
   description: z.string().optional(),
 });
 
@@ -128,6 +129,7 @@ function LabFormDialog({
     resolver: zodResolver(labSchema) as any,
     defaultValues: {
       name: initial?.name ?? "",
+      code: initial?.code ?? "",
       semester: initial?.semester ?? 1,
       description: initial?.description ?? "",
     },
@@ -136,6 +138,7 @@ function LabFormDialog({
   useEffect(() => {
     form.reset({
       name: initial?.name ?? "",
+      code: initial?.code ?? "",
       semester: initial?.semester ?? 1,
       description: initial?.description ?? "",
     });
@@ -176,6 +179,19 @@ function LabFormDialog({
                   <FormLabel>Lab Name</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. OOPS Lab" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Course Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. AH2105 or CS301" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -528,11 +544,20 @@ export function LabsManager() {
                 onClick={() => openLab(lab)}
               >
                 <div className="flex items-start justify-between gap-2 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium text-sm truncate">
-                      {lab.name}
-                    </span>
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium text-sm break-words [overflow-wrap:anywhere]">
+                          {lab.name}
+                        </span>
+                        {lab.code && (
+                          <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
+                            {lab.code}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <Badge
                     variant="outline"
@@ -772,19 +797,19 @@ export function LabsManager() {
           onUpdateExercise={async (data) => {
             return data.id
               ? await updateExercise({
-                  id: data.id,
-                  exerciseNo: data.exerciseNo,
-                  title: data.title,
-                  description: data.description,
-                  collectionId: data.collectionId ?? null,
-                })
+                id: data.id,
+                exerciseNo: data.exerciseNo,
+                title: data.title,
+                description: data.description,
+                collectionId: data.collectionId ?? null,
+              })
               : await createExercise({
-                  labId: data.labId,
-                  exerciseNo: data.exerciseNo,
-                  title: data.title,
-                  description: data.description,
-                  collectionId: data.collectionId ?? null,
-                });
+                labId: data.labId,
+                exerciseNo: data.exerciseNo,
+                title: data.title,
+                description: data.description,
+                collectionId: data.collectionId ?? null,
+              });
           }}
         />
       )}

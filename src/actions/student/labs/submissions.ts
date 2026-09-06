@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { labSubmissions, exerciseGroups, exercises, labs, exerciseMarks, exerciseAttendance, labGroupFaculty } from "@/db/schema/labs";
 import { userGroupMembers } from "@/db/schema/groups";
-import { user } from "@/db/schema/auth";
 import { requireUser } from "@/lib/auth-access";
 
 // ─── Get my lab ───────────────────────────────────────────────────────────────
@@ -13,20 +12,6 @@ import { requireUser } from "@/lib/auth-access";
 export async function getMyLab() {
   try {
     const session = await requireUser();
-
-    // Get student's branch and semester from DB
-    const studentProfile = await db.query.user.findFirst({
-      where: eq(user.id, session.user.id),
-      columns: { branch: true, semester: true },
-    });
-
-    if (!studentProfile?.branch || !studentProfile?.semester) {
-      // Student must have branch and semester set to see labs
-      return [];
-    }
-
-    const studentSemester = Number(studentProfile.semester);
-    const normalizedBranch = studentProfile.branch.trim().toUpperCase();
 
     // Get student's group memberships
     const userMemberships = await db.query.userGroupMembers.findMany({
@@ -53,13 +38,9 @@ export async function getMyLab() {
       return [];
     }
 
-    // Filter by branch + semester
+    // Fetch all labs assigned to the student's groups
     return await db.query.labs.findMany({
-      where: and(
-        inArray(labs.id, allowedLabIds),
-        ilike(labs.branch, normalizedBranch),
-        eq(labs.semester, studentSemester),
-      ),
+      where: inArray(labs.id, allowedLabIds),
       with: { exercises: true },
       orderBy: (l, { asc }) => [asc(l.name)],
     });
@@ -229,16 +210,6 @@ export async function getProgramsForExercise(exerciseId: string) {
     };
   }
 
-  if (
-    exercise.attendancePosted &&
-    (!attendanceRecord || !attendanceRecord.present)
-  ) {
-    return {
-      success: false as const,
-      error: "You were not marked as present for this exercise",
-    };
-  }
-
   // Map collection questions to programs
   const programs = exercise.collection?.questions.map((cq, idx) => ({
     id: cq.questionId,
@@ -284,9 +255,11 @@ export async function getProgramsForExercise(exerciseId: string) {
 export async function markProgramSolved(data: {
   programId: string;
   exerciseId: string;
+  code?: string;
+  language?: string;
 }) {
   const session = await requireUser();
-  const { programId, exerciseId } = data;
+  const { programId, exerciseId, code, language } = data;
 
   try {
     const now = new Date();
@@ -327,28 +300,23 @@ export async function markProgramSolved(data: {
       };
     }
 
-    const exerciseRecord = await db.query.exercises.findFirst({
-      where: eq(exercises.id, exerciseId),
-      columns: { attendancePosted: true },
-    });
-    if (
-      exerciseRecord?.attendancePosted &&
-      (!attendanceRecord || !attendanceRecord.present)
-    ) {
-      return {
-        success: false,
-        error: "You were not marked as present for this exercise",
-      };
-    }
-
     await db
       .insert(labSubmissions)
       .values({
         userId: session.user.id,
         programId,
         exerciseId,
+        code: code || "",
+        language: language || "java",
       })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: [labSubmissions.userId, labSubmissions.programId, labSubmissions.exerciseId],
+        set: {
+          code: code || "",
+          language: language || "java",
+          solvedAt: new Date(),
+        },
+      });
 
     revalidatePath("/labs");
     return { success: true };
@@ -396,16 +364,6 @@ export async function getMyExerciseResult(exerciseId: string) {
   });
 
   if (!exercise) return { success: false as const, error: "Exercise not found" };
-
-  if (
-    exercise.attendancePosted &&
-    (!attendanceRecord || !attendanceRecord.present)
-  ) {
-    return {
-      success: false as const,
-      error: "You were marked absent for this exercise",
-    };
-  }
 
   const totalPrograms = exercise.collection?.questions?.length ?? 0;
   const solvedCount = exercise.submissions?.length ?? 0;
@@ -469,20 +427,6 @@ export async function submitExercise(exerciseId: string) {
       return {
         success: false,
         error: "You were marked absent for this exercise",
-      };
-    }
-
-    const exerciseAttendanceCheck = await db.query.exercises.findFirst({
-      where: eq(exercises.id, exerciseId),
-      columns: { attendancePosted: true },
-    });
-    if (
-      exerciseAttendanceCheck?.attendancePosted &&
-      (!attendanceRecord || !attendanceRecord.present)
-    ) {
-      return {
-        success: false,
-        error: "You were not marked as present for this exercise",
       };
     }
 

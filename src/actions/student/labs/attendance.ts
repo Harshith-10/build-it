@@ -27,17 +27,6 @@ export async function checkAttendanceStatus(
     if (record && !record.present) {
       return { locked: true };
     }
-
-    const exercise = await db.query.exercises.findFirst({
-      where: eq(exercises.id, exerciseId),
-      columns: { attendancePosted: true },
-    });
-
-    // If attendance is posted and student is not present, lock out
-    if (exercise?.attendancePosted && (!record || !record.present)) {
-      return { locked: true };
-    }
-
     return { locked: false };
   } catch {
     return { locked: false };

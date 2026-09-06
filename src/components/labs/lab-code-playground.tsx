@@ -157,6 +157,8 @@ export function LabCodePlayground({
           const res = await markProgramSolved({
             programId: program.id,
             exerciseId: exercise.id,
+            code,
+            language: selectedLanguage,
           });
           if (res.success) {
             onSolved();

@@ -18,6 +18,7 @@ import { questionCollections } from "./question-collections"; // ✅ added
 export const labs = pgTable("labs", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(), // e.g. "OOPS Lab"
+  code: text("code"), // e.g. "AH2105" or "CS301"
   semester: integer("semester").notNull(), // 1 | 2 | 3 | 4
   branch: text("branch").notNull().default("CSE"),
   description: text("description"),
@@ -126,6 +127,8 @@ export const labSubmissions = pgTable(
     exerciseId: uuid("exercise_id")
       .notNull()
       .references(() => exercises.id, { onDelete: "cascade" }),
+    code: text("code"),
+    language: text("language").default("java"),
     solvedAt: timestamp("solved_at").defaultNow().notNull(),
   },
   (t) => [unique().on(t.userId, t.programId, t.exerciseId)]

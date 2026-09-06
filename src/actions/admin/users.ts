@@ -11,6 +11,7 @@ import {
   DEFAULT_FACULTY_PERMISSIONS,
   normalizeFacultyPermissions,
 } from "@/lib/faculty-permissions";
+import { normalizeBranch } from "@/lib/branch-utils";
 
 type FacultyPermissionsInput = typeof DEFAULT_FACULTY_PERMISSIONS;
 
@@ -140,7 +141,7 @@ export async function bulkImportUsers({
       password = userData.dob.replace(/[^0-9]/g, "");
     }
 
-    const normalizedBranch = userData.branch?.trim()?.toUpperCase() || undefined;
+    const normalizedBranch = userData.branch ? normalizeBranch(userData.branch) : undefined;
 
     const newUser = await auth.api.createUser({
       body: {
@@ -345,7 +346,7 @@ export async function createUser(data: {
         role: toAuthCreateUserRole(data.role),
         data: {
           username: data.username || undefined,
-          branch: data.branch ? data.branch.trim().toUpperCase() : undefined,
+          branch: data.branch ? normalizeBranch(data.branch) : undefined,
           gender: data.gender || undefined,
           semester: data.semester || undefined,
           section: data.section || undefined,
@@ -441,7 +442,7 @@ export async function updateUser(
           name: data.name,
           role: data.role,
           gender: data.gender || undefined,
-          branch: data.branch ? data.branch.trim().toUpperCase() : undefined,
+          branch: data.branch ? normalizeBranch(data.branch) : undefined,
           semester: data.semester || undefined,
           section: data.section || undefined,
           dob: data.dob ? new Date(data.dob) : undefined,
@@ -451,36 +452,36 @@ export async function updateUser(
       headers: await h(),
     });
 
+    // Explicitly update all profile and custom fields in the DB table
+    const updateData: Record<string, any> = {
+      updatedAt: new Date(),
+    };
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.role !== undefined) updateData.role = data.role;
+    if (data.gender !== undefined) updateData.gender = data.gender || null;
+    if (data.branch !== undefined) updateData.branch = data.branch ? normalizeBranch(data.branch) : null;
+    if (data.semester !== undefined) updateData.semester = data.semester || null;
+    if (data.section !== undefined) updateData.section = data.section || null;
+    if (data.dob !== undefined) updateData.dob = data.dob ? new Date(data.dob) : null;
+    if (data.regulation !== undefined) updateData.regulation = data.regulation || null;
     if (data.username !== undefined) {
-      // Manually update username since adminUpdateUser plugin might not handle it
-      await db
-        .update(user)
-        .set({
-          username: data.username || null,
-          displayUsername: data.username || null,
-        })
-        .where(eq(user.id, userId));
+      updateData.username = data.username || null;
+      updateData.displayUsername = data.username || null;
+    }
+    if (data.role === "faculty") {
+      updateData.facultyPermissions = normalizeFacultyPermissions(
+        data.facultyPermissions || DEFAULT_FACULTY_PERMISSIONS,
+      );
+    } else if (data.role) {
+      updateData.facultyPermissions = null;
     }
 
-    if (data.role === "faculty") {
-      await db
-        .update(user)
-        .set({
-          facultyPermissions: normalizeFacultyPermissions(
-            data.facultyPermissions || DEFAULT_FACULTY_PERMISSIONS,
-          ),
-        })
-        .where(eq(user.id, userId));
-    } else if (data.role) {
-      await db
-        .update(user)
-        .set({
-          facultyPermissions: null,
-        })
-        .where(eq(user.id, userId));
-    }
+    await db.update(user).set(updateData).where(eq(user.id, userId));
 
     revalidatePath("/admin/users");
+    revalidatePath("/labs");
+    revalidatePath("/dashboard");
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (error) {
     console.error("Failed to update user:", error);
@@ -563,4 +564,40 @@ export async function backfillMissingUsernames() {
     };
   }
 }
+
+export async function normalizeAllUserBranches() {
+  await requireAdmin();
+  try {
+    const allUsers = await db.query.user.findMany({
+      columns: { id: true, branch: true },
+    });
+
+    let updatedCount = 0;
+    for (const u of allUsers) {
+      if (u.branch) {
+        const normalized = normalizeBranch(u.branch);
+        if (normalized !== u.branch) {
+          await db
+            .update(user)
+            .set({ branch: normalized, updatedAt: new Date() })
+            .where(eq(user.id, u.id));
+          updatedCount++;
+        }
+      }
+    }
+
+    revalidatePath("/admin/users");
+    return { success: true, count: updatedCount };
+  } catch (error) {
+    console.error("Failed to normalize user branches:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to normalize user branches",
+    };
+  }
+}
+
 

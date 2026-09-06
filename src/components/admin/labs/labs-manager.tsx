@@ -90,8 +90,7 @@ type View = "labs" | "exercises";
 
 const labSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  semester: z.coerce.number().min(1).max(4),
-  branch: z.string().min(1, "Branch is required"),
+  code: z.string().optional(),
   description: z.string().optional(),
 });
 
@@ -104,24 +103,6 @@ const scheduleSchema = z
     message: "End time must be after start time",
     path: ["endTime"],
   });
-
-const SEM_LABELS: Record<number, string> = {
-  1: "Semester 1",
-  2: "Semester 2",
-  3: "Semester 3",
-  4: "Semester 4",
-};
-
-const SEM_COLORS: Record<number, string> = {
-  1: "bg-purple-100 text-purple-700 border-purple-200",
-  2: "bg-teal-100 text-teal-700 border-teal-200",
-  3: "bg-amber-100 text-amber-700 border-amber-200",
-  4: "bg-blue-100 text-blue-700 border-blue-200",
-};
-
-const BRANCHES = [
-  "CSE", "ECE", "EEE", "MECH", "CIVIL", "IT", "CSM", "CSD", "AERO",
-] as const;
 
 // ─── Lab Form Dialog ────────────────────────────────────────────────────────
 
@@ -149,8 +130,7 @@ function LabFormDialog({
     resolver: zodResolver(labSchema) as any,
     defaultValues: {
       name: initial?.name ?? "",
-      semester: initial?.semester ?? 1,
-      branch: initial?.branch ?? "CSE",
+      code: initial?.code ?? "",
       description: initial?.description ?? "",
     },
   });
@@ -158,8 +138,7 @@ function LabFormDialog({
   useEffect(() => {
     form.reset({
       name: initial?.name ?? "",
-      semester: initial?.semester ?? 1,
-      branch: initial?.branch ?? "CSE",
+      code: initial?.code ?? "",
       description: initial?.description ?? "",
     });
     setSectionFaculty({});
@@ -188,14 +167,9 @@ function LabFormDialog({
       .finally(() => setLoadingSectionData(false));
   }, [open, initial?.id]);
 
-  const addGroupSection = (groupId?: string) => {
-    const idToAdd = groupId ?? selectedGroupId;
-    if (!idToAdd) return;
-    if (sectionFaculty[idToAdd] !== undefined) {
-      toast.error("This group is already added");
-      return;
-    }
-    setSectionFaculty((prev) => ({ ...prev, [idToAdd]: [] }));
+  const addGroupSection = (groupId: string) => {
+    if (!groupId) return;
+    setSectionFaculty((prev) => ({ ...prev, [groupId]: [] }));
     setSelectedGroupId("");
   };
 
@@ -288,54 +262,13 @@ function LabFormDialog({
             />
             <FormField
               control={form.control}
-              name="semester"
+              name="code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Semester</FormLabel>
-                  <Select
-                    value={String(field.value)}
-                    onValueChange={(val) => field.onChange(Number(val))}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select semester" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {[1, 2, 3, 4].map((sem) => (
-                        <SelectItem key={sem} value={String(sem)}>
-                          {SEM_LABELS[sem]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="branch"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Branch</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select branch" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {BRANCHES.map((branch) => (
-                        <SelectItem key={branch} value={branch}>
-                          {branch}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Course Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. AH2105 or CS301" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -539,7 +472,7 @@ function ScheduleDialog({
           </DialogTitle>
           <DialogDescription>
             Set the time window for <strong>{exercise.title}</strong>. This
-            will automatically apply to all students in this semester.
+            will automatically apply to all assigned sections for this lab.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -803,11 +736,20 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                 onClick={() => openLab(lab)}
               >
                 <div className="flex items-start justify-between gap-2 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium text-sm truncate">
-                      {lab.name}
-                    </span>
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium text-sm break-words [overflow-wrap:anywhere]">
+                          {lab.name}
+                        </span>
+                        {lab.code && (
+                          <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
+                            {lab.code}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 {lab.description && (
@@ -917,7 +859,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                     {exercise.exerciseNo}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
+                    <p className="font-medium text-sm break-words [overflow-wrap:anywhere]">
                       {exercise.title}
                     </p>
                     {/* Collection info */}
