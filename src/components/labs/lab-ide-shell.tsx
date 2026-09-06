@@ -21,6 +21,7 @@ import { LabSidebar } from "./lab-sidebar";
 import { LabHeader } from "./lab-header";
 import { LabProblemViewer } from "./lab-problem-viewer";
 import { LabCodePlayground } from "./lab-code-playground";
+import { LabProtection } from "./lab-protection";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -120,7 +121,16 @@ export function LabIDEShell({
             </p>
           </div>
           <Button asChild>
-            <Link href={`/labs/${labId}`}>Back to Labs</Link>
+            <Link
+              href={`/labs/${labId}`}
+              onClick={async () => {
+                if (typeof document !== "undefined" && document.fullscreenElement) {
+                  await document.exitFullscreen().catch(() => {});
+                }
+              }}
+            >
+              Back to Labs
+            </Link>
           </Button>
         </div>
       </div>
@@ -138,6 +148,7 @@ export function LabIDEShell({
   return (
     // ✅ fixed inset-0 z-50 overlays the entire student layout
     <div className="fixed inset-0 z-50">
+      <LabProtection />
       <SidebarProvider>
         <LabSidebar
           exerciseTitle={exercise.title}
@@ -195,6 +206,9 @@ export function LabIDEShell({
             <AlertDialogAction
               className="bg-green-600 hover:bg-green-700 text-white"
               onClick={async () => {
+                if (typeof document !== "undefined" && document.fullscreenElement) {
+                  await document.exitFullscreen().catch(() => {});
+                }
                 const res = await submitExercise(exercise.id);
                 if (res.success) {
                   router.push(`/labs/${labId}/${exercise.id}/results`);
