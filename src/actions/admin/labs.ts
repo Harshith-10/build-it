@@ -11,6 +11,7 @@ import {
   labSubmissions,
   exerciseMarks,
   exerciseAttendance,
+  vivaSubmissions,
 } from "@/db/schema/labs";
 import { user } from "@/db/schema/auth";
 import {
@@ -197,20 +198,34 @@ export async function createExercise(data: {
       where: eq(exercises.labId, data.labId),
     });
 
-    const duplicate = existing.find(
+    const duplicateNo = existing.find((e) => e.exerciseNo === data.exerciseNo);
+    if (duplicateNo) {
+      return {
+        success: false,
+        error: `Exercise #${data.exerciseNo} ("${duplicateNo.title}") already exists in this lab. Please change the Exercise Number to ${existing.length + 1}.`,
+      };
+    }
+
+    const duplicateTitle = existing.find(
       (e) => e.title.trim().toLowerCase() === data.title.trim().toLowerCase()
     );
-    if (duplicate) {
-      return { success: false, error: `An exercise named "${duplicate.title}" already exists in this lab.` };
+    if (duplicateTitle) {
+      return { success: false, error: `An exercise named "${duplicateTitle.title}" already exists in this lab.` };
     }
 
     const [newExercise] = await db.insert(exercises).values(data).returning();
     revalidatePath("/admin/labs");
     revalidatePath("/faculty/labs");
     return { success: true, exercise: newExercise };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to create exercise:", error);
-    return { success: false, error: "Permission denied or failed to create exercise" };
+    if (error?.code === "23505") {
+      return { success: false, error: `Exercise #${data.exerciseNo} already exists in this lab. Please change Exercise Number.` };
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create exercise",
+    };
   }
 }
 

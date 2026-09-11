@@ -1,0 +1,51 @@
+1. What is a method in Java?
+2. What is a method signature?
+3. What is a return type in a Java method?
+4. What does the void keyword mean in a method header?
+5. What is a parameter in a method definition?
+6. What is an argument when calling a method?
+7. What is method overloading?
+8. What is exponentiation in mathematics?
+9. What is an odd number?
+10. What is an even number?
+11. How do you test if a number is divisible by 2 using the modulus operator (%)?
+12. What does it mean for a number to contain the digit 8?
+13. What is the purpose of arrayToString() method?
+14. What does contains() method check in an array?
+15. What does search() method return if an element is found in an array?
+16. What does search() method return if an element is NOT found in an array?
+17. What does array equality mean in Java?
+18. What does copyOf() method do?
+19. What is swapping in programming?
+20. What is array reversal?
+21. What is a histogram in statistics?
+22. What is a grade bin/range in a grade histogram (e.g. 0-9, 10-19)?
+23. What is a boolean return type?
+24. Can a Java method return multiple values directly without using an object/array?
+25. How do you invoke/call a static method within the same class?
+
+26. In exponent(int base, int exp), how do you compute base^exp using a for loop without using Math.pow()?
+27. In exponent(), what value should be returned if exp = 0?
+28. In isOdd(int number), why is number % 2 != 0 better than number % 2 == 1 for handling negative numbers?
+29. In hasEight(int number), how do you extract each digit using % 10 and / 10 to check if any digit equals 8?
+30. How do you overload the print() method to support both int[] and double[] arrays in Java?
+31. In arrayToString(int[] array), how do you build a string like "[10, 20, 30]" using StringBuilder or String concatenation?
+32. In contains(int[] array, int key), how do you perform a linear search and return true immediately when key is matched?
+33. In search(int[] array, int key), what index is returned if key exists at position 3 in the array?
+34. In equals(int[] array1, int[] array2), why must you check if both arrays have equal length first before comparing elements?
+35. In equals(), how do you compare element-by-element array1[i] == array2[i]?
+36. In copyOf(int[] array, int newLength), how do you copy elements when newLength is larger than original array length?
+37. In copyOf(), how do you truncate elements when newLength is smaller than original array length?
+38. In swap(int[] array1, int[] array2), why does swapping references inside a method NOT swap the original arrays in caller context?
+39. In swap(), how do you swap the actual contents of two arrays of the same length element by element?
+40. In reverse(int[] array), how do you swap array[i] and array[len - 1 - i] up to len / 2 to reverse in-place?
+41. In GradesHistogram, how do you create 10 frequency bins for grade ranges (0-9, 10-19, ..., 90-100)?
+42. In GradesHistogram, how do you increment the bin index grade / 10 for each student score?
+43. In GradesHistogram, how do you print horizontal bars of stars * for each grade bin frequency?
+44. In GradesHistogram, how do you print vertical bars of stars * for grade distribution?
+45. What is pass-by-value in Java when passing primitive types to methods?
+46. What is pass-by-value when passing object/array references to methods in Java?
+47. How do helper boolean methods like isOdd() and hasEight() simplify complex control logic in main program loops?
+48. In hasEight(), what does the method return for input 884?
+49. In search(), why is linear search suitable for unsorted arrays?
+50. What is the benefit of modularizing code into separate reusable static methods?

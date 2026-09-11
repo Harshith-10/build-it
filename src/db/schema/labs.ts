@@ -239,3 +239,66 @@ export const exerciseMarksRelations = relations(exerciseMarks, ({ one }) => ({
     references: [exercises.id],
   }),
 }));
+
+// ─── Viva Question Pool ──────────────────────────────────────────────────────
+// Stores up to 50 Viva questions per Collection (Week)
+
+export const vivaQuestionPool = pgTable("viva_question_pool", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  collectionId: uuid("collection_id")
+    .notNull()
+    .references(() => questionCollections.id, { onDelete: "cascade" }),
+  questionNo: integer("question_no").notNull(),
+  questionText: text("question_text").notNull(),
+  maxMarks: numeric("max_marks", { precision: 5, scale: 2 })
+    .notNull()
+    .default("2.5"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─── Viva Submissions ────────────────────────────────────────────────────────
+// Tracks the 4 assigned Viva questions per student assignment & student answers
+
+export const vivaSubmissions = pgTable(
+  "viva_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercises.id, { onDelete: "cascade" }),
+    vivaQuestionId: uuid("viva_question_id")
+      .notNull()
+      .references(() => vivaQuestionPool.id, { onDelete: "cascade" }),
+    answerText: text("answer_text"),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+    submittedAt: timestamp("submitted_at"),
+  },
+  (t) => [unique().on(t.userId, t.exerciseId, t.vivaQuestionId)]
+);
+
+export const vivaQuestionPoolRelations = relations(vivaQuestionPool, ({ one, many }) => ({
+  collection: one(questionCollections, {
+    fields: [vivaQuestionPool.collectionId],
+    references: [questionCollections.id],
+  }),
+  submissions: many(vivaSubmissions),
+}));
+
+export const vivaSubmissionsRelations = relations(vivaSubmissions, ({ one }) => ({
+  user: one(user, {
+    fields: [vivaSubmissions.userId],
+    references: [user.id],
+  }),
+  exercise: one(exercises, {
+    fields: [vivaSubmissions.exerciseId],
+    references: [exercises.id],
+  }),
+  vivaQuestion: one(vivaQuestionPool, {
+    fields: [vivaSubmissions.vivaQuestionId],
+    references: [vivaQuestionPool.id],
+  }),
+}));
+

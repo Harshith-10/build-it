@@ -529,6 +529,56 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
         })
       )}
 
+      {/* ─── Viva Voce Section ──────────────────────────────────────────────── */}
+      {data.vivaQuestions && data.vivaQuestions.length > 0 && (
+        <div className="page-sheet bg-white p-8 mb-8 border border-gray-300 shadow-md min-h-[1050px] flex flex-col justify-between max-w-[210mm] mx-auto text-black">
+          <div className="space-y-4">
+            <div className="border-b-2 border-black pb-2 flex justify-between items-center">
+              <h3 className="text-base font-black tracking-wider uppercase">
+                VIVA VOCE EVALUATION
+              </h3>
+              <span className="text-xs font-mono font-bold text-gray-600">
+                {data.vivaQuestions.length} Questions Assigned
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {data.vivaQuestions.map((vq) => (
+                <div key={vq.questionNo} className="border border-gray-300 rounded p-3 bg-gray-50/50 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <span className="font-bold text-xs text-blue-950">
+                      Q{vq.questionNo}. {vq.questionText}
+                    </span>
+                  </div>
+                  <div className="pl-3 border-l-2 border-purple-600">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">
+                      Student Answer:
+                    </span>
+                    {vq.answerText.trim() ? (
+                      <p className="text-xs font-serif text-gray-900 leading-relaxed whitespace-pre-wrap">
+                        {vq.answerText}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">
+                        No answer submitted for this Viva question.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4 mt-auto border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-mono font-bold">
+            <span>
+              {student.name} ({normalizedRoll})
+            </span>
+            <span>Viva Voce Record</span>
+            <span>Laboratory Work Book</span>
+          </div>
+        </div>
+      )}
+
       {/* CSS rules for printing */}
       <style jsx global>{`
         @media print {

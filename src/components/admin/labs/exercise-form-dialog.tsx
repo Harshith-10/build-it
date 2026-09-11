@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getLabGroupFaculty } from "@/actions/admin/labs";
 import { getCollections } from "@/actions/admin/collections";
+import { ImportVivaDialog } from "@/components/admin/collections/import-viva-dialog";
 import {
   assignExerciseGroup,
   removeExerciseGroup,
@@ -95,6 +96,7 @@ export function ExerciseFormDialog({
   onSaved,
   labId,
   initial,
+  defaultExerciseNo = 1,
   onUpdateExercise,
 }: {
   open: boolean;
@@ -102,6 +104,7 @@ export function ExerciseFormDialog({
   onSaved: () => void;
   labId: string;
   initial?: Exercise;
+  defaultExerciseNo?: number;
   onUpdateExercise: (data: {
     id?: string;
     exerciseNo: number;
@@ -127,7 +130,7 @@ export function ExerciseFormDialog({
   const form = useForm<z.input<typeof exerciseSchema>, unknown, ExerciseFormValues>({
     resolver: zodResolver(exerciseSchema),
     defaultValues: {
-      exerciseNo: initial?.exerciseNo ?? 1,
+      exerciseNo: initial?.exerciseNo ?? defaultExerciseNo,
       title: initial?.title ?? "",
       description: initial?.description ?? "",
       collectionId: initial?.collectionId ?? null,
@@ -137,7 +140,7 @@ export function ExerciseFormDialog({
   // Reset on open
   useEffect(() => {
     form.reset({
-      exerciseNo: initial?.exerciseNo ?? 1,
+      exerciseNo: initial?.exerciseNo ?? defaultExerciseNo,
       title: initial?.title ?? "",
       description: initial?.description ?? "",
       collectionId: initial?.collectionId ?? null,
@@ -599,10 +602,20 @@ export function ExerciseFormDialog({
                     })
                   )}
                 </div>
+
+                {/* Import Viva PDF Button — Only on Collection Tab */}
+                {form.watch("collectionId") && (
+                  <div className="flex items-center justify-between border-t pt-3 mt-2">
+                    <span className="text-xs text-muted-foreground">
+                      Attach 50 Viva questions to this assigned collection:
+                    </span>
+                    <ImportVivaDialog collectionId={form.watch("collectionId")!} />
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>

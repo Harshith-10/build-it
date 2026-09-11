@@ -1,0 +1,51 @@
+1. What is a decimal number system and what base does it use?
+2. What is a binary number system and what base does it use?
+3. What is a hexadecimal number system and what base does it use?
+4. Why do computers process and store data in binary format?
+5. What digits are used in the binary number system?
+6. What symbols (digits and letters) are used in hexadecimal representation?
+7. What is a bit in computer memory?
+8. What is a byte and how many bits does it contain?
+9. What is an 8-bit unsigned integer and what is its range of values?
+10. What is a 16-bit unsigned integer and what is its range of values?
+11. What is a 32-bit unsigned integer and what is its range of values?
+12. What is a 64-bit integer in Java called (long) and how many bytes does it use?
+13. What is signed integer representation in computers?
+14. What is sign-magnitude representation for signed integers?
+15. What is 1's complement representation of a binary number?
+16. What is 2's complement representation of a binary number?
+17. Why do modern computers use 2's complement for storing negative numbers?
+18. What is floating-point representation in Java?
+19. What is IEEE 754 standard for floating-point numbers?
+20. How many bits are used for a 32-bit float in IEEE 754 representation?
+21. What is a normalized floating-point number?
+22. What is Unicode and why is it used for character representation?
+23. What is ISO-8859-1 character encoding?
+24. How many bits does a char data type occupy in Java?
+25. What is the decimal value of binary number 10000000?
+
+26. How do you convert the decimal number 108 into binary?
+27. What is the binary equivalent of decimal number 4848?
+28. What is the hexadecimal equivalent of decimal number 9000?
+29. Convert binary number 101010101010 into decimal. What is the result?
+30. Convert binary number 1000011000 into hexadecimal format.
+31. Convert hexadecimal number 1234 into binary format.
+32. What is the decimal value of hexadecimal number 80F?
+33. Convert hexadecimal ABCDE into decimal format.
+34. How do you convert a decimal fractional number like 123.456 into binary?
+35. What is the range of an 8-bit signed integer in 2's complement (-128 to +127)?
+36. What is the 8-bit 2's complement representation of -1?
+37. What is the 8-bit 2's complement representation of +88?
+38. What is the 8-bit 2's complement representation of -88?
+39. What is the 8-bit sign-magnitude representation of -88?
+40. What is the 8-bit 1's complement representation of -88?
+41. In IEEE 754 32-bit float, what are the three fields (sign bit, exponent, mantissa)?
+42. How many bits are allocated to the exponent in 32-bit float?
+43. How many bits are allocated to the mantissa (fraction) in 32-bit float?
+44. What is the difference between a normalized and a denormalized floating-point number?
+45. In 16-bit data representation, how is 0000 0000 0010 1010 evaluated as a 16-bit unsigned integer?
+46. How is 1000 0000 0010 1010 evaluated as a 16-bit signed integer in 2's complement?
+47. How do you split a 16-bit code into two 8-bit unsigned integers?
+48. What is the Unicode character represented by 16-bit hex value 00A5?
+49. Why does 8-bit signed integer range from -128 to 127 instead of -127 to 128?
+50. What is overflow in 8-bit signed integer arithmetic when adding 127 + 1?

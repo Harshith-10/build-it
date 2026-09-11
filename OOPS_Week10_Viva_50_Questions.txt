@@ -1,0 +1,51 @@
+1. What is Object-Oriented Programming (OOP)?
+2. What is a class in Java?
+3. What is an object in Java?
+4. What is encapsulation?
+5. What is inheritance in Java?
+6. What keyword is used in Java to inherit a class?
+7. What is polymorphism?
+8. What is an abstract class in Java?
+9. What is an interface in Java?
+10. What keyword is used by a class to implement an interface?
+11. What is a constructor in Java?
+12. What is a default constructor?
+13. What is constructor overloading?
+14. What are getter (accessor) methods?
+15. What are setter (mutator) methods?
+16. What is the this keyword used for in Java?
+17. What is the super keyword used for in Java?
+18. What is method overriding?
+19. What is the @Override annotation?
+20. What access modifier makes class members visible only within the class (private)?
+21. What access modifier makes class members visible to all classes (public)?
+22. What access modifier allows access within same package and subclasses (protected)?
+23. What is the purpose of the toString() method in Java objects?
+24. Can you instantiate an abstract class using new operator directly?
+25. Can an interface contain instance fields (non-static, non-final variables)?
+
+26. In Rectangle class, how do you define instance variables length and width with default value 1.0f?
+27. In Rectangle class, how do you compute perimeter using 2 * (length + width) in getPerimeter()?
+28. In Employee class, how do getFirstName() and getLastName() combine to return getName()?
+29. In Employee class, how does raiseSalary(int percent) calculate and update the new salary?
+30. In InvoiceItem class, how does getTotal() compute total cost from unitPrice * qty?
+31. In Account class, how does debit(int amount) verify if amount <= balance before deducting from balance?
+32. In Account class, how does transferTo(Account another, int amount) move funds from current account to target account?
+33. In Date class, how do you format day and month with leading zeros (e.g. "02/05/2026") using String.format("%02d/%02d/%04d", day, month, year)?
+34. In Circle and Cylinder classes, how does Cylinder inherit radius and color from Circle using extends?
+35. In Cylinder class, how do you invoke super(radius, color) in the subclass constructor?
+36. In Cylinder class, how does getVolume() use super.getArea() * height?
+37. In Person, Student, and Staff hierarchy, which class is the base/super class?
+38. In Student class extending Person, what additional attributes are added (e.g., program, year, fee)?
+39. In Point2D and Point3D classes, how does Point3D reuse x and y coordinates from Point2D?
+40. In Point3D class, how does getXYZ() return a 3-element float array float[]{x, y, z}?
+41. In abstract class Shape, why are methods getArea() and getPerimeter() declared without method bodies?
+42. How does class Circle extending abstract Shape provide concrete implementations for getArea() and getPerimeter()?
+43. How does class Square extend Rectangle and ensure width and length remain equal?
+44. In interface Movable, what 4 abstract methods must be declared for standard 2D movement?
+45. How does MovablePoint implement moveUp(), moveDown(), moveLeft(), moveRight() by modifying x and y coordinates?
+46. In interface Resizable, what does method resize(int percent) do to geometric object dimensions?
+47. How does ResizableCircle extend Circle and implement Resizable interface?
+48. In Animal abstract class, how do subclasses Dog and Cat implement abstract method greets() differently?
+49. In BigDog extending Dog, how does method overriding allow greets(Dog another) to print custom greetings?
+50. What is the key structural difference between single inheritance via extends and multiple inheritance via implements interfaces in Java?

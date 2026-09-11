@@ -1,0 +1,51 @@
+1. What is an Amicable pair of numbers in mathematics?
+2. What is an Armstrong number (Narcissistic number)?
+3. What is a Kaprekar (Capricorn) number?
+4. What is a Prime number?
+5. What is a Circular Prime number?
+6. What is a Happy number?
+7. What is an Automorphic number?
+8. What is a Disarium number?
+9. What is a Magic number?
+10. What is a Neon number?
+11. What is a Palindromic number?
+12. What is a Perfect number?
+13. What is a Special number (Strong number)?
+14. What is a Spy number?
+15. What is an Ugly number?
+16. How do you extract digits of a number in Java using modulus (%) and division (/)?
+17. What is the sum of proper divisors of a number?
+18. What is the square of a number N (N * N)?
+19. What is the cube of a digit D (D * D * D)?
+20. What is the factorial of a digit D (D!)?
+21. What is a palindrome? Give an example of a 5-digit palindromic number.
+22. What is prime factorization?
+23. What are the allowed prime factors of an Ugly number (2, 3, 5)?
+24. How do you reverse an integer variable in Java?
+25. What is the sum of digits of a number?
+
+26. In Amicable Numbers, why are 220 and 284 called amicable numbers?
+27. In Amicable Numbers, how do you compute the sum of proper divisors of 220 and compare it to 284?
+28. In Armstrong Number, why is 153 an Armstrong number (1^3 + 5^3 + 3^3 = 153)?
+29. Why is 145 NOT an Armstrong number?
+30. In Kaprekar Number, why is 45 a Kaprekar number (45^2 = 2025 -> 20 + 25 = 45)?
+31. In Circular Prime, why is 1193 a circular prime (1193, 1931, 9311, 3119 are all prime)?
+32. In Happy Number, how does repeatedly replacing a number with the sum of squares of its digits reach 1 for number 31?
+33. What happens to unhappy numbers when calculating sum of squares of digits (they enter a loop like 4, 16, 37...)?
+34. In Automorphic Number, why is 25 an automorphic number (25^2 = 625 ends in 25)?
+35. Why is 5 an automorphic number (5^2 = 25 ends in 5)?
+36. In Disarium Number, why is 135 a Disarium number (1^1 + 3^2 + 5^3 = 1 + 9 + 125 = 135)?
+37. In Magic Number, why is 226 a magic number (2+2+6 = 10 -> 1+0 = 1)?
+38. How does a Magic number algorithm repeatedly sum digits until a single digit is obtained?
+39. In Neon Number, why is 9 a neon number (9^2 = 81 -> 8 + 1 = 9)?
+40. Why is 8 NOT a neon number (8^2 = 64 -> 6 + 4 = 10 != 8)?
+41. In Palindromic Number, how do you check if number == reversedNumber for number 16461?
+42. In Perfect Number, why is 6 a perfect number (proper divisors 1 + 2 + 3 = 6)?
+43. In Special Number (Strong Number), why is 145 a special number (1! + 4! + 5! = 1 + 24 + 120 = 145)?
+44. In Spy Number, why is 1124 a spy number (sum 1+1+2+4 = 8 equals product 1*1*2*4 = 8)?
+45. Why is 12 NOT a spy number (sum 1+2 = 3 != product 1*2 = 2)?
+46. In Ugly Number, why is 6 an ugly number (prime factors 2 and 3) while 14 is NOT (prime factor 7)?
+47. How do you write a loop to repeatedly divide a number by 2, 3, and 5 to check if it is an Ugly number?
+48. Why must you save a copy of the original number in a temp variable before extracting its digits in a loop?
+49. How do you calculate the power of a digit based on its position in a Disarium number using Math.pow()?
+50. What is the difference between an Armstrong number and a Special (Strong) number?

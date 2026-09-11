@@ -1,0 +1,51 @@
+1. What is an array in Java?
+2. How do you declare an integer array of size N in Java?
+3. What is the index range for an array of length N?
+4. What is the default value of integer array elements in Java?
+5. How do you get the length of an array arr in Java?
+6. What is an ArrayIndexOutOfBoundsException?
+7. What is a bar chart visualization of numbers?
+8. What symbol is used in PrintArrayInStars to represent numbers visually?
+9. What is the minimum grade possible in a standard grade system?
+10. What is the maximum grade possible in a standard 0 to 100 grade system?
+11. What is the average of a list of numbers?
+12. What is the minimum value in an array?
+13. What is the maximum value in an array?
+14. What is the median of a dataset?
+15. What is standard deviation in statistics?
+16. What is hexadecimal notation?
+17. What is binary notation?
+18. What is a lookup table array in computer science?
+19. How many binary digits (bits) correspond to 1 hexadecimal character?
+20. What is the binary representation of hexadecimal '0'?
+21. What is the binary representation of hexadecimal 'F'?
+22. What is decimal notation?
+23. What base does the decimal number system use?
+24. What base does the hexadecimal number system use?
+25. What base does the binary number system use?
+
+26. In PrintArray, how do you format output so that items are separated by commas inside square brackets [1, 2, 3]?
+27. In PrintArray, how do you handle printing an empty array of size 0?
+28. In PrintArrayInStars, how do you use nested for loops to print N asterisks * for an array element arr[i]?
+29. In PrintArrayInStars, if arr[0] = 5, how many asterisks are printed for the first line?
+30. In GradesStatistics, how do you compute the sum of grades to find the average grade?
+31. In GradesStatistics, how do you initialize variables min and max before iterating through the array?
+32. In GradesStatistics, how do you compute average grade as a floating-point number (double)?
+33. In GradesStatistics, why must you sort the array before calculating the median grade?
+34. In GradesStatistics, how do you calculate median when the total number of students is even vs odd?
+35. In GradesStatistics, how do you calculate variance and standard deviation using Math.sqrt()?
+36. In Hex2Bin, how do you construct a lookup array HEX_BITS mapping hex digits 0-15 to binary strings ("0000" to "1111")?
+37. In Hex2Bin, how do you convert hex string "1F" into binary "0001 1111" using array indexing?
+38. In Hex2Bin, how do you handle lowercase hex letters ('a'-'f') vs uppercase ('A'-'F') when indexing into the lookup table?
+39. In Dec2Hex, how do you repeatedly divide a decimal number by 16 and record the remainders?
+40. In Dec2Hex, how do you use a lookup array HEX_CHARS = {'0','1',...'F'} to map remainder 10 to character 'A'?
+41. In Dec2Hex, why must remainders be collected in reverse order to form the final hexadecimal string?
+42. In GradesStatistics, what happens if the user inputs a grade less than 0 or greater than 100?
+43. How do you pass an array as a parameter to a method in Java?
+44. How do you return an array from a method in Java?
+45. In array processing, why is arr.length a field and not a method call like str.length()?
+46. In Hex2Bin, what is the output for hexadecimal input string "A3"?
+47. In Dec2Hex, what is the hexadecimal representation of decimal 255?
+48. In GradesStatistics, how do you format floating-point results to 2 decimal places using System.out.printf() or String.format()?
+49. In array operations, how do you copy elements from one array to another array in Java?
+50. What is the time complexity of searching for the minimum or maximum element in an unsorted array of size N?

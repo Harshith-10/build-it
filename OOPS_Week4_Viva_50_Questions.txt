@@ -1,0 +1,51 @@
+1. What is the Scanner class in Java and which package does it belong to?
+2. How do you import the Scanner class in a Java program?
+3. How do you create a Scanner object to read keyboard input from System.in?
+4. Which method of Scanner is used to read an integer from the user (nextInt())?
+5. Which method of Scanner is used to read a double value from the user (nextDouble())?
+6. Why is it good practice to call in.close() after reading inputs with Scanner?
+7. What is Math.PI in Java and what value does it contain?
+8. What is a floating-point calculation in Java?
+9. What is System.out.printf() and how is it used for formatted output?
+10. What does the format specifier %.2f mean in System.out.printf()?
+11. What does the format specifier %n or \n do in formatted output?
+12. What is a temporary variable (temp) used for in variable swapping?
+13. What is progressive income tax calculation?
+14. What is a sentinel value in a loop?
+15. Why is -1 often used as a sentinel value in interactive user loops?
+16. What is sales tax and how is it calculated from a total price?
+17. What is integer reversal (e.g. reversing 12345 to 54321)?
+18. How do you calculate the sum of all digits of an integer?
+19. What is input validation in programming?
+20. Which loop structure is best suited for input validation prompting (do-while)?
+21. What is a boolean flag (isValid = false) used for in input validation loops?
+22. How do you find the minimum of two numbers in Java?
+23. How do you find the maximum of two numbers in Java?
+24. What is the formula for the area of a circle given radius r (Math.PI * r * r)?
+25. What is the formula for the circumference of a circle given radius r (2.0 * Math.PI * r)?
+
+26. In Add2Integers, how does Scanner read two integers and compute their sum?
+27. In SumProductMinMax3, how do you find the minimum of 3 integers using if statements?
+28. In SumProductMinMax3, how do you find the maximum of 3 integers using if statements?
+29. How would you extend SumProductMinMax3 to compute the min, max, sum, and product of 5 integers?
+30. In CircleComputation, how are radius, diameter, circumference, and area computed as double?
+31. In SphereComputation, why does writing volume = 4 / 3 * Math.PI * r * r * r give an incorrect answer in Java?
+32. How do you fix volume = 4 / 3 * Math.PI * r * r * r by using 4.0 / 3.0?
+33. In CylinderComputation, how are base area, surface area, and volume calculated?
+34. In Swap2Integers, how do you swap two variables x and y using a temp variable?
+35. Can you swap two integer variables without using a temporary variable (using addition and subtraction)?
+36. In IncomeTaxCalculator, how are progressive tax rates (0%, 10%, 20%, 30%) applied based on income brackets?
+37. In IncomeTaxCalculatorWithSentinel, how does the while (taxableIncome != -1) loop repeat calculations until -1 is entered?
+38. In PensionContributionCalculatorWithSentinel, how are employee and employer contributions calculated based on age brackets?
+39. In SalesTaxCalculator, if an item is priced $107 inclusive of 7% tax, how is actual price ($100) and sales tax ($7) computed?
+40. In ReverseInt, how does a while loop using % 10 and / 10 extract and print digits in reverse?
+41. In SumOfDigitsInt, how does the loop accumulate the sum of digits of 12345 to get 15?
+42. In InputValidation, how does a do-while loop validate if input is between 0-10 or 90-100?
+43. What happens if a user enters an invalid number in InputValidation?
+44. In AverageWithInputValidation, how do you prompt and validate marks for 3 students before computing the average?
+45. Why is printf("The average is: %.2f", average) better than println() for displaying money or marks?
+46. What runtime exception occurs if Scanner.nextInt() receives a text string like "abc"?
+47. How does in.hasNextInt() help prevent InputMismatchException when reading user input?
+48. What is the difference between in.next() and in.nextLine() when reading String input from Scanner?
+49. Why does calling in.nextInt() followed by in.nextLine() sometimes skip reading the String input?
+50. How do you clear the newline buffer from Scanner before reading a String line?
