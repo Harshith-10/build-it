@@ -11,10 +11,10 @@ import {
 } from "@/db/schema/assignments";
 import { user } from "@/db/schema/auth";
 import type { GradingConfigMap, StrategyConfig } from "@/db/schema/exams";
-import { examGroups, examModerators, exams } from "@/db/schema/exams";
+import { examAttendance, examGroupFaculty, examGroups, examModerators, exams } from "@/db/schema/exams";
 import { questions } from "@/db/schema/questions";
 import { examCollections } from "@/db/schema/question-collections";
-import { userGroupMembers } from "@/db/schema/groups";
+import { userGroupMembers, userGroups } from "@/db/schema/groups";
 import {
   ensureEntityPermission,
   ensureExamReadAccess,
@@ -22,6 +22,7 @@ import {
   getFacultyPermissions,
   requireAdmin,
   requireFacultyOrAdmin,
+  requireUser,
 } from "@/lib/auth-access";
 
 type UpsertExamAssignmentInput = {
@@ -30,6 +31,7 @@ type UpsertExamAssignmentInput = {
   endTime?: string | null;
   requiresPin?: boolean;
   pinCode?: string | null;
+  facultyIds?: string[];
 };
 
 type UpsertExamInput = {
@@ -313,6 +315,12 @@ export async function getExams({
           where ${examModerators.examId} = ${exams.id}
             and ${examModerators.userId} = ${session.user.id}
         )`,
+        sql`exists (
+          select 1
+          from ${examGroupFaculty}
+          where ${examGroupFaculty.examId} = ${exams.id}
+            and ${examGroupFaculty.facultyId} = ${session.user.id}
+        )`,
       );
 
   const departmentClause = userDepartmentId
@@ -398,6 +406,18 @@ export async function getExam(id: string) {
           group: true,
         },
       },
+      groupFaculty: {
+        with: {
+          faculty: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+            },
+          },
+        },
+      },
       collections: {
         with: {
           collection: true,
@@ -428,6 +448,16 @@ export async function getExam(id: string) {
     canManage: access.isAdmin || access.isOwner,
     isModerator: access.isModerator,
     moderatorsList: normalizeModeratorUsers(exam),
+    groups: exam.groups.map((g) => {
+      const assigned = exam.groupFaculty
+        ?.filter((gf) => gf.groupId === g.groupId)
+        .map((gf) => gf.faculty) ?? [];
+      return {
+        ...g,
+        facultyIds: assigned.map((f) => f.id),
+        facultyList: assigned,
+      };
+    }),
   };
 }
 
@@ -444,6 +474,18 @@ export async function getExamForEdit(id: string) {
       groups: {
         with: {
           group: true,
+        },
+      },
+      groupFaculty: {
+        with: {
+          faculty: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+            },
+          },
         },
       },
       collections: {
@@ -476,6 +518,16 @@ export async function getExamForEdit(id: string) {
     canManage: true,
     isModerator: false,
     moderatorsList: normalizeModeratorUsers(exam),
+    groups: exam.groups.map((g) => {
+      const assigned = exam.groupFaculty
+        ?.filter((gf) => gf.groupId === g.groupId)
+        .map((gf) => gf.faculty) ?? [];
+      return {
+        ...g,
+        facultyIds: assigned.map((f) => f.id),
+        facultyList: assigned,
+      };
+    }),
   };
 }
 
@@ -610,6 +662,44 @@ export async function upsertExam(data: UpsertExamInput) {
       }
 
       await db.insert(examGroups).values(assignmentValues);
+
+      await db.delete(examGroupFaculty).where(eq(examGroupFaculty.examId, examId));
+
+      const groupFacultyValues: Array<{
+        examId: string;
+        groupId: string;
+        facultyId: string;
+      }> = [];
+
+      const seenFaculty = new Set<string>();
+      for (const assign of data.assignments) {
+        if (assign.facultyIds && assign.facultyIds.length > 0) {
+          const facultyId = assign.facultyIds[0];
+          if (facultyId) {
+            if (seenFaculty.has(facultyId)) {
+              return {
+                success: false,
+                error: "Each faculty member can only be assigned to one section in this exam.",
+              };
+            }
+            seenFaculty.add(facultyId);
+            groupFacultyValues.push({
+              examId,
+              groupId: assign.groupId,
+              facultyId,
+            });
+          }
+        }
+      }
+
+      if (groupFacultyValues.length > 0) {
+        await db
+          .insert(examGroupFaculty)
+          .values(groupFacultyValues)
+          .onConflictDoNothing();
+      }
+    } else {
+      await db.delete(examGroupFaculty).where(eq(examGroupFaculty.examId, examId));
     }
 
     const currentExam = await db.query.exams.findFirst({
@@ -679,10 +769,44 @@ export async function getExamSubmissions({
     };
   }
 
+  let sectionStudentFilter: any = undefined;
+  let isAssignedFaculty = false;
+
+  if (!access.isAdmin && !access.isOwner) {
+    const facultySections = await db.query.examGroupFaculty.findMany({
+      where: and(
+        eq(examGroupFaculty.examId, examId),
+        eq(examGroupFaculty.facultyId, access.session.user.id),
+      ),
+      columns: { groupId: true },
+    });
+
+    if (facultySections.length > 0) {
+      isAssignedFaculty = true;
+      const groupIds = facultySections.map((s) => s.groupId);
+      const members = await db.query.userGroupMembers.findMany({
+        where: inArray(userGroupMembers.groupId, groupIds),
+        columns: { userId: true },
+      });
+      const studentIds = [...new Set(members.map((m) => m.userId))];
+      if (studentIds.length === 0) {
+        return {
+          submissions: [],
+          total: 0,
+          page,
+          limit,
+          canDelete: true,
+        };
+      }
+      sectionStudentFilter = inArray(examAssignments.userId, studentIds);
+    }
+  }
+
   const offset = (page - 1) * limit;
 
   const whereClause = and(
     eq(examAssignments.examId, examId),
+    sectionStudentFilter,
     search
       ? or(
           ilike(user.name, `%${search}%`),
@@ -764,7 +888,7 @@ export async function getExamSubmissions({
     total: Number(totalCount[0]?.count || 0),
     page,
     limit,
-    canDelete: access.isAdmin || access.isOwner,
+    canDelete: access.isAdmin || access.isOwner || isAssignedFaculty,
   };
 }
 
@@ -997,7 +1121,7 @@ export async function deleteExamSubmission(assignmentId: string) {
   try {
     const assignment = await db.query.examAssignments.findFirst({
       where: eq(examAssignments.id, assignmentId),
-      columns: { examId: true },
+      columns: { examId: true, userId: true },
     });
 
     if (!assignment) {
@@ -1010,11 +1134,34 @@ export async function deleteExamSubmission(assignmentId: string) {
         columns: { ownerId: true },
       });
 
-      ensureOwnership({
-        isAdmin: false,
-        ownerId: currentExam?.ownerId,
-        actorUserId: access.session.user.id,
-      });
+      const isOwner = currentExam?.ownerId === access.session.user.id;
+
+      if (!isOwner) {
+        // Check if user is an assigned faculty for the student's section in this exam
+        const assignedSections = await db.query.examGroupFaculty.findMany({
+          where: and(
+            eq(examGroupFaculty.examId, assignment.examId),
+            eq(examGroupFaculty.facultyId, access.session.user.id),
+          ),
+          columns: { groupId: true },
+        });
+
+        if (assignedSections.length === 0) {
+          throw new Error("Forbidden: ownership or assigned faculty required");
+        }
+
+        const groupIds = assignedSections.map((s) => s.groupId);
+        const membership = await db.query.userGroupMembers.findFirst({
+          where: and(
+            inArray(userGroupMembers.groupId, groupIds),
+            eq(userGroupMembers.userId, assignment.userId),
+          ),
+        });
+
+        if (!membership) {
+          throw new Error("Forbidden: student is not in your assigned section");
+        }
+      }
     }
 
     await db
@@ -1025,7 +1172,10 @@ export async function deleteExamSubmission(assignmentId: string) {
     return { success: true };
   } catch (error) {
     console.error("Failed to delete exam submission:", error);
-    return { success: false, error: "Failed to delete submission" };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete submission",
+    };
   }
 }
 
@@ -1048,6 +1198,26 @@ export async function exportExamLogsToExcel(examId: string): Promise<{
       return { success: false, error: "Exam not found" };
     }
 
+    let studentIdsFilter: string[] | undefined = undefined;
+    if (!access.isAdmin && access.examRecord.ownerId !== access.session.user.id) {
+      const assignedSections = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, access.session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+
+      if (assignedSections.length > 0) {
+        const groupIds = assignedSections.map((s) => s.groupId);
+        const members = await db.query.userGroupMembers.findMany({
+          where: inArray(userGroupMembers.groupId, groupIds),
+          columns: { userId: true },
+        });
+        studentIdsFilter = members.map((m) => m.userId);
+      }
+    }
+
     const assignmentsData = await db
       .select({
         assignment: examAssignments,
@@ -1055,7 +1225,16 @@ export async function exportExamLogsToExcel(examId: string): Promise<{
       })
       .from(examAssignments)
       .innerJoin(user, eq(examAssignments.userId, user.id))
-      .where(eq(examAssignments.examId, examId));
+      .where(
+        and(
+          eq(examAssignments.examId, examId),
+          studentIdsFilter && studentIdsFilter.length > 0
+            ? inArray(examAssignments.userId, studentIdsFilter)
+            : studentIdsFilter
+              ? sql`1 = 0`
+              : undefined,
+        ),
+      );
 
     if (assignmentsData.length === 0) {
       return { success: false, error: "No student attempts found for this exam." };
@@ -1657,6 +1836,324 @@ export async function exportExamLogsToExcel(examId: string): Promise<{
   } catch (error) {
     console.error("Failed to export exam logs to Excel:", error);
     return { success: false, error: "Failed to export logs" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getAvailableFaculty
+// ---------------------------------------------------------------------------
+
+export async function getAvailableFaculty(): Promise<
+  Array<{ id: string; name: string | null; email: string; username: string | null }>
+> {
+  await requireFacultyOrAdmin();
+  const rows = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+    })
+    .from(user)
+    .where(eq(user.role, "faculty"))
+    .orderBy(user.name);
+
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// getExamAttendance
+// ---------------------------------------------------------------------------
+
+export async function getExamAttendance(
+  examId: string,
+  filterGroupId?: string,
+): Promise<{
+  success: boolean;
+  data?: {
+    attendancePosted: boolean;
+    students: {
+      id: string;
+      name: string;
+      email: string;
+      username: string | null;
+      present: boolean;
+    }[];
+  };
+  error?: string;
+}> {
+  try {
+    const session = await requireUser();
+    await ensureExamReadAccess(examId);
+
+    const exam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+      columns: { attendancePosted: true, ownerId: true },
+      with: {
+        groups: { columns: { groupId: true } },
+      },
+    });
+
+    if (!exam) return { success: false, error: "Exam not found" };
+
+    let groupIds = exam.groups.map((g) => g.groupId);
+
+    // If faculty is assigned (and not admin / owner), isolate to their assigned groups
+    if (session.user.role === "faculty" && exam.ownerId !== session.user.id) {
+      const assigned = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+      if (assigned.length > 0) {
+        const assignedGroupIds = assigned.map((a) => a.groupId);
+        groupIds = groupIds.filter((id) => assignedGroupIds.includes(id));
+      }
+    }
+
+    if (filterGroupId && filterGroupId !== "all") {
+      groupIds = groupIds.filter((id) => id === filterGroupId);
+    }
+
+    if (groupIds.length === 0) {
+      return {
+        success: true,
+        data: { attendancePosted: exam.attendancePosted, students: [] },
+      };
+    }
+
+    const members = await db.query.userGroupMembers.findMany({
+      where: inArray(userGroupMembers.groupId, groupIds),
+      with: {
+        user: {
+          columns: { id: true, name: true, email: true, username: true, role: true },
+        },
+      },
+    });
+
+    const studentMap = new Map<
+      string,
+      { id: string; name: string; email: string; username: string | null }
+    >();
+    for (const m of members) {
+      if (
+        m.user &&
+        !studentMap.has(m.userId) &&
+        m.user.role !== "admin" &&
+        m.user.role !== "faculty"
+      ) {
+        studentMap.set(m.userId, {
+          id: m.userId,
+          name: m.user.name,
+          email: m.user.email,
+          username: m.user.username,
+        });
+      }
+    }
+
+    const studentIds = Array.from(studentMap.keys());
+    let presentSet = new Set<string>();
+
+    if (studentIds.length > 0) {
+      const records = await db.query.examAttendance.findMany({
+        where: and(
+          eq(examAttendance.examId, examId),
+          inArray(examAttendance.userId, studentIds),
+        ),
+      });
+      presentSet = new Set(records.filter((r) => r.present).map((r) => r.userId));
+    }
+
+    const students = studentIds.map((id) => ({
+      ...studentMap.get(id)!,
+      present: presentSet.has(id),
+    }));
+
+    return {
+      success: true,
+      data: { attendancePosted: exam.attendancePosted, students },
+    };
+  } catch (err) {
+    console.error("[getExamAttendance]", err);
+    return { success: false, error: "Failed to load attendance" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// saveExamAttendance
+// ---------------------------------------------------------------------------
+
+export async function saveExamAttendance({
+  examId,
+  presentStudentIds,
+  filterGroupId,
+}: {
+  examId: string;
+  presentStudentIds: string[];
+  filterGroupId?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await requireUser();
+    await ensureExamReadAccess(examId);
+
+    const exam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+      columns: { id: true, ownerId: true },
+      with: { groups: { columns: { groupId: true } } },
+    });
+
+    if (!exam) return { success: false, error: "Exam not found" };
+
+    let groupIds = exam.groups.map((g) => g.groupId);
+
+    if (session.user.role === "faculty" && exam.ownerId !== session.user.id) {
+      const assigned = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+      if (assigned.length > 0) {
+        const assignedGroupIds = assigned.map((a) => a.groupId);
+        groupIds = groupIds.filter((id) => assignedGroupIds.includes(id));
+      }
+    }
+
+    if (filterGroupId && filterGroupId !== "all") {
+      groupIds = groupIds.filter((id) => id === filterGroupId);
+    }
+
+    if (groupIds.length === 0) return { success: true };
+
+    const members = await db.query.userGroupMembers.findMany({
+      where: inArray(userGroupMembers.groupId, groupIds),
+      columns: { userId: true },
+    });
+
+    const targetStudentIds = [...new Set(members.map((m) => m.userId))];
+    const presentSet = new Set(presentStudentIds);
+
+    if (targetStudentIds.length > 0) {
+      // First pass: mark target students
+      await db
+        .insert(examAttendance)
+        .values(
+          targetStudentIds.map((userId) => ({
+            examId,
+            userId,
+            present: presentSet.has(userId),
+            markedAt: new Date(),
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [examAttendance.examId, examAttendance.userId],
+          set: {
+            present: false,
+            markedAt: new Date(),
+          },
+        });
+
+      if (presentStudentIds.length > 0) {
+        await db
+          .insert(examAttendance)
+          .values(
+            presentStudentIds.map((userId) => ({
+              examId,
+              userId,
+              present: true,
+              markedAt: new Date(),
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [examAttendance.examId, examAttendance.userId],
+            set: { present: true, markedAt: new Date() },
+          });
+      }
+    }
+
+    revalidateExamPaths(examId);
+    return { success: true };
+  } catch (err) {
+    console.error("[saveExamAttendance]", err);
+    return { success: false, error: "Failed to save attendance" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// postExamAttendance
+// ---------------------------------------------------------------------------
+
+export async function postExamAttendance(
+  examId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await ensureExamReadAccess(examId);
+
+    await db
+      .update(exams)
+      .set({ attendancePosted: true })
+      .where(eq(exams.id, examId));
+
+    revalidateExamPaths(examId);
+    return { success: true };
+  } catch (err) {
+    console.error("[postExamAttendance]", err);
+    return { success: false, error: "Failed to post attendance" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getAvailableExamSections
+// ---------------------------------------------------------------------------
+
+export async function getAvailableExamSections(
+  examId: string,
+): Promise<{ id: string; name: string }[]> {
+  try {
+    const session = await requireUser();
+
+    const exam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+      columns: { id: true, ownerId: true },
+      with: {
+        groups: {
+          with: {
+            group: { columns: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    if (!exam) return [];
+
+    let matchedGroups = exam.groups
+      .map((g) => ({ id: g.group.id, name: g.group.name }))
+      .filter((g) => {
+        const lower = g.name.trim().toLowerCase();
+        return lower !== "all" && lower !== "all users" && lower !== "all user";
+      });
+
+    if (session.user.role === "faculty" && exam.ownerId !== session.user.id) {
+      const assigned = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+      if (assigned.length > 0) {
+        const assignedIds = new Set(assigned.map((a) => a.groupId));
+        matchedGroups = matchedGroups.filter((g) => assignedIds.has(g.id));
+      }
+    }
+
+    return matchedGroups;
+  } catch (err) {
+    console.error("[getAvailableExamSections]", err);
+    return [];
   }
 }
 

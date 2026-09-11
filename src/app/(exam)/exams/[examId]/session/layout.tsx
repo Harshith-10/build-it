@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ExamProtection } from "@/components/exam/exam-protection";
 import { db } from "@/db";
-import { examAssignments } from "@/db/schema";
+import { examAssignments, examAttendance } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { buildExamTimingSnapshot } from "@/lib/exam";
 
@@ -32,13 +32,25 @@ export default async function SessionLayout({
       exam: {
         columns: {
           durationMinutes: true,
+          attendancePosted: true,
         },
       },
     },
   });
-
   if (!assignment) {
     redirect(`/exams/${examId}/onboarding`);
+  }
+
+  if (assignment.exam.attendancePosted) {
+    const attendance = await db.query.examAttendance.findFirst({
+      where: and(
+        eq(examAttendance.examId, examId),
+        eq(examAttendance.userId, session.user.id),
+      ),
+    });
+    if (!attendance || !attendance.present) {
+      redirect(`/exams/${examId}/onboarding`);
+    }
   }
 
   if (assignment.status === "completed") {

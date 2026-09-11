@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye, MoreHorizontal, Pencil, Trash2, Users } from "lucide-react";
+import { ClipboardCheck, Eye, MoreHorizontal, Pencil, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -164,6 +164,16 @@ export const createColumns = (
                   <Eye className="w-4 h-4 mr-2" />
                   View Details
                 </Link>
+              </DropdownMenuItem>
+            )}
+            {basePath === "/faculty" && (
+              <DropdownMenuItem
+                onClick={() =>
+                  router.push(`${basePath}/exams/${exam.id}/attendance`)
+                }
+              >
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Attendance
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
