@@ -11,10 +11,10 @@ import {
 } from "@/db/schema/assignments";
 import { user } from "@/db/schema/auth";
 import type { GradingConfigMap, StrategyConfig } from "@/db/schema/exams";
-import { examGroups, examModerators, exams } from "@/db/schema/exams";
+import { examAttendance, examGroupFaculty, examGroups, examModerators, exams } from "@/db/schema/exams";
 import { questions } from "@/db/schema/questions";
 import { examCollections } from "@/db/schema/question-collections";
-import { userGroupMembers } from "@/db/schema/groups";
+import { userGroupMembers, userGroups } from "@/db/schema/groups";
 import {
   ensureEntityPermission,
   ensureExamReadAccess,
@@ -22,7 +22,9 @@ import {
   getFacultyPermissions,
   requireAdmin,
   requireFacultyOrAdmin,
+  requireUser,
 } from "@/lib/auth-access";
+import { normalizeBranch } from "@/lib/branch-utils";
 
 type UpsertExamAssignmentInput = {
   groupId: string;
@@ -30,6 +32,7 @@ type UpsertExamAssignmentInput = {
   endTime?: string | null;
   requiresPin?: boolean;
   pinCode?: string | null;
+  facultyIds?: string[];
 };
 
 type UpsertExamInput = {
@@ -313,6 +316,12 @@ export async function getExams({
           where ${examModerators.examId} = ${exams.id}
             and ${examModerators.userId} = ${session.user.id}
         )`,
+        sql`exists (
+          select 1
+          from ${examGroupFaculty}
+          where ${examGroupFaculty.examId} = ${exams.id}
+            and ${examGroupFaculty.facultyId} = ${session.user.id}
+        )`,
       );
 
   const departmentClause = userDepartmentId
@@ -398,6 +407,18 @@ export async function getExam(id: string) {
           group: true,
         },
       },
+      groupFaculty: {
+        with: {
+          faculty: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+            },
+          },
+        },
+      },
       collections: {
         with: {
           collection: true,
@@ -428,6 +449,16 @@ export async function getExam(id: string) {
     canManage: access.isAdmin || access.isOwner,
     isModerator: access.isModerator,
     moderatorsList: normalizeModeratorUsers(exam),
+    groups: exam.groups.map((g) => {
+      const assigned = exam.groupFaculty
+        ?.filter((gf) => gf.groupId === g.groupId)
+        .map((gf) => gf.faculty) ?? [];
+      return {
+        ...g,
+        facultyIds: assigned.map((f) => f.id),
+        facultyList: assigned,
+      };
+    }),
   };
 }
 
@@ -444,6 +475,18 @@ export async function getExamForEdit(id: string) {
       groups: {
         with: {
           group: true,
+        },
+      },
+      groupFaculty: {
+        with: {
+          faculty: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+            },
+          },
         },
       },
       collections: {
@@ -476,6 +519,16 @@ export async function getExamForEdit(id: string) {
     canManage: true,
     isModerator: false,
     moderatorsList: normalizeModeratorUsers(exam),
+    groups: exam.groups.map((g) => {
+      const assigned = exam.groupFaculty
+        ?.filter((gf) => gf.groupId === g.groupId)
+        .map((gf) => gf.faculty) ?? [];
+      return {
+        ...g,
+        facultyIds: assigned.map((f) => f.id),
+        facultyList: assigned,
+      };
+    }),
   };
 }
 
@@ -610,6 +663,44 @@ export async function upsertExam(data: UpsertExamInput) {
       }
 
       await db.insert(examGroups).values(assignmentValues);
+
+      await db.delete(examGroupFaculty).where(eq(examGroupFaculty.examId, examId));
+
+      const groupFacultyValues: Array<{
+        examId: string;
+        groupId: string;
+        facultyId: string;
+      }> = [];
+
+      const seenFaculty = new Set<string>();
+      for (const assign of data.assignments) {
+        if (assign.facultyIds && assign.facultyIds.length > 0) {
+          const facultyId = assign.facultyIds[0];
+          if (facultyId) {
+            if (seenFaculty.has(facultyId)) {
+              return {
+                success: false,
+                error: "Each faculty member can only be assigned to one section in this exam.",
+              };
+            }
+            seenFaculty.add(facultyId);
+            groupFacultyValues.push({
+              examId,
+              groupId: assign.groupId,
+              facultyId,
+            });
+          }
+        }
+      }
+
+      if (groupFacultyValues.length > 0) {
+        await db
+          .insert(examGroupFaculty)
+          .values(groupFacultyValues)
+          .onConflictDoNothing();
+      }
+    } else {
+      await db.delete(examGroupFaculty).where(eq(examGroupFaculty.examId, examId));
     }
 
     const currentExam = await db.query.exams.findFirst({
@@ -679,10 +770,44 @@ export async function getExamSubmissions({
     };
   }
 
+  let sectionStudentFilter: any = undefined;
+  let isAssignedFaculty = false;
+
+  if (!access.isAdmin && !access.isOwner) {
+    const facultySections = await db.query.examGroupFaculty.findMany({
+      where: and(
+        eq(examGroupFaculty.examId, examId),
+        eq(examGroupFaculty.facultyId, access.session.user.id),
+      ),
+      columns: { groupId: true },
+    });
+
+    if (facultySections.length > 0) {
+      isAssignedFaculty = true;
+      const groupIds = facultySections.map((s) => s.groupId);
+      const members = await db.query.userGroupMembers.findMany({
+        where: inArray(userGroupMembers.groupId, groupIds),
+        columns: { userId: true },
+      });
+      const studentIds = [...new Set(members.map((m) => m.userId))];
+      if (studentIds.length === 0) {
+        return {
+          submissions: [],
+          total: 0,
+          page,
+          limit,
+          canDelete: true,
+        };
+      }
+      sectionStudentFilter = inArray(examAssignments.userId, studentIds);
+    }
+  }
+
   const offset = (page - 1) * limit;
 
   const whereClause = and(
     eq(examAssignments.examId, examId),
+    sectionStudentFilter,
     search
       ? or(
           ilike(user.name, `%${search}%`),
@@ -764,7 +889,7 @@ export async function getExamSubmissions({
     total: Number(totalCount[0]?.count || 0),
     page,
     limit,
-    canDelete: access.isAdmin || access.isOwner,
+    canDelete: access.isAdmin || access.isOwner || isAssignedFaculty,
   };
 }
 
@@ -997,7 +1122,7 @@ export async function deleteExamSubmission(assignmentId: string) {
   try {
     const assignment = await db.query.examAssignments.findFirst({
       where: eq(examAssignments.id, assignmentId),
-      columns: { examId: true },
+      columns: { examId: true, userId: true },
     });
 
     if (!assignment) {
@@ -1010,11 +1135,34 @@ export async function deleteExamSubmission(assignmentId: string) {
         columns: { ownerId: true },
       });
 
-      ensureOwnership({
-        isAdmin: false,
-        ownerId: currentExam?.ownerId,
-        actorUserId: access.session.user.id,
-      });
+      const isOwner = currentExam?.ownerId === access.session.user.id;
+
+      if (!isOwner) {
+        // Check if user is an assigned faculty for the student's section in this exam
+        const assignedSections = await db.query.examGroupFaculty.findMany({
+          where: and(
+            eq(examGroupFaculty.examId, assignment.examId),
+            eq(examGroupFaculty.facultyId, access.session.user.id),
+          ),
+          columns: { groupId: true },
+        });
+
+        if (assignedSections.length === 0) {
+          throw new Error("Forbidden: ownership or assigned faculty required");
+        }
+
+        const groupIds = assignedSections.map((s) => s.groupId);
+        const membership = await db.query.userGroupMembers.findFirst({
+          where: and(
+            inArray(userGroupMembers.groupId, groupIds),
+            eq(userGroupMembers.userId, assignment.userId),
+          ),
+        });
+
+        if (!membership) {
+          throw new Error("Forbidden: student is not in your assigned section");
+        }
+      }
     }
 
     await db
@@ -1025,7 +1173,10 @@ export async function deleteExamSubmission(assignmentId: string) {
     return { success: true };
   } catch (error) {
     console.error("Failed to delete exam submission:", error);
-    return { success: false, error: "Failed to delete submission" };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete submission",
+    };
   }
 }
 
@@ -1048,6 +1199,26 @@ export async function exportExamLogsToExcel(examId: string): Promise<{
       return { success: false, error: "Exam not found" };
     }
 
+    let studentIdsFilter: string[] | undefined = undefined;
+    if (!access.isAdmin && access.examRecord.ownerId !== access.session.user.id) {
+      const assignedSections = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, access.session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+
+      if (assignedSections.length > 0) {
+        const groupIds = assignedSections.map((s) => s.groupId);
+        const members = await db.query.userGroupMembers.findMany({
+          where: inArray(userGroupMembers.groupId, groupIds),
+          columns: { userId: true },
+        });
+        studentIdsFilter = members.map((m) => m.userId);
+      }
+    }
+
     const assignmentsData = await db
       .select({
         assignment: examAssignments,
@@ -1055,7 +1226,16 @@ export async function exportExamLogsToExcel(examId: string): Promise<{
       })
       .from(examAssignments)
       .innerJoin(user, eq(examAssignments.userId, user.id))
-      .where(eq(examAssignments.examId, examId));
+      .where(
+        and(
+          eq(examAssignments.examId, examId),
+          studentIdsFilter && studentIdsFilter.length > 0
+            ? inArray(examAssignments.userId, studentIdsFilter)
+            : studentIdsFilter
+              ? sql`1 = 0`
+              : undefined,
+        ),
+      );
 
     if (assignmentsData.length === 0) {
       return { success: false, error: "No student attempts found for this exam." };
@@ -1657,6 +1837,709 @@ export async function exportExamLogsToExcel(examId: string): Promise<{
   } catch (error) {
     console.error("Failed to export exam logs to Excel:", error);
     return { success: false, error: "Failed to export logs" };
+  }
+}
+
+export async function exportExamRankingsToExcel(examId: string): Promise<{
+  success: boolean;
+  base64?: string;
+  filename?: string;
+  error?: string;
+}> {
+  try {
+    const access = await ensureExamReadAccess(examId);
+    if (!access.examRecord) {
+      return { success: false, error: "Unauthorized or Exam not found" };
+    }
+
+    const selectedExam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+    });
+    if (!selectedExam) {
+      return { success: false, error: "Exam not found" };
+    }
+
+    let studentIdsFilter: string[] | undefined = undefined;
+    if (!access.isAdmin && access.examRecord.ownerId !== access.session.user.id) {
+      const assignedSections = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, access.session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+
+      if (assignedSections.length > 0) {
+        const groupIds = assignedSections.map((s) => s.groupId);
+        const members = await db.query.userGroupMembers.findMany({
+          where: inArray(userGroupMembers.groupId, groupIds),
+          columns: { userId: true },
+        });
+        studentIdsFilter = members.map((m) => m.userId);
+      }
+    }
+
+    const assignmentsData = await db
+      .select({
+        assignment: examAssignments,
+        user: user,
+      })
+      .from(examAssignments)
+      .innerJoin(user, eq(examAssignments.userId, user.id))
+      .where(
+        and(
+          eq(examAssignments.examId, examId),
+          studentIdsFilter && studentIdsFilter.length > 0
+            ? inArray(examAssignments.userId, studentIdsFilter)
+            : studentIdsFilter
+              ? sql`1 = 0`
+              : undefined,
+        ),
+      );
+
+    if (assignmentsData.length === 0) {
+      return { success: false, error: "No student attempts found for this exam." };
+    }
+
+    const gradingStrategy = selectedExam.gradingStrategy;
+    const gradingConfig = selectedExam.gradingConfig as
+      | Record<string, any>
+      | undefined;
+
+    const allAssignedQuestionIds = Array.from(
+      new Set(
+        assignmentsData.flatMap(
+          (a) => (a.assignment.assignedQuestionIds as string[]) || [],
+        ),
+      ),
+    );
+
+    const allAssignedQuestions =
+      allAssignedQuestionIds.length > 0
+        ? await db.query.questions.findMany({
+            where: inArray(questions.id, allAssignedQuestionIds),
+            columns: { id: true, difficulty: true },
+          })
+        : [];
+
+    const questionMap = new Map<string, string>();
+    for (const q of allAssignedQuestions) {
+      questionMap.set(q.id, q.difficulty || "medium");
+    }
+
+    const studentData = assignmentsData.map((record) => {
+      const startedAt = record.assignment.startedAt;
+      const completedAt = record.assignment.completedAt;
+      let timeMin = 0;
+      if (startedAt && completedAt) {
+        const diffMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+        timeMin = Math.max(0, Math.round(diffMs / 60000));
+      } else if (startedAt) {
+        const diffMs = new Date().getTime() - new Date(startedAt).getTime();
+        timeMin = Math.max(0, Math.round(diffMs / 60000));
+      }
+
+      const normalized = record.user.branch ? normalizeBranch(record.user.branch) : "OTHER";
+      const rollNumber = record.user.username
+        ? record.user.username.toUpperCase()
+        : (record.user.displayUsername ? record.user.displayUsername.toUpperCase() : "N/A");
+
+      const rawScore = record.assignment.score ?? 0;
+      const assignedQIds = (record.assignment.assignedQuestionIds as string[]) || [];
+
+      // Calculate total possible score for this assignment
+      let totalPossible = 0;
+      if (gradingStrategy === "linear") {
+        const marksPerQ = gradingConfig?.totalMarks || 0;
+        totalPossible = assignedQIds.length * marksPerQ;
+      } else if (gradingStrategy === "difficulty_based") {
+        for (const qId of assignedQIds) {
+          const diff = questionMap.get(qId) || "medium";
+          if (diff === "easy") totalPossible += gradingConfig?.easyWeight ?? 5;
+          else if (diff === "hard") totalPossible += gradingConfig?.hardWeight ?? 20;
+          else totalPossible += gradingConfig?.mediumWeight ?? 10;
+        }
+      } else if (gradingStrategy === "count_based") {
+        const thresholds = (gradingConfig?.thresholds || []) as { count: number; marks: number }[];
+        if (thresholds.length > 0) {
+          totalPossible = Math.max(...thresholds.map((t) => t.marks));
+        }
+      }
+
+      if (totalPossible <= 0) {
+        totalPossible = (gradingConfig as any)?.totalMarks || 100;
+      }
+      const maxAchievedScore = Math.max(
+        ...assignmentsData.map((a) => a.assignment.score ?? 0),
+        100
+      );
+      if (totalPossible < maxAchievedScore) {
+        totalPossible = maxAchievedScore;
+      }
+
+      const percentScore = totalPossible > 0 ? (rawScore / totalPossible) * 100 : rawScore;
+
+      // Badge criteria:
+      // Excellence — 100% cumulative score
+      // Elite — 90% to below 100%
+      // Gold — 80% to below 90%
+      // Silver — 75% to below 80%
+      let badge = "-";
+      if (percentScore >= 99.99 || rawScore >= totalPossible) {
+        badge = "Excellence";
+      } else if (percentScore >= 90) {
+        badge = "Elite";
+      } else if (percentScore >= 80) {
+        badge = "Gold";
+      } else if (percentScore >= 75) {
+        badge = "Silver";
+      }
+
+      return {
+        name: record.user.name || "Unknown",
+        rollNumber,
+        branch: normalized,
+        score: rawScore,
+        badge,
+        timeMin,
+      };
+    });
+
+    // Sort: Score DESC, Time (min) ASC, Name ASC
+    studentData.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      if (a.timeMin !== b.timeMin) {
+        return a.timeMin - b.timeMin;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "BuildIT Admin";
+    workbook.created = new Date();
+
+    const cellBorder: Partial<ExcelJS.Borders> = {
+      top: { style: "thin", color: { argb: "FFE2E8F0" } },
+      bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+      left: { style: "thin", color: { argb: "FFE2E8F0" } },
+      right: { style: "thin", color: { argb: "FFE2E8F0" } },
+    };
+
+    const applyBadgeStyle = (cell: ExcelJS.Cell, badge: string) => {
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      if (badge === "Excellence") {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFEDE9FE" },
+        };
+        cell.font = { color: { argb: "FF6D28D9" }, bold: true };
+      } else if (badge === "Elite") {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFE0E7FF" },
+        };
+        cell.font = { color: { argb: "FF3730A3" }, bold: true };
+      } else if (badge === "Gold") {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFFEF3C7" },
+        };
+        cell.font = { color: { argb: "FF92400E" }, bold: true };
+      } else if (badge === "Silver") {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF1F5F9" },
+        };
+        cell.font = { color: { argb: "FF475569" }, bold: true };
+      } else {
+        cell.font = { color: { argb: "FF94A3B8" } };
+      }
+    };
+
+    // 1. Overall Rankings Sheet
+    const overallSheet = workbook.addWorksheet("Overall Rankings");
+    overallSheet.columns = [
+      { header: "Rank", key: "rank", width: 10 },
+      { header: "Name", key: "name", width: 28 },
+      { header: "Roll Number", key: "rollNumber", width: 20 },
+      { header: "Branch", key: "branch", width: 15 },
+      { header: "Score", key: "score", width: 14 },
+      { header: "Badge", key: "badge", width: 16 },
+      { header: "Time (min)", key: "timeMin", width: 16 },
+    ];
+
+    const oHeader = overallSheet.getRow(1);
+    oHeader.height = 28;
+    oHeader.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF1E293B" },
+    };
+    oHeader.font = {
+      name: "Calibri",
+      size: 11,
+      bold: true,
+      color: { argb: "FFFFFFFF" },
+    };
+    oHeader.alignment = {
+      vertical: "middle",
+      horizontal: "center",
+    };
+
+    let prevOverallRank = 1;
+    studentData.forEach((s, idx) => {
+      let rank = idx + 1;
+      if (idx > 0) {
+        const prev = studentData[idx - 1];
+        if (s.score === prev.score && s.timeMin === prev.timeMin) {
+          rank = prevOverallRank;
+        } else {
+          prevOverallRank = rank;
+        }
+      } else {
+        prevOverallRank = 1;
+      }
+
+      const r = overallSheet.addRow({
+        rank,
+        name: s.name,
+        rollNumber: s.rollNumber,
+        branch: s.branch,
+        score: s.score,
+        badge: s.badge,
+        timeMin: s.timeMin,
+      });
+      r.height = 22;
+      r.getCell("rank").alignment = { vertical: "middle", horizontal: "center" };
+      r.getCell("name").alignment = { vertical: "middle", horizontal: "left" };
+      r.getCell("rollNumber").alignment = { vertical: "middle", horizontal: "center" };
+      r.getCell("branch").alignment = { vertical: "middle", horizontal: "center" };
+      r.getCell("score").alignment = { vertical: "middle", horizontal: "center" };
+      r.getCell("timeMin").alignment = { vertical: "middle", horizontal: "center" };
+      applyBadgeStyle(r.getCell("badge"), s.badge);
+
+      r.eachCell((cell) => {
+        cell.border = cellBorder;
+      });
+    });
+    overallSheet.views = [{ state: "frozen", ySplit: 1 }];
+
+    // 2. Branch-Wise Sheets (Branch column auto-hidden/omitted)
+    const branchMap = new Map<string, typeof studentData>();
+    for (const s of studentData) {
+      const b = s.branch || "OTHER";
+      const list = branchMap.get(b) || [];
+      list.push(s);
+      branchMap.set(b, list);
+    }
+
+    const branchKeys = Array.from(branchMap.keys()).sort();
+
+    for (const branch of branchKeys) {
+      const branchStudents = branchMap.get(branch)!;
+      const sheetName = `${branch} Rankings`.replace(/[\\/?*[\]:]/g, "_").slice(0, 31);
+      const branchSheet = workbook.addWorksheet(sheetName);
+      branchSheet.columns = [
+        { header: "Rank", key: "rank", width: 10 },
+        { header: "Name", key: "name", width: 28 },
+        { header: "Roll Number", key: "rollNumber", width: 20 },
+        { header: "Score", key: "score", width: 14 },
+        { header: "Badge", key: "badge", width: 16 },
+        { header: "Time (min)", key: "timeMin", width: 16 },
+      ];
+
+      const bHeader = branchSheet.getRow(1);
+      bHeader.height = 28;
+      bHeader.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF2563EB" },
+      };
+      bHeader.font = {
+        name: "Calibri",
+        size: 11,
+        bold: true,
+        color: { argb: "FFFFFFFF" },
+      };
+      bHeader.alignment = {
+        vertical: "middle",
+        horizontal: "center",
+      };
+
+      let prevBranchRank = 1;
+      branchStudents.forEach((s, idx) => {
+        let rank = idx + 1;
+        if (idx > 0) {
+          const prev = branchStudents[idx - 1];
+          if (s.score === prev.score && s.timeMin === prev.timeMin) {
+            rank = prevBranchRank;
+          } else {
+            prevBranchRank = rank;
+          }
+        } else {
+          prevBranchRank = 1;
+        }
+
+        const r = branchSheet.addRow({
+          rank,
+          name: s.name,
+          rollNumber: s.rollNumber,
+          score: s.score,
+          badge: s.badge,
+          timeMin: s.timeMin,
+        });
+        r.height = 22;
+        r.getCell("rank").alignment = { vertical: "middle", horizontal: "center" };
+        r.getCell("name").alignment = { vertical: "middle", horizontal: "left" };
+        r.getCell("rollNumber").alignment = { vertical: "middle", horizontal: "center" };
+        r.getCell("score").alignment = { vertical: "middle", horizontal: "center" };
+        r.getCell("timeMin").alignment = { vertical: "middle", horizontal: "center" };
+        applyBadgeStyle(r.getCell("badge"), s.badge);
+
+        r.eachCell((cell) => {
+          cell.border = cellBorder;
+        });
+      });
+      branchSheet.views = [{ state: "frozen", ySplit: 1 }];
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    const safeTitle = selectedExam.title.replace(/[^a-zA-Z0-9]/g, "_");
+    const filename = `${safeTitle}_Rankings.xlsx`;
+
+    return {
+      success: true,
+      base64,
+      filename,
+    };
+  } catch (error) {
+    console.error("Failed to export exam rankings to Excel:", error);
+    return { success: false, error: "Failed to export rankings" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getAvailableFaculty
+// ---------------------------------------------------------------------------
+
+export async function getAvailableFaculty(): Promise<
+  Array<{ id: string; name: string | null; email: string; username: string | null }>
+> {
+  await requireFacultyOrAdmin();
+  const rows = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+    })
+    .from(user)
+    .where(eq(user.role, "faculty"))
+    .orderBy(user.name);
+
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// getExamAttendance
+// ---------------------------------------------------------------------------
+
+export async function getExamAttendance(
+  examId: string,
+  filterGroupId?: string,
+): Promise<{
+  success: boolean;
+  data?: {
+    attendancePosted: boolean;
+    students: {
+      id: string;
+      name: string;
+      email: string;
+      username: string | null;
+      present: boolean;
+    }[];
+  };
+  error?: string;
+}> {
+  try {
+    const session = await requireUser();
+    await ensureExamReadAccess(examId);
+
+    const exam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+      columns: { attendancePosted: true, ownerId: true },
+      with: {
+        groups: { columns: { groupId: true } },
+      },
+    });
+
+    if (!exam) return { success: false, error: "Exam not found" };
+
+    let groupIds = exam.groups.map((g) => g.groupId);
+
+    // If faculty is assigned (and not admin / owner), isolate to their assigned groups
+    if (session.user.role === "faculty" && exam.ownerId !== session.user.id) {
+      const assigned = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+      if (assigned.length > 0) {
+        const assignedGroupIds = assigned.map((a) => a.groupId);
+        groupIds = groupIds.filter((id) => assignedGroupIds.includes(id));
+      }
+    }
+
+    if (filterGroupId && filterGroupId !== "all") {
+      groupIds = groupIds.filter((id) => id === filterGroupId);
+    }
+
+    if (groupIds.length === 0) {
+      return {
+        success: true,
+        data: { attendancePosted: exam.attendancePosted, students: [] },
+      };
+    }
+
+    const members = await db.query.userGroupMembers.findMany({
+      where: inArray(userGroupMembers.groupId, groupIds),
+      with: {
+        user: {
+          columns: { id: true, name: true, email: true, username: true, role: true },
+        },
+      },
+    });
+
+    const studentMap = new Map<
+      string,
+      { id: string; name: string; email: string; username: string | null }
+    >();
+    for (const m of members) {
+      if (
+        m.user &&
+        !studentMap.has(m.userId) &&
+        m.user.role !== "admin" &&
+        m.user.role !== "faculty"
+      ) {
+        studentMap.set(m.userId, {
+          id: m.userId,
+          name: m.user.name,
+          email: m.user.email,
+          username: m.user.username,
+        });
+      }
+    }
+
+    const studentIds = Array.from(studentMap.keys());
+    let presentSet = new Set<string>();
+
+    if (studentIds.length > 0) {
+      const records = await db.query.examAttendance.findMany({
+        where: and(
+          eq(examAttendance.examId, examId),
+          inArray(examAttendance.userId, studentIds),
+        ),
+      });
+      presentSet = new Set(records.filter((r) => r.present).map((r) => r.userId));
+    }
+
+    const students = studentIds.map((id) => ({
+      ...studentMap.get(id)!,
+      present: presentSet.has(id),
+    }));
+
+    return {
+      success: true,
+      data: { attendancePosted: exam.attendancePosted, students },
+    };
+  } catch (err) {
+    console.error("[getExamAttendance]", err);
+    return { success: false, error: "Failed to load attendance" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// saveExamAttendance
+// ---------------------------------------------------------------------------
+
+export async function saveExamAttendance({
+  examId,
+  presentStudentIds,
+  filterGroupId,
+}: {
+  examId: string;
+  presentStudentIds: string[];
+  filterGroupId?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await requireUser();
+    await ensureExamReadAccess(examId);
+
+    const exam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+      columns: { id: true, ownerId: true },
+      with: { groups: { columns: { groupId: true } } },
+    });
+
+    if (!exam) return { success: false, error: "Exam not found" };
+
+    let groupIds = exam.groups.map((g) => g.groupId);
+
+    if (session.user.role === "faculty" && exam.ownerId !== session.user.id) {
+      const assigned = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+      if (assigned.length > 0) {
+        const assignedGroupIds = assigned.map((a) => a.groupId);
+        groupIds = groupIds.filter((id) => assignedGroupIds.includes(id));
+      }
+    }
+
+    if (filterGroupId && filterGroupId !== "all") {
+      groupIds = groupIds.filter((id) => id === filterGroupId);
+    }
+
+    if (groupIds.length === 0) return { success: true };
+
+    const members = await db.query.userGroupMembers.findMany({
+      where: inArray(userGroupMembers.groupId, groupIds),
+      columns: { userId: true },
+    });
+
+    const targetStudentIds = [...new Set(members.map((m) => m.userId))];
+    const presentSet = new Set(presentStudentIds);
+
+    if (targetStudentIds.length > 0) {
+      // First pass: mark target students
+      await db
+        .insert(examAttendance)
+        .values(
+          targetStudentIds.map((userId) => ({
+            examId,
+            userId,
+            present: presentSet.has(userId),
+            markedAt: new Date(),
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [examAttendance.examId, examAttendance.userId],
+          set: {
+            present: false,
+            markedAt: new Date(),
+          },
+        });
+
+      if (presentStudentIds.length > 0) {
+        await db
+          .insert(examAttendance)
+          .values(
+            presentStudentIds.map((userId) => ({
+              examId,
+              userId,
+              present: true,
+              markedAt: new Date(),
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [examAttendance.examId, examAttendance.userId],
+            set: { present: true, markedAt: new Date() },
+          });
+      }
+    }
+
+    revalidateExamPaths(examId);
+    return { success: true };
+  } catch (err) {
+    console.error("[saveExamAttendance]", err);
+    return { success: false, error: "Failed to save attendance" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// postExamAttendance
+// ---------------------------------------------------------------------------
+
+export async function postExamAttendance(
+  examId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await ensureExamReadAccess(examId);
+
+    await db
+      .update(exams)
+      .set({ attendancePosted: true })
+      .where(eq(exams.id, examId));
+
+    revalidateExamPaths(examId);
+    return { success: true };
+  } catch (err) {
+    console.error("[postExamAttendance]", err);
+    return { success: false, error: "Failed to post attendance" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getAvailableExamSections
+// ---------------------------------------------------------------------------
+
+export async function getAvailableExamSections(
+  examId: string,
+): Promise<{ id: string; name: string }[]> {
+  try {
+    const session = await requireUser();
+
+    const exam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+      columns: { id: true, ownerId: true },
+      with: {
+        groups: {
+          with: {
+            group: { columns: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    if (!exam) return [];
+
+    let matchedGroups = exam.groups
+      .map((g) => ({ id: g.group.id, name: g.group.name }))
+      .filter((g) => {
+        const lower = g.name.trim().toLowerCase();
+        return lower !== "all" && lower !== "all users" && lower !== "all user";
+      });
+
+    if (session.user.role === "faculty" && exam.ownerId !== session.user.id) {
+      const assigned = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+      if (assigned.length > 0) {
+        const assignedIds = new Set(assigned.map((a) => a.groupId));
+        matchedGroups = matchedGroups.filter((g) => assignedIds.has(g.id));
+      }
+    }
+
+    return matchedGroups;
+  } catch (err) {
+    console.error("[getAvailableExamSections]", err);
+    return [];
   }
 }
 
