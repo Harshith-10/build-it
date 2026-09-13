@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { ExamsTableForPath } from "@/components/admin/exams/exams-table";
@@ -7,6 +8,23 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 
 export default function FacultyExamsPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden">
+        <PageHeader
+          title="Exams"
+          description="Create and manage your private exams"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden">
       <PageHeader

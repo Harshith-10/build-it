@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import {
   examAssignments,
+  examAttendance,
   examCollections,
   examGroups,
   questions,
@@ -97,6 +98,23 @@ export async function initializeExamSession(examId: string, pin?: string) {
       throw new Error(
         "Access Denied: The exam is not currently active for your group slot.",
       );
+    }
+
+    // 3. Attendance Lockout Check
+    if (activeSlot.exam.attendancePosted) {
+      const attendance = await db.query.examAttendance.findFirst({
+        where: and(
+          eq(examAttendance.examId, examId),
+          eq(examAttendance.userId, userId),
+        ),
+      });
+
+      if (attendance && !attendance.present) {
+        return {
+          success: false,
+          error: "Attendance Lockout: You have been marked absent for this exam. You cannot attempt this exam.",
+        };
+      }
     }
 
     // PIN Validation

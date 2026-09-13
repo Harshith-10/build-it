@@ -3,11 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import * as React from "react";
+import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { upsertExam } from "@/actions/admin/exams";
+import { getAvailableFaculty, upsertExam } from "@/actions/admin/exams";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,6 +74,7 @@ const examSchema = z.object({
         endTime: z.string().optional().nullable(),
         requiresPin: z.boolean().default(false),
         pinCode: z.string().optional().nullable(),
+        facultyIds: z.array(z.string()).default([]),
       }),
     )
     .default([]),
@@ -88,6 +90,7 @@ type ExamGroupInitialData = {
   startTime?: string | Date | null;
   endTime?: string | Date | null;
   pin?: string | null;
+  facultyIds?: string[];
 };
 
 type ExamFormInitialData = {
@@ -108,6 +111,7 @@ type ExamFormInitialData = {
     endTime?: string | null;
     requiresPin?: boolean;
     pinCode?: string | null;
+    facultyIds?: string[];
   }>;
   groups?: ExamGroupInitialData[];
   ownerId?: string | null;
@@ -123,9 +127,16 @@ export function ExamForm({
 }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableFaculty, setAvailableFaculty] = useState<
+    Array<{ id: string; name: string | null; email: string; username: string | null }>
+  >([]);
   const [moderators, setModerators] = useState<ExamModeratorSummary[]>(
     initialData?.moderatorsList || [],
   );
+
+  React.useEffect(() => {
+    getAvailableFaculty().then(setAvailableFaculty).catch(console.error);
+  }, []);
 
   const form = useForm<ExamFormInput, unknown, ExamFormValues>({
     resolver: zodResolver(examSchema),
@@ -170,6 +181,7 @@ export function ExamForm({
               endTime: eg.endTime ? new Date(eg.endTime).toISOString() : "",
               requiresPin: !!eg.pin,
               pinCode: eg.pin,
+              facultyIds: eg.facultyIds || [],
             })) || [],
           moderatorIds:
             initialData.moderatorsList?.map((moderator) => moderator.id) || [],
@@ -295,7 +307,11 @@ export function ExamForm({
               value="assignments"
               className="mt-0 h-full flex flex-col data-[state=inactive]:hidden"
             >
-              <AssignmentsList form={form} fieldArray={assignmentFieldArray} />
+              <AssignmentsList
+                form={form}
+                fieldArray={assignmentFieldArray}
+                availableFaculty={availableFaculty}
+              />
             </TabsContent>
 
             <TabsContent

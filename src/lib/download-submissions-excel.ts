@@ -120,3 +120,39 @@ export function downloadAttendanceExcel({
   const filename = `Exercise_${exerciseNo}_${exerciseTitle.replace(/[^a-z0-9]/gi, "_")}_Attendance.xlsx`;
   XLSX.writeFile(wb, filename);
 }
+
+export function downloadExamAttendanceExcel({
+  examTitle,
+  sectionName,
+  students,
+}: {
+  examTitle: string;
+  sectionName?: string;
+  students: { id: string; name: string; email: string; username?: string | null; present: boolean }[];
+}) {
+  const headers = ["Roll No.", "Student Name", "Email", "Attendance Status"];
+  const rows = students.map((student) => [
+    student.username ? student.username.toUpperCase() : "",
+    student.name,
+    student.email,
+    student.present ? "Present" : "Absent",
+  ]);
+
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  ws["!cols"] = [
+    { wch: 18 }, // Roll No.
+    { wch: 25 }, // Student Name
+    { wch: 30 }, // Email
+    { wch: 20 }, // Status
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Exam Attendance");
+
+  const safeTitle = examTitle.replace(/[^a-z0-9]/gi, "_");
+  const safeSection = sectionName ? `_${sectionName.replace(/[^a-z0-9]/gi, "_")}` : "";
+  const filename = `${safeTitle}${safeSection}_Attendance.xlsx`;
+  XLSX.writeFile(wb, filename);
+}

@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { examAssignments } from "@/db/schema";
+import { examAssignments, examAttendance } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { buildExamTimingSnapshot } from "@/lib/exam";
 import {
@@ -71,7 +71,9 @@ async function validateCodingWindow(
     with: {
       exam: {
         columns: {
+          id: true,
           durationMinutes: true,
+          attendancePosted: true,
         },
       },
     },
@@ -83,6 +85,18 @@ async function validateCodingWindow(
 
   if (assignment.status === "completed") {
     return "Exam is already completed";
+  }
+
+  if (assignment.exam.attendancePosted) {
+    const attendance = await db.query.examAttendance.findFirst({
+      where: and(
+        eq(examAttendance.examId, assignment.exam.id),
+        eq(examAttendance.userId, userId),
+      ),
+    });
+    if (attendance && !attendance.present) {
+      return "Attendance Lockout: You have been marked absent for this exam.";
+    }
   }
 
   const timing = buildExamTimingSnapshot({
