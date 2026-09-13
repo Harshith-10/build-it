@@ -109,7 +109,7 @@ export async function initializeExamSession(examId: string, pin?: string) {
         ),
       });
 
-      if (!attendance || !attendance.present) {
+      if (attendance && !attendance.present) {
         return {
           success: false,
           error: "Attendance Lockout: You have been marked absent for this exam. You cannot attempt this exam.",
