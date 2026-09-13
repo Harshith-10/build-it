@@ -24,7 +24,7 @@ import { LabCodePlayground } from "./lab-code-playground";
 import { LabProtection } from "./lab-protection";
 import { VivaQuestionViewer } from "./viva-question-viewer";
 import { VivaAnswerEditor } from "./viva-answer-editor";
-import { getAssignedVivaQuestions, type AssignedVivaQuestion } from "@/actions/student/labs/viva";
+import { getAssignedVivaQuestions, saveVivaAnswerAction, type AssignedVivaQuestion } from "@/actions/student/labs/viva";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,

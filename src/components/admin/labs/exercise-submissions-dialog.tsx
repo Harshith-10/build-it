@@ -52,6 +52,7 @@ type Student = {
   email: string;
   username: string | null;
   solvedProgramIds: string[];
+  vivaSubmittedCount?: number;
   marks: number | null;
   implementationMarks: number | null;
   writeUpMarks: number | null;
@@ -341,15 +342,18 @@ export function ExerciseSubmissionsDialog({
                         <TableRow>
                           <TableHead className="text-center">Roll No.</TableHead>
                           {!awardMode ? (
-                            data.programs.map((p) => (
-                              <TableHead
-                                key={p.id}
-                                className="text-center text-xs"
-                                title={p.title}
-                              >
-                                P{p.programNo}
-                              </TableHead>
-                            ))
+                            <>
+                              {data.programs.map((p) => (
+                                <TableHead
+                                  key={p.id}
+                                  className="text-center text-xs"
+                                  title={p.title}
+                                >
+                                  P{p.programNo}
+                                </TableHead>
+                              ))}
+                              <TableHead className="text-center text-xs">Viva Answers</TableHead>
+                            </>
                           ) : (
                             <>
                               <TableHead className="text-center">Solved</TableHead>
@@ -387,26 +391,44 @@ export function ExerciseSubmissionsDialog({
                               </TableCell>
 
                               {!awardMode ? (
-                                /* Per-program solved indicators (view mode only) */
-                                data.programs.map((p) => {
-                                  const solved = student.solvedProgramIds.includes(p.id);
-                                  return (
-                                    <TableCell key={p.id} className="text-center">
-                                      {solved ? (
-                                        <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
-                                      ) : (
-                                        <Circle className="h-4 w-4 text-muted-foreground mx-auto" />
-                                      )}
-                                    </TableCell>
-                                  );
-                                })
+                                /* Per-program solved indicators + Viva Answers indicator */
+                                <>
+                                  {data.programs.map((p) => {
+                                    const solved = student.solvedProgramIds.includes(p.id);
+                                    return (
+                                      <TableCell key={p.id} className="text-center">
+                                        {solved ? (
+                                          <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
+                                        ) : (
+                                          <Circle className="h-4 w-4 text-muted-foreground mx-auto" />
+                                        )}
+                                      </TableCell>
+                                    );
+                                  })}
+                                  <TableCell className="text-center">
+                                    {(student.vivaSubmittedCount ?? 0) > 0 ? (
+                                      <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-200">
+                                        {student.vivaSubmittedCount} Answered
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                  </TableCell>
+                                </>
                               ) : (
                                 <>
-                                  {/* Solved count */}
+                                  {/* Solved count (Coding + Viva count indicator) */}
                                   <TableCell className="text-center">
-                                    <Badge variant="outline">
-                                      {solvedCount}/{totalProgs}
-                                    </Badge>
+                                    <div className="flex flex-col items-center gap-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        Code: {solvedCount}/{totalProgs}
+                                      </Badge>
+                                      {(student.vivaSubmittedCount ?? 0) > 0 && (
+                                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-200">
+                                          Viva: {student.vivaSubmittedCount} Ans
+                                        </Badge>
+                                      )}
+                                    </div>
                                   </TableCell>
 
                                   {/* Implementation (calculated and read-only) */}
@@ -475,7 +497,7 @@ export function ExerciseSubmissionsDialog({
                         {filteredStudents.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={!awardMode ? data.programs.length + 1 : 7}
+                              colSpan={!awardMode ? data.programs.length + 2 : 7}
                               className="text-center py-6 text-sm text-muted-foreground"
                             >
                               No matching students found
