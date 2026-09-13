@@ -384,6 +384,10 @@ export function ExerciseSubmissionsDialog({
                               ? implScore + writeUpNum + vivaNum
                               : null;
 
+                          const hasSubmittedContent =
+                            solvedCount > 0 ||
+                            (student.vivaSubmittedCount ?? 0) > 0;
+
                           return (
                             <TableRow key={student.id}>
                               {/* Roll Number */}
@@ -418,14 +422,18 @@ export function ExerciseSubmissionsDialog({
                                     )}
                                   </TableCell>
                                   <TableCell className="text-center">
-                                    <DownloadReportButton
-                                      exerciseId={exerciseId}
-                                      studentId={student.id}
-                                      size="sm"
-                                      variant="outline"
-                                      label="Report PDF"
-                                      className="h-7 text-xs px-2"
-                                    />
+                                    {hasSubmittedContent ? (
+                                      <DownloadReportButton
+                                        exerciseId={exerciseId}
+                                        studentId={student.id}
+                                        size="sm"
+                                        variant="outline"
+                                        label="View Record"
+                                        className="h-7 text-xs px-2"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
                                   </TableCell>
                                 </>
                               ) : (
@@ -488,14 +496,18 @@ export function ExerciseSubmissionsDialog({
 
                                   {/* Download Student Report PDF */}
                                   <TableCell className="text-center">
-                                    <DownloadReportButton
-                                      exerciseId={exerciseId}
-                                      studentId={student.id}
-                                      size="sm"
-                                      variant="outline"
-                                      label="Report PDF"
-                                      className="h-7 text-xs px-2 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30"
-                                    />
+                                    {hasSubmittedContent ? (
+                                      <DownloadReportButton
+                                        exerciseId={exerciseId}
+                                        studentId={student.id}
+                                        size="sm"
+                                        variant="outline"
+                                        label="View Record"
+                                        className="h-7 text-xs px-2 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
                                   </TableCell>
 
                                   {/* Save button */}

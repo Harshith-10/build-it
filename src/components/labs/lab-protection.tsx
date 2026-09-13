@@ -41,6 +41,15 @@ export function LabProtection() {
 
     // Smart Copy / Cut tracking
     const handleCopy = () => {
+      const activeEl = document.activeElement as HTMLTextAreaElement | HTMLInputElement | null;
+      if (activeEl && (activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT")) {
+        const start = activeEl.selectionStart ?? 0;
+        const end = activeEl.selectionEnd ?? 0;
+        if (start !== end) {
+          internalClipboard.current = activeEl.value.substring(start, end);
+          return;
+        }
+      }
       const selection = window.getSelection();
       if (selection) {
         internalClipboard.current = selection.toString();
@@ -48,6 +57,15 @@ export function LabProtection() {
     };
 
     const handleCut = () => {
+      const activeEl = document.activeElement as HTMLTextAreaElement | HTMLInputElement | null;
+      if (activeEl && (activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT")) {
+        const start = activeEl.selectionStart ?? 0;
+        const end = activeEl.selectionEnd ?? 0;
+        if (start !== end) {
+          internalClipboard.current = activeEl.value.substring(start, end);
+          return;
+        }
+      }
       const selection = window.getSelection();
       if (selection) {
         internalClipboard.current = selection.toString();

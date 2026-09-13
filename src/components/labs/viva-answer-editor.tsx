@@ -137,8 +137,24 @@ export function VivaAnswerEditor({
         <Textarea
           value={answerText}
           onChange={(e) => handleChange(e.target.value)}
+          onClick={(e) => {
+            const target = e.currentTarget;
+            if (target.selectionStart === target.selectionEnd) {
+              const caretPos = target.selectionStart;
+              target.setSelectionRange(caretPos, caretPos);
+            }
+          }}
+          onKeyUp={(e) => {
+            if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Escape"].includes(e.key)) {
+              const target = e.currentTarget;
+              if (target.selectionStart === target.selectionEnd) {
+                const caretPos = target.selectionStart;
+                target.setSelectionRange(caretPos, caretPos);
+              }
+            }
+          }}
           placeholder="Type your concise explanation here (Max 150 words)..."
-          className="flex-1 resize-none font-sans text-sm p-4 leading-relaxed focus-visible:ring-purple-500"
+          className="flex-1 resize-none font-sans text-sm p-4 leading-relaxed focus-visible:ring-purple-500 selection:bg-blue-500/25 selection:text-foreground"
         />
 
         {/* Footer Word Counter */}
