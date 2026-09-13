@@ -1989,10 +1989,12 @@ export async function saveExamAttendance({
   examId,
   presentStudentIds,
   filterGroupId,
+  allStudentIds,
 }: {
   examId: string;
   presentStudentIds: string[];
   filterGroupId?: string;
+  allStudentIds?: string[];
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await requireUser();
@@ -2033,11 +2035,15 @@ export async function saveExamAttendance({
       columns: { userId: true },
     });
 
-    const targetStudentIds = [...new Set(members.map((m) => m.userId))];
+    let targetStudentIds = [...new Set(members.map((m) => m.userId))];
+    if (allStudentIds && allStudentIds.length > 0) {
+      const allowedSet = new Set(allStudentIds);
+      targetStudentIds = targetStudentIds.filter((id) => allowedSet.has(id));
+    }
+
     const presentSet = new Set(presentStudentIds);
 
     if (targetStudentIds.length > 0) {
-      // First pass: mark target students
       await db
         .insert(examAttendance)
         .values(
@@ -2051,27 +2057,10 @@ export async function saveExamAttendance({
         .onConflictDoUpdate({
           target: [examAttendance.examId, examAttendance.userId],
           set: {
-            present: false,
+            present: sql`excluded.present`,
             markedAt: new Date(),
           },
         });
-
-      if (presentStudentIds.length > 0) {
-        await db
-          .insert(examAttendance)
-          .values(
-            presentStudentIds.map((userId) => ({
-              examId,
-              userId,
-              present: true,
-              markedAt: new Date(),
-            })),
-          )
-          .onConflictDoUpdate({
-            target: [examAttendance.examId, examAttendance.userId],
-            set: { present: true, markedAt: new Date() },
-          });
-      }
     }
 
     revalidateExamPaths(examId);
