@@ -178,6 +178,7 @@ export const exercisesRelations = relations(exercises, ({ one, many }) => ({
   marks: many(exerciseMarks),
   groups: many(exerciseGroups),
   submissions: many(labSubmissions),
+  vivaSubmissions: many(vivaSubmissions),
   attendance: many(exerciseAttendance),
 }));
 
