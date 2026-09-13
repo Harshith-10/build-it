@@ -11,6 +11,7 @@ import {
   labSubmissions,
   exerciseMarks,
   exerciseAttendance,
+  vivaSubmissions,
 } from "@/db/schema/labs";
 import { user } from "@/db/schema/auth";
 import {
@@ -197,20 +198,34 @@ export async function createExercise(data: {
       where: eq(exercises.labId, data.labId),
     });
 
-    const duplicate = existing.find(
+    const duplicateNo = existing.find((e) => e.exerciseNo === data.exerciseNo);
+    if (duplicateNo) {
+      return {
+        success: false,
+        error: `Exercise #${data.exerciseNo} ("${duplicateNo.title}") already exists in this lab. Please change the Exercise Number to ${existing.length + 1}.`,
+      };
+    }
+
+    const duplicateTitle = existing.find(
       (e) => e.title.trim().toLowerCase() === data.title.trim().toLowerCase()
     );
-    if (duplicate) {
-      return { success: false, error: `An exercise named "${duplicate.title}" already exists in this lab.` };
+    if (duplicateTitle) {
+      return { success: false, error: `An exercise named "${duplicateTitle.title}" already exists in this lab.` };
     }
 
     const [newExercise] = await db.insert(exercises).values(data).returning();
     revalidatePath("/admin/labs");
     revalidatePath("/faculty/labs");
     return { success: true, exercise: newExercise };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to create exercise:", error);
-    return { success: false, error: "Permission denied or failed to create exercise" };
+    if (error?.code === "23505") {
+      return { success: false, error: `Exercise #${data.exerciseNo} already exists in this lab. Please change Exercise Number.` };
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create exercise",
+    };
   }
 }
 
@@ -704,6 +719,24 @@ export async function getExerciseSubmissions(
       submissions = submissions.filter((s) => allowedStudentIds!.has(s.userId));
     }
 
+    let vivaSubs = await db.query.vivaSubmissions.findMany({
+      where: eq(vivaSubmissions.exerciseId, exerciseId),
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (allowedStudentIds) {
+      vivaSubs = vivaSubs.filter((s) => allowedStudentIds!.has(s.userId));
+    }
+
     let marks = await db.query.exerciseMarks.findMany({
       where: eq(exerciseMarks.exerciseId, exerciseId),
     });
@@ -720,6 +753,7 @@ export async function getExerciseSubmissions(
         email: string;
         username: string | null;
         solvedProgramIds: string[];
+        vivaSubmittedCount: number;
         marks: number | null;
         implementationMarks: number | null;
         writeUpMarks: number | null;
@@ -745,6 +779,7 @@ export async function getExerciseSubmissions(
           email: u.email ?? "",
           username: u.username ?? null,
           solvedProgramIds: [],
+          vivaSubmittedCount: 0,
           marks: null,
           implementationMarks: null,
           writeUpMarks: null,
@@ -762,6 +797,7 @@ export async function getExerciseSubmissions(
           email: sub.user?.email ?? "",
           username: sub.user?.username ?? null,
           solvedProgramIds: [],
+          vivaSubmittedCount: 0,
           marks: null,
           implementationMarks: null,
           writeUpMarks: null,
@@ -770,6 +806,28 @@ export async function getExerciseSubmissions(
       }
       if (sub.programId !== "00000000-0000-0000-0000-000000000000") {
         studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
+      }
+    }
+
+    for (const vsub of vivaSubs) {
+      const sid = vsub.userId;
+      if (!studentMap.has(sid)) {
+        studentMap.set(sid, {
+          id: sid,
+          name: vsub.user?.name ?? "Unknown",
+          email: vsub.user?.email ?? "",
+          username: vsub.user?.username ?? null,
+          solvedProgramIds: [],
+          vivaSubmittedCount: 0,
+          marks: null,
+          implementationMarks: null,
+          writeUpMarks: null,
+          vivaMarks: null,
+        });
+      }
+      if (vsub.answerText && vsub.answerText.trim().length > 0) {
+        const student = studentMap.get(sid)!;
+        student.vivaSubmittedCount = (student.vivaSubmittedCount ?? 0) + 1;
       }
     }
 
