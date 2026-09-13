@@ -68,13 +68,17 @@ export type ExerciseReportData = {
   vivaQuestions?: ReportVivaQuestion[];
 };
 
-export async function getExerciseReportData(exerciseId: string) {
+export async function getExerciseReportData(exerciseId: string, targetStudentId?: string) {
   try {
     const session = await requireUser();
+    const studentIdToUse =
+      targetStudentId && (session.user.role === "admin" || session.user.role === "faculty")
+        ? targetStudentId
+        : session.user.id;
 
     // 1. Fetch student info
     const studentUser = await db.query.user.findFirst({
-      where: eq(user.id, session.user.id),
+      where: eq(user.id, studentIdToUse),
       columns: {
         name: true,
         username: true,
@@ -113,7 +117,7 @@ export async function getExerciseReportData(exerciseId: string) {
 
     // 3. Find assigned faculty for student's group in this lab
     const studentGroups = await db.query.userGroupMembers.findMany({
-      where: eq(userGroupMembers.userId, session.user.id),
+      where: eq(userGroupMembers.userId, studentIdToUse),
     });
     const groupIds = studentGroups.map((g) => g.groupId);
 
@@ -158,7 +162,7 @@ export async function getExerciseReportData(exerciseId: string) {
       allLabExerciseIds.length > 0
         ? await db.query.exerciseMarks.findMany({
             where: and(
-              eq(exerciseMarks.userId, session.user.id),
+              eq(exerciseMarks.userId, studentIdToUse),
               inArray(exerciseMarks.exerciseId, allLabExerciseIds)
             ),
           })
@@ -199,7 +203,7 @@ export async function getExerciseReportData(exerciseId: string) {
     // 5. Fetch code submissions from database for this exercise
     const dbSubmissions = await db.query.labSubmissions.findMany({
       where: and(
-        eq(labSubmissions.userId, session.user.id),
+        eq(labSubmissions.userId, studentIdToUse),
         eq(labSubmissions.exerciseId, exerciseId)
       ),
     });
@@ -207,7 +211,7 @@ export async function getExerciseReportData(exerciseId: string) {
     // 5.5 Fetch Viva submissions for this exercise
     const dbVivaSubmissions = await db.query.vivaSubmissions.findMany({
       where: and(
-        eq(vivaSubmissions.userId, session.user.id),
+        eq(vivaSubmissions.userId, studentIdToUse),
         eq(vivaSubmissions.exerciseId, exerciseId)
       ),
       with: {

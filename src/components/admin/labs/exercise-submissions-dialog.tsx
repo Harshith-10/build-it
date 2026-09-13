@@ -5,6 +5,7 @@ import { CheckCircle2, Circle, Download, Loader2, Users, Award, Search, Clipboar
 import { getExerciseSubmissions, getExerciseAttendance, getAvailableSectionsForExercise } from "@/app/(faculty)/faculty/labs/labs";
 import { awardMarks } from "@/actions/admin/labs";
 import { downloadSubmissionsExcel } from "@/lib/download-submissions-excel";
+import { DownloadReportButton } from "@/components/labs/download-report-button";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -353,6 +354,7 @@ export function ExerciseSubmissionsDialog({
                                 </TableHead>
                               ))}
                               <TableHead className="text-center text-xs">Viva Answers</TableHead>
+                              <TableHead className="text-center text-xs">Lab Report</TableHead>
                             </>
                           ) : (
                             <>
@@ -361,6 +363,7 @@ export function ExerciseSubmissionsDialog({
                               <TableHead className="text-center">Write-Up (max 4)</TableHead>
                               <TableHead className="text-center">Viva-Voce (max 4)</TableHead>
                               <TableHead className="text-center">Total (max 20)</TableHead>
+                              <TableHead className="text-center">Student Report</TableHead>
                               <TableHead />
                             </>
                           )}
@@ -391,7 +394,7 @@ export function ExerciseSubmissionsDialog({
                               </TableCell>
 
                               {!awardMode ? (
-                                /* Per-program solved indicators + Viva Answers indicator */
+                                /* Per-program solved indicators + Viva Answers indicator + Report button */
                                 <>
                                   {data.programs.map((p) => {
                                     const solved = student.solvedProgramIds.includes(p.id);
@@ -413,6 +416,16 @@ export function ExerciseSubmissionsDialog({
                                     ) : (
                                       <span className="text-xs text-muted-foreground">—</span>
                                     )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <DownloadReportButton
+                                      exerciseId={exerciseId}
+                                      studentId={student.id}
+                                      size="sm"
+                                      variant="outline"
+                                      label="Report PDF"
+                                      className="h-7 text-xs px-2"
+                                    />
                                   </TableCell>
                                 </>
                               ) : (
@@ -473,6 +486,18 @@ export function ExerciseSubmissionsDialog({
                                     </span>
                                   </TableCell>
 
+                                  {/* Download Student Report PDF */}
+                                  <TableCell className="text-center">
+                                    <DownloadReportButton
+                                      exerciseId={exerciseId}
+                                      studentId={student.id}
+                                      size="sm"
+                                      variant="outline"
+                                      label="Report PDF"
+                                      className="h-7 text-xs px-2 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30"
+                                    />
+                                  </TableCell>
+
                                   {/* Save button */}
                                   <TableCell>
                                     <Button
@@ -497,7 +522,7 @@ export function ExerciseSubmissionsDialog({
                         {filteredStudents.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={!awardMode ? data.programs.length + 2 : 7}
+                              colSpan={!awardMode ? data.programs.length + 3 : 8}
                               className="text-center py-6 text-sm text-muted-foreground"
                             >
                               No matching students found
