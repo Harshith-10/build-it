@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { finishExam } from "@/actions/student/exams/exam-lifecycle";
 import { clearExamStorage } from "@/stores/exam-store";
+import { stopShieldItLockdown } from "@/lib/shieldit/shieldit-client";
 import { SidebarTrigger } from "@/components/animate-ui/components/radix/sidebar";
 import {
   AlertDialog,
@@ -60,7 +61,11 @@ export function ExamHeader({
 
       if (result.success && result.redirectPath) {
         clearExamStorage();
-        toast.success("Exam submitted successfully");
+
+        // Restore student extensions upon valid submission
+        await stopShieldItLockdown(assignmentId).catch(() => {});
+
+        toast.success("Exam submitted successfully. Extensions restored.");
         router.push(result.redirectPath);
       } else {
         toast.error(result.error || "Failed to submit exam");

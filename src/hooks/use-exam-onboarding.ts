@@ -7,6 +7,11 @@ import { initializeExamSession } from "@/actions/student/exams/exam-actions";
 import { useSession } from "@/lib/auth-client";
 import { useExamStore } from "@/stores/exam-store";
 
+import {
+  startShieldItLockdown,
+  stopShieldItLockdown,
+} from "@/lib/shieldit/shieldit-client";
+
 interface UseExamOnboardingProps {
   examId: string;
   requiresPin: boolean;
@@ -41,7 +46,21 @@ export function useExamOnboarding({
     setIsLoading(true);
 
     try {
-      // 2. Initialize Session
+      // 2. Activate ShieldIt extension lockdown (pauses Monica, AI copilots, etc.)
+      const lockResult = await startShieldItLockdown(examId, {
+        allowMultipleDisplays: false,
+      });
+
+      if (!lockResult.success) {
+        toast.error(
+          lockResult.message || "ShieldIt lockdown failed. Please close other windows.",
+        );
+        await document.exitFullscreen().catch(() => {});
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. Initialize Session on server
       const result = await initializeExamSession(examId, pin);
 
       if (result.success && result.assignmentId) {
@@ -49,15 +68,17 @@ export function useExamOnboarding({
         toast.success("Exam started successfully.");
         router.push(`/exams/${examId}/session`);
       } else if (result.success) {
+        await stopShieldItLockdown(examId).catch(() => {});
         await document.exitFullscreen().catch(() => {});
         toast.error("Failed to start exam: missing assignment id.");
       } else {
-        // If failed, exit fullscreen (optional, but good UX)
+        await stopShieldItLockdown(examId).catch(() => {});
         await document.exitFullscreen().catch(() => {});
         toast.error(result.error || "Failed to start exam.");
       }
     } catch (error) {
       console.error(error);
+      await stopShieldItLockdown(examId).catch(() => {});
       await document.exitFullscreen().catch(() => {});
       toast.error("An unexpected error occurred.");
     } finally {

@@ -12,8 +12,10 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { toast } from "sonner";
 import type { ExamTimingSnapshot } from "@/lib/exam";
 import { useExamStore } from "@/stores/exam-store";
+import { useShieldIt } from "@/lib/shieldit/shieldit-client";
 
 import { CodePlayground } from "./code-playground";
 import { ExamHeader } from "./exam-header";
@@ -83,6 +85,14 @@ export function IDEShell({
   );
 
   const initForExam = useExamStore((s) => s.initForExam);
+  const { violations } = useShieldIt(assignmentId);
+
+  useEffect(() => {
+    if (violations.length > 0) {
+      const latest = violations[violations.length - 1];
+      toast.warning(`Security Notice: ${latest.message || latest.type}`);
+    }
+  }, [violations]);
 
   useEffect(() => setIsMounted(true), []);
 

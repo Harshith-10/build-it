@@ -4,9 +4,13 @@ import {
   AlertTriangle,
   BookOpen,
   Clock,
+  Download,
+  ExternalLink,
   KeyRound,
   Monitor,
+  RotateCw,
   Shield,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -34,6 +38,11 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useExamOnboarding } from "@/hooks/use-exam-onboarding";
+import {
+  useShieldIt,
+  SHIELDIT_CHROME_STORE_URL,
+  SHIELDIT_ZIP_DOWNLOAD_URL,
+} from "@/lib/shieldit/shieldit-client";
 
 interface OnboardingClientProps {
   exam: {
@@ -53,6 +62,10 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
     examId: exam.id,
     requiresPin: exam.requiresPin,
   });
+
+  const { isInstalled, displayCount, extensionVersion, checkStatus } =
+    useShieldIt(exam.id);
+  const [showInstallModal, setShowInstallModal] = useState(false);
 
   const [showInstructionsDialog, setShowInstructionsDialog] = useState(true);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
@@ -197,6 +210,89 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               )}
             </div>
 
+            {/* ShieldIt Extension Status Check */}
+            {isInstalled === false && (
+              <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <div className="flex-1">
+                  <AlertTitle className="text-base font-semibold">
+                    ShieldIt Proctor Extension Required
+                  </AlertTitle>
+                  <AlertDescription className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                    This examination requires the official <strong>ShieldIt</strong> proctor extension to enforce browser lockdown and pause third-party extensions.
+                  </AlertDescription>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {SHIELDIT_CHROME_STORE_URL ? (
+                      <Button
+                        size="sm"
+                        className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                        asChild
+                      >
+                        <a
+                          href={SHIELDIT_CHROME_STORE_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Add to Chrome (Web Store)
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                        onClick={() => setShowInstallModal(true)}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Add to Chrome
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 border-amber-500/30"
+                      onClick={() => setShowInstallModal(true)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download & Install Guide
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5 text-xs text-muted-foreground"
+                      onClick={() => checkStatus()}
+                    >
+                      <RotateCw className="h-3.5 w-3.5" />
+                      Verify Now
+                    </Button>
+                  </div>
+                </div>
+              </Alert>
+            )}
+
+            {isInstalled === true && (
+              <div className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-emerald-800 dark:text-emerald-300">
+                <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <div className="text-sm">
+                  <span className="font-semibold">ShieldIt Proctor Verified</span>
+                  <span className="ml-2 text-xs opacity-80">(v{extensionVersion || "1.0.1"} active)</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Your browser environment is protected and ready for examination.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {displayCount > 1 && (
+              <Alert variant="destructive">
+                <Monitor className="h-4 w-4" />
+                <AlertTitle>Dual Displays Prohibited</AlertTitle>
+                <AlertDescription>
+                  Detected {displayCount} connected monitors. Secondary displays are not allowed. Please disconnect external displays to continue.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Strict Environment Enforced</AlertTitle>
@@ -250,18 +346,119 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
             <Button
               size="lg"
               onClick={handleButtonClick}
-              disabled={isLoading || !instructionsAcknowledged}
+              disabled={
+                isLoading ||
+                !instructionsAcknowledged ||
+                isInstalled === false ||
+                displayCount > 1
+              }
               className="w-full max-w-sm text-lg"
             >
               {isLoading
                 ? "Initializing..."
-                : exam.requiresPin
-                  ? "Continue to PIN"
-                  : "Start Exam"}
+                : isInstalled === false
+                  ? "Install ShieldIt to Begin"
+                  : displayCount > 1
+                    ? "Disconnect External Display"
+                    : exam.requiresPin
+                      ? "Continue to PIN"
+                      : "Start Exam"}
             </Button>
           </CardFooter>
         </Card>
       </div>
+
+      {/* Installation Guide Modal */}
+      <Dialog open={showInstallModal} onOpenChange={setShowInstallModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Shield className="h-5 w-5 text-primary" />
+              Install ShieldIt Proctor Extension
+            </DialogTitle>
+            <DialogDescription>
+              Follow these simple steps to install the extension in your Chromium browser (Chrome, Edge, Brave).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-sm">
+            <div className="rounded-lg border p-3 flex items-start gap-3 bg-muted/40">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+                1
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Download the Extension Package</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Download and unzip the official ShieldIt zip bundle on your computer.
+                </p>
+                <Button size="sm" variant="secondary" className="mt-2.5 gap-1.5" asChild>
+                  <a href={SHIELDIT_ZIP_DOWNLOAD_URL} download="shieldit.zip">
+                    <Download className="h-3.5 w-3.5" />
+                    Download ShieldIt (.zip)
+                  </a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-3 flex items-start gap-3 bg-muted/40">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+                2
+              </div>
+              <div>
+                <p className="font-medium">Open Chrome Extensions</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Open a new tab, visit <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">chrome://extensions</code>, and turn <strong>Developer mode</strong> (top-right toggle) ON.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-3 flex items-start gap-3 bg-muted/40">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+                3
+              </div>
+              <div>
+                <p className="font-medium">Load Unpacked</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Click <strong>Load unpacked</strong> and select the <strong>ShieldIt</strong> folder. It will auto-connect to this page immediately!
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-900 dark:text-blue-200">
+              <p className="font-semibold flex items-center gap-1.5">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Chrome Web Store (Production)
+              </p>
+              <p className="mt-1 opacity-90 leading-relaxed">
+                Once published to the Chrome Web Store, students can install with a single click without developer mode. Configure <code className="font-mono bg-blue-500/20 px-1 py-0.5 rounded">NEXT_PUBLIC_SHIELDIT_CHROME_STORE_URL</code> in your environment to activate the direct store link.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-row gap-2 sm:justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                checkStatus();
+              }}
+            >
+              <RotateCw className="h-3.5 w-3.5" />
+              Verify Detection
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                checkStatus();
+                setShowInstallModal(false);
+              }}
+            >
+              Done & Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={pinDialogOpen} onOpenChange={setPinDialogOpen}>
         <DialogContent className="sm:max-w-sm">

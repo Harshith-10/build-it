@@ -246,3 +246,24 @@ html.lenis body {
     transform: translateX(10px);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* ShieldIt Extension Status Badge Override                                  */
+/* Relocates badge to bottom-right corner so it never covers the countdown   */
+/* timer or header navigation elements.                                      */
+/* -------------------------------------------------------------------------- */
+#shieldit-status-badge {
+  position: fixed !important;
+  top: auto !important;
+  left: auto !important;
+  bottom: 16px !important;
+  right: 18px !important;
+  transform: none !important;
+  z-index: 2147483647 !important;
+  cursor: grab !important;
+}
+
+#shieldit-status-badge:active {
+  cursor: grabbing !important;
+}
+

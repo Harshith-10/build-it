@@ -29,7 +29,7 @@ export default function RootLayout({
           src="https://tweakcn.com/live-preview.min.js"
         />
       </head>
-      <body className="h-screen">
+      <body className="h-screen" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
