@@ -10,6 +10,7 @@ export interface ShieldItStatus {
   success: boolean;
   name?: string;
   version?: string;
+  installed?: boolean;
   isLockdownActive?: boolean;
   activeExamId?: string | null;
   displayCount?: number;
