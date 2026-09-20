@@ -165,6 +165,12 @@ async function startLockdown(examId, tabId, options = {}, sessionSecret = null) 
     state.sessionSecret = activeSecret;
     await persistState();
 
+    // Cumulative backup in storage so we never lose paused extensions across sessions
+    const histData = await chrome.storage.local.get("shieldit_all_paused_history");
+    const existingHist = histData["shieldit_all_paused_history"] || [];
+    const updatedHist = Array.from(new Set([...existingHist, ...disabledIds]));
+    await chrome.storage.local.set({ shieldit_all_paused_history: updatedHist });
+
     // Now disable each extension
     for (const ext of extensionsToDisable) {
       try {
@@ -243,25 +249,30 @@ async function stopLockdown(forceAll = false, providedSecret = null) {
     state.isLockdownActive = false;
     await persistState();
 
-    // 2. Fetch the pre-exam snapshot
-    const data = await chrome.storage.local.get(STORAGE_KEYS.DISABLED_EXTENSIONS);
+    // 2. Fetch the pre-exam snapshot and cumulative history
+    const data = await chrome.storage.local.get([
+      STORAGE_KEYS.DISABLED_EXTENSIONS,
+      "shieldit_all_paused_history"
+    ]);
     let toRestore = (data[STORAGE_KEYS.DISABLED_EXTENSIONS] && data[STORAGE_KEYS.DISABLED_EXTENSIONS].length > 0)
       ? data[STORAGE_KEYS.DISABLED_EXTENSIONS]
       : state.disabledExtensions || [];
 
-    console.log(`[ShieldIt] Stored pre-exam snapshot contains ${toRestore.length} extensions.`);
+    const historyPaused = data["shieldit_all_paused_history"] || [];
+    toRestore = Array.from(new Set([...toRestore, ...historyPaused]));
 
-    // Fallback ONLY IF forceAll is explicitly requested AND toRestore is empty:
-    if (forceAll && toRestore.length === 0) {
-      console.log("[ShieldIt] Emergency restore: scanning all disabled extensions...");
+    // Fallback: If toRestore is empty OR forceAll is true, scan all third-party disabled extensions!
+    if (forceAll || toRestore.length === 0) {
+      console.log("[ShieldIt] Scanning all currently disabled extensions to restore...");
       const allExts = await chrome.management.getAll();
       const selfId = chrome.runtime.id;
-      toRestore = allExts
+      const currentlyDisabled = allExts
         .filter((ext) => ext.id !== selfId && !ext.enabled && ext.type !== "theme" && ext.mayDisable !== false)
         .map((ext) => ext.id);
+      toRestore = Array.from(new Set([...toRestore, ...currentlyDisabled]));
     }
 
-    console.log(`[ShieldIt] Restoring exact ${toRestore.length} pre-exam extensions...`);
+    console.log(`[ShieldIt] Restoring ${toRestore.length} extensions...`);
 
     let restoredCount = 0;
     for (const id of toRestore) {
@@ -279,6 +290,7 @@ async function stopLockdown(forceAll = false, providedSecret = null) {
     state.examTabId = null;
     state.disabledExtensions = [];
     state.sessionSecret = null;
+    await chrome.storage.local.remove("shieldit_all_paused_history");
     await persistState();
 
     // Settle delay before re-enabling anti-tamper check
@@ -413,12 +425,13 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 /**
- * 6. Navigation Auto-Restore: If the exam tab navigates to results or dashboard, restore extensions
+ * 6. Navigation Auto-Restore: If the exam tab navigates to results, auto-restore extensions
  */
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (state.isLockdownActive && state.examTabId === tabId && tab.url) {
-    if (tab.url.includes("/results") || tab.url.includes("/dashboard") || (tab.url.includes("/exams") && !tab.url.includes("/session"))) {
-      console.log("[ShieldIt] Exam tab navigated away from exam session. Auto-restoring extensions...");
+    // STRICT: Only auto-restore when the user has explicitly reached the exam results screen!
+    if (tab.url.includes("/results")) {
+      console.log("[ShieldIt] Exam results page reached. Auto-restoring extensions...");
       await stopLockdown(false, state.sessionSecret);
     }
   }
@@ -471,6 +484,9 @@ async function handleIncomingMessage(message, sender) {
 
     case "GET_STATUS": {
       const displays = await getConnectedDisplays();
+      if (sender.tab?.id && state.isLockdownActive) {
+        state.examTabId = sender.tab.id;
+      }
       return {
         success: true,
         isLockdownActive: state.isLockdownActive,

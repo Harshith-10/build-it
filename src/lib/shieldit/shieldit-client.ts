@@ -75,28 +75,23 @@ export async function checkShieldItInstalled(): Promise<{
   version?: string;
   displayCount?: number;
 }> {
-  // 1. Instant Synchronous Check: content script stamps DOM attribute immediately
-  if (
-    typeof document !== "undefined" &&
-    document.documentElement.getAttribute("data-shieldit-installed") === "true"
-  ) {
-    const version =
-      document.documentElement.getAttribute("data-shieldit-version") || "1.0.1";
-    return {
-      installed: true,
-      version
-    };
-  }
-
-  // 2. PostMessage Bridge Check with reliable timeout
+  // Live ping check with timeout
   try {
-    const res = await sendShieldItMessage<ShieldItStatus>("PING", {}, 2500);
+    const res = await sendShieldItMessage<ShieldItStatus>("PING", {}, 1200);
+    const isLive =
+      res?.success === true && res?.installed === true && res?.name === "ShieldIt";
+    if (!isLive && typeof document !== "undefined") {
+      document.documentElement.removeAttribute("data-shieldit-installed");
+    }
     return {
-      installed: res?.success === true && res?.name === "ShieldIt",
+      installed: isLive,
       version: res?.version || "1.0.1",
       displayCount: res?.displayCount
     };
   } catch {
+    if (typeof document !== "undefined") {
+      document.documentElement.removeAttribute("data-shieldit-installed");
+    }
     return { installed: false };
   }
 }
@@ -171,45 +166,26 @@ export async function stopShieldItLockdown(examId?: string, sessionSecret?: stri
  * Manages extension detection, lockdown status, and violation monitoring.
  */
 export function useShieldIt(examId?: string) {
-  const [isInstalled, setIsInstalled] = useState<boolean | null>(() => {
-    if (typeof document !== "undefined") {
-      return document.documentElement.getAttribute("data-shieldit-installed") === "true";
-    }
-    return null;
-  });
-  const [extensionVersion, setExtensionVersion] = useState<string | null>(() => {
-    if (typeof document !== "undefined") {
-      return document.documentElement.getAttribute("data-shieldit-version");
-    }
-    return null;
-  });
+  const [isInstalled, setIsInstalled] = useState<boolean | null>(null);
+  const [extensionVersion, setExtensionVersion] = useState<string | null>(null);
   const [displayCount, setDisplayCount] = useState<number>(1);
   const [isLockdownActive, setIsLockdownActive] = useState<boolean>(false);
   const [violations, setViolations] = useState<ShieldItViolation[]>([]);
 
   const checkStatus = useCallback(async () => {
-    // Check DOM first
-    if (
-      typeof document !== "undefined" &&
-      document.documentElement.getAttribute("data-shieldit-installed") === "true"
-    ) {
-      setIsInstalled(true);
-      setExtensionVersion(
-        document.documentElement.getAttribute("data-shieldit-version") || "1.0.1"
-      );
-    }
     const status = await checkShieldItInstalled();
     if (status.installed) {
       setIsInstalled(true);
       if (status.version) setExtensionVersion(status.version);
       if (status.displayCount !== undefined) setDisplayCount(status.displayCount);
-    } else if (isInstalled === null) {
+    } else {
       setIsInstalled(false);
+      setIsLockdownActive(false);
     }
     return status;
-  }, [isInstalled]);
+  }, []);
 
-  // Check extension availability on mount & listen for instant ready signal
+  // Check extension availability on mount & listen for live signals
   useEffect(() => {
     let isMounted = true;
     checkStatus();
@@ -221,9 +197,25 @@ export function useShieldIt(examId?: string) {
       if (e.detail?.version) setExtensionVersion(e.detail.version);
     };
 
-    // 2. Background status update listener
+    // 2. Background status / disconnection listener
     const handleStatusMessage = (event: MessageEvent) => {
       if (!isMounted || !event.data || event.data.target !== "SHIELDIT_WEB_APP") return;
+
+      if (event.data.error === "EXTENSION_DISABLED" || event.data.installed === false) {
+        setIsInstalled(false);
+        setIsLockdownActive(false);
+        setViolations((prev) => [
+          ...prev,
+          {
+            type: "EXTENSION_DISABLED",
+            severity: "CRITICAL",
+            message: "ShieldIt Proctor extension was disabled or turned off.",
+            timestamp: Date.now()
+          }
+        ]);
+        return;
+      }
+
       if (event.data.type === "SHIELDIT_STATUS_UPDATE" || event.data.action === "STATUS_UPDATE") {
         setIsInstalled(true);
         if (event.data.displayCount !== undefined) setDisplayCount(event.data.displayCount);
@@ -234,23 +226,26 @@ export function useShieldIt(examId?: string) {
     window.addEventListener("shieldit:ready" as unknown as keyof WindowEventMap, handleReady as EventListener);
     window.addEventListener("message", handleStatusMessage);
 
-    // 3. Fast auto-poll (every 1 second) until extension is detected
+    // 3. Heartbeat watchdog poll (every 1.5s) to detect disabling / disconnect
+    let missedPings = 0;
     const pollInterval = setInterval(() => {
-      if (
-        typeof document !== "undefined" &&
-        document.documentElement.getAttribute("data-shieldit-installed") === "true"
-      ) {
-        setIsInstalled(true);
-      }
       checkShieldItInstalled().then((status) => {
         if (!isMounted) return;
         if (status.installed) {
+          missedPings = 0;
           setIsInstalled(true);
           if (status.version) setExtensionVersion(status.version);
           if (status.displayCount !== undefined) setDisplayCount(status.displayCount);
+        } else {
+          missedPings++;
+          // If missed 2 consecutive pings (~3s), extension was disabled in browser
+          if (missedPings >= 2) {
+            setIsInstalled(false);
+            setIsLockdownActive(false);
+          }
         }
       });
-    }, 1000);
+    }, 1500);
 
     // 4. Violation listener
     const handleViolation = (event: CustomEvent<ShieldItViolation>) => {

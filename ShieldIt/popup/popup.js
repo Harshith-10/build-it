@@ -18,7 +18,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderStatus(data) {
     if (!data) return;
 
-    if (data.isLockdownActive && data.isOnExamSession) {
+    if (data.isLockdownActive) {
+      // 1. Exam is actively running
       badge.textContent = "Protected";
       badge.className = "badge badge-active";
       dot.className = "dot dot-active";
@@ -30,44 +31,48 @@ document.addEventListener("DOMContentLoaded", async () => {
       pausedCountEl.textContent = `${data.disabledCount || 0} extensions paused`;
       monitorCountEl.textContent = `${data.displays?.length || 1} display(s)`;
 
-      // Anti-tamper: Students CANNOT restore extensions mid-exam while session is open
+      // Anti-tamper: Students CANNOT restore extensions mid-exam
       btnRestore.disabled = true;
       btnRestore.textContent = "🔒 Restoring Disabled During Exam";
       btnRestore.title = "You cannot restore extensions while an examination is actively open.";
-    } else {
-      badge.textContent = data.isLockdownActive ? "Exam Ended" : "Idle";
+    } else if (data.disabledCount > 0) {
+      // 2. Exam concluded - extensions waiting to be restored
+      badge.textContent = "Exam Concluded";
       badge.className = "badge badge-idle";
       dot.className = "dot dot-idle";
-      title.textContent = data.isLockdownActive ? "Exam Completed" : "No Active Exam";
-      desc.textContent = data.isLockdownActive
-        ? "Your exam has concluded. You can restore your personal extensions now."
-        : "ShieldIt is standing by. When you begin an exam on BuildIt, this shield will automatically secure your environment.";
+      title.textContent = "Exam Completed";
+      desc.textContent = "Your exam has concluded. You can restore your personal extensions now.";
 
-      detailsCard.style.display = data.isLockdownActive ? "flex" : "none";
-      if (data.isLockdownActive) {
-        examIdEl.textContent = data.activeExamId || "Submitted";
-        pausedCountEl.textContent = `${data.disabledCount || 0} extensions ready to restore`;
-      }
+      detailsCard.style.display = "flex";
+      examIdEl.textContent = data.activeExamId || "Completed";
+      pausedCountEl.textContent = `${data.disabledCount} extensions ready to restore`;
+      monitorCountEl.textContent = `${data.displays?.length || 1} display(s)`;
+
       btnRestore.disabled = false;
       btnRestore.textContent = "Restore All My Extensions";
       btnRestore.title = "Restore your previous extensions";
+    } else {
+      // 3. Normal idle standby
+      badge.textContent = "Idle";
+      badge.className = "badge badge-idle";
+      dot.className = "dot dot-idle";
+      title.textContent = "No Active Exam";
+      desc.textContent = "ShieldIt is standing by. When you begin an exam on BuildIt, this shield will automatically secure your environment.";
+
+      detailsCard.style.display = "none";
+      btnRestore.disabled = false;
+      btnRestore.textContent = "Restore / Re-enable Extensions";
+      btnRestore.title = "Click to re-enable your personal browser extensions.";
     }
   }
 
-  // Fetch status and check current tab
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const currentTab = tabs[0];
-    const isOnExamSession =
-      !!(currentTab?.url &&
-      (currentTab.url.includes("/session") || currentTab.url.includes("test_sandbox")));
-
-    chrome.runtime.sendMessage({ action: "GET_STATUS" }, (response) => {
-      if (chrome.runtime.lastError) {
-        desc.textContent = "Could not communicate with ShieldIt proctor.";
-        return;
-      }
-      renderStatus({ ...response, isOnExamSession });
-    });
+  // Fetch status directly from background service worker
+  chrome.runtime.sendMessage({ action: "GET_STATUS" }, (response) => {
+    if (chrome.runtime.lastError) {
+      desc.textContent = "Could not communicate with ShieldIt proctor.";
+      return;
+    }
+    renderStatus(response);
   });
 
   // Emergency restore button (only works when NO exam is active)

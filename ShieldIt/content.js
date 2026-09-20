@@ -121,6 +121,13 @@ function updateLockdownUI(active) {
     window.location.pathname.includes("shieldit-test");
 
   isExamLockdown = active && isExamPage;
+
+  // If called early at document_start before body is ready, wait for body
+  if (!document.body) {
+    document.addEventListener("DOMContentLoaded", () => updateLockdownUI(active), { once: true });
+    return;
+  }
+
   let badge = document.getElementById("shieldit-status-badge");
 
   if (active && isExamPage) {
@@ -201,9 +208,14 @@ function updateLockdownUI(active) {
   }
 }
 
-// ----------------------------------------------------------------------
-// 3. TWO-WAY WINDOW.POSTMESSAGE BRIDGE FOR WEB APP
-// ----------------------------------------------------------------------
+// Helper to check if extension context is still alive
+function isExtensionValid() {
+  try {
+    return typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id;
+  } catch {
+    return false;
+  }
+}
 
 // Listen for messages from the BuildIt web page
 window.addEventListener("message", (event) => {
@@ -211,6 +223,30 @@ window.addEventListener("message", (event) => {
   if (!event.data || event.data.target !== "SHIELDIT_EXTENSION") return;
 
   const { action, payload, correlationId } = event.data;
+
+  // If extension was disabled in chrome://extensions, cleanly notify web app and do not crash
+  if (!isExtensionValid()) {
+    try {
+      document.documentElement.removeAttribute("data-shieldit-installed");
+      document.documentElement.removeAttribute("data-shieldit-version");
+      const badge = document.getElementById("shieldit-status-badge");
+      if (badge) badge.remove();
+    } catch {}
+
+    window.postMessage(
+      {
+        target: "SHIELDIT_WEB_APP",
+        correlationId,
+        action,
+        success: false,
+        installed: false,
+        error: "EXTENSION_DISABLED",
+        message: "ShieldIt extension is disabled or context was invalidated."
+      },
+      "*"
+    );
+    return;
+  }
 
   // Fast-path: Answer PING immediately from content script for 0ms instant detection!
   if (action === "PING" || action === "HANDSHAKE") {
@@ -228,53 +264,70 @@ window.addEventListener("message", (event) => {
     );
 
     // Asynchronously query background worker to sync display count and lockdown status
-    chrome.runtime.sendMessage({ action: "GET_STATUS" }, (response) => {
-      if (response) {
-        window.postMessage(
-          {
-            target: "SHIELDIT_WEB_APP",
-            type: "SHIELDIT_STATUS_UPDATE",
-            ...response
-          },
-          "*"
-        );
-      }
-    });
+    if (isExtensionValid()) {
+      try {
+        chrome.runtime.sendMessage({ action: "GET_STATUS" }, (response) => {
+          if (chrome.runtime.lastError) return;
+          if (response) {
+            window.postMessage(
+              {
+                target: "SHIELDIT_WEB_APP",
+                type: "SHIELDIT_STATUS_UPDATE",
+                ...response
+              },
+              "*"
+            );
+          }
+        });
+      } catch {}
+    }
     return;
   }
 
   // Forward all other commands (START_LOCKDOWN, STOP_LOCKDOWN, etc.) to background worker
-  chrome.runtime.sendMessage({ action, payload }, (response) => {
-    if (chrome.runtime.lastError) {
+  try {
+    chrome.runtime.sendMessage({ action, payload }, (response) => {
+      if (chrome.runtime.lastError) {
+        window.postMessage(
+          {
+            target: "SHIELDIT_WEB_APP",
+            correlationId,
+            success: false,
+            error: chrome.runtime.lastError.message
+          },
+          "*"
+        );
+        return;
+      }
+
+      if (action === "START_LOCKDOWN" && response?.success) {
+        updateLockdownUI(true);
+      } else if (action === "STOP_LOCKDOWN" && response?.success) {
+        updateLockdownUI(false);
+      }
+
+      // Respond back to web page
       window.postMessage(
         {
           target: "SHIELDIT_WEB_APP",
           correlationId,
-          success: false,
-          error: chrome.runtime.lastError.message
+          action,
+          ...response
         },
         "*"
       );
-      return;
-    }
-
-    if (action === "START_LOCKDOWN" && response?.success) {
-      updateLockdownUI(true);
-    } else if (action === "STOP_LOCKDOWN" && response?.success) {
-      updateLockdownUI(false);
-    }
-
-    // Respond back to web page
+    });
+  } catch (err) {
     window.postMessage(
       {
         target: "SHIELDIT_WEB_APP",
         correlationId,
-        action,
-        ...response
+        success: false,
+        error: err.message
       },
       "*"
     );
-  });
+  }
 });
 
 // ----------------------------------------------------------------------
@@ -315,8 +368,13 @@ function notifyViolation(detail) {
 }
 
 // Check initial state on page load
-chrome.runtime.sendMessage({ action: "GET_STATUS" }, (response) => {
-  if (response?.isLockdownActive) {
-    updateLockdownUI(true);
-  }
-});
+if (isExtensionValid()) {
+  try {
+    chrome.runtime.sendMessage({ action: "GET_STATUS" }, (response) => {
+      if (chrome.runtime.lastError) return;
+      if (response?.isLockdownActive) {
+        updateLockdownUI(true);
+      }
+    });
+  } catch {}
+}
