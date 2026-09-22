@@ -3,7 +3,7 @@
 import { and, eq, gte, ilike, inArray, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { labSubmissions, exerciseGroups, exercises, labs, exerciseMarks, exerciseAttendance, labGroupFaculty } from "@/db/schema/labs";
+import { labSubmissions, vivaSubmissions, exerciseGroups, exercises, labs, exerciseMarks, exerciseAttendance, labGroupFaculty } from "@/db/schema/labs";
 import { userGroupMembers } from "@/db/schema/groups";
 import { requireUser } from "@/lib/auth-access";
 
@@ -74,6 +74,9 @@ export async function getMyExercises(labId: string) {
       submissions: {
         where: eq(labSubmissions.userId, session.user.id),
       },
+      vivaSubmissions: {
+        where: eq(vivaSubmissions.userId, session.user.id),
+      },
       marks: {
         where: eq(exerciseMarks.userId, session.user.id),
       },
@@ -123,8 +126,9 @@ export async function getMyExercises(labId: string) {
 
     const totalPrograms = exercise.collection?.questions?.length ?? 0;
     const solvedCount = isAbsent ? 0 : (exercise.submissions?.length ?? 0);
+    const vivaCount = isAbsent ? 0 : (exercise.vivaSubmissions?.filter((v) => v.answerText && v.answerText.trim().length > 0).length ?? 0);
     const markEntry = isAbsent ? null : (exercise.marks?.[0] ?? null);
-    const isSubmitted = markEntry !== null;
+    const isSubmitted = markEntry !== null || (totalPrograms === 0 && vivaCount > 0) || (vivaCount > 0);
 
     return {
       ...exercise,

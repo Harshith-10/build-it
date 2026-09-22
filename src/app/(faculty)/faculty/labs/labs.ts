@@ -8,7 +8,9 @@ import {
   exerciseAttendance,
   exerciseGroups,
   labGroupFaculty,
+  vivaSubmissions,
 } from "@/db/schema/labs";
+import { user } from "@/db/schema/auth";
 import { userGroups, userGroupMembers } from "@/db/schema/groups";
 import { eq, count, countDistinct, inArray, and } from "drizzle-orm";
 import { ensureEntityPermission, checkAwardMarksWindow, requireUser } from "@/lib/auth-access";
@@ -242,6 +244,25 @@ export async function getExerciseSubmissions(
       submissions = submissions.filter((s) => allowedStudentIds!.has(s.userId));
     }
 
+    // Load vivaSubmissions for this exercise
+    let vivaSubs = await db.query.vivaSubmissions.findMany({
+      where: eq(vivaSubmissions.exerciseId, exerciseId),
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (allowedStudentIds) {
+      vivaSubs = vivaSubs.filter((s) => allowedStudentIds!.has(s.userId));
+    }
+
     // Load all marks for this exercise
     let marks = await db.query.exerciseMarks.findMany({
       where: eq(exerciseMarks.exerciseId, exerciseId),
@@ -260,12 +281,40 @@ export async function getExerciseSubmissions(
         email: string;
         username: string | null;
         solvedProgramIds: string[];
+        vivaSubmittedCount: number;
         marks: number | null;
         implementationMarks: number | null;
         writeUpMarks: number | null;
         vivaMarks: number | null;
       }
     >();
+
+    if (allowedStudentIds && allowedStudentIds.size > 0) {
+      const studentUsers = await db.query.user.findMany({
+        where: inArray(user.id, Array.from(allowedStudentIds)),
+        columns: {
+          id: true,
+          name: true,
+          email: true,
+          username: true,
+        },
+      });
+
+      for (const u of studentUsers) {
+        studentMap.set(u.id, {
+          id: u.id,
+          name: u.name ?? "Unknown",
+          email: u.email ?? "",
+          username: u.username ?? null,
+          solvedProgramIds: [],
+          vivaSubmittedCount: 0,
+          marks: null,
+          implementationMarks: null,
+          writeUpMarks: null,
+          vivaMarks: null,
+        });
+      }
+    }
 
     for (const sub of submissions) {
       const sid = sub.userId;
@@ -276,6 +325,7 @@ export async function getExerciseSubmissions(
           email: sub.user?.email ?? "",
           username: sub.user?.username ?? null,
           solvedProgramIds: [],
+          vivaSubmittedCount: 0,
           marks: null,
           implementationMarks: null,
           writeUpMarks: null,
@@ -284,6 +334,28 @@ export async function getExerciseSubmissions(
       }
       if (sub.programId !== "00000000-0000-0000-0000-000000000000") {
         studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
+      }
+    }
+
+    for (const vsub of vivaSubs) {
+      const sid = vsub.userId;
+      if (!studentMap.has(sid)) {
+        studentMap.set(sid, {
+          id: sid,
+          name: vsub.user?.name ?? "Unknown",
+          email: vsub.user?.email ?? "",
+          username: vsub.user?.username ?? null,
+          solvedProgramIds: [],
+          vivaSubmittedCount: 0,
+          marks: null,
+          implementationMarks: null,
+          writeUpMarks: null,
+          vivaMarks: null,
+        });
+      }
+      if (vsub.answerText && vsub.answerText.trim().length > 0) {
+        const student = studentMap.get(sid)!;
+        student.vivaSubmittedCount = (student.vivaSubmittedCount ?? 0) + 1;
       }
     }
 

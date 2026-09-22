@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getLabGroupFaculty } from "@/actions/admin/labs";
 import { getCollections } from "@/actions/admin/collections";
+import { ImportVivaDialog } from "@/components/admin/collections/import-viva-dialog";
 import {
   assignExerciseGroup,
   removeExerciseGroup,
@@ -95,6 +96,7 @@ export function ExerciseFormDialog({
   onSaved,
   labId,
   initial,
+  defaultExerciseNo = 1,
   onUpdateExercise,
 }: {
   open: boolean;
@@ -102,6 +104,7 @@ export function ExerciseFormDialog({
   onSaved: () => void;
   labId: string;
   initial?: Exercise;
+  defaultExerciseNo?: number;
   onUpdateExercise: (data: {
     id?: string;
     exerciseNo: number;
@@ -127,7 +130,7 @@ export function ExerciseFormDialog({
   const form = useForm<z.input<typeof exerciseSchema>, unknown, ExerciseFormValues>({
     resolver: zodResolver(exerciseSchema),
     defaultValues: {
-      exerciseNo: initial?.exerciseNo ?? 1,
+      exerciseNo: initial?.exerciseNo ?? defaultExerciseNo,
       title: initial?.title ?? "",
       description: initial?.description ?? "",
       collectionId: initial?.collectionId ?? null,
@@ -137,7 +140,7 @@ export function ExerciseFormDialog({
   // Reset on open
   useEffect(() => {
     form.reset({
-      exerciseNo: initial?.exerciseNo ?? 1,
+      exerciseNo: initial?.exerciseNo ?? defaultExerciseNo,
       title: initial?.title ?? "",
       description: initial?.description ?? "",
       collectionId: initial?.collectionId ?? null,
@@ -308,7 +311,7 @@ export function ExerciseFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {initial ? "Edit Exercise" : "Add Exercise"}
@@ -515,15 +518,15 @@ export function ExerciseFormDialog({
 
                 {/* Currently selected collection */}
                 {selectedCollection && (
-                  <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/20">
-                    <div className="flex items-center gap-2">
-                      <Library className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">
+                  <div className="flex items-start justify-between border rounded-lg p-3 bg-muted/20 gap-3">
+                    <div className="flex items-start gap-2 min-w-0 flex-1">
+                      <Library className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-snug break-words">
                           {selectedCollection.title}
                         </p>
                         {selectedCollection.description && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">
                             {selectedCollection.description}
                           </p>
                         )}
@@ -534,6 +537,7 @@ export function ExerciseFormDialog({
                       variant="ghost"
                       size="icon-sm"
                       onClick={() => form.setValue("collectionId", null)}
+                      className="shrink-0"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -555,7 +559,7 @@ export function ExerciseFormDialog({
                 </div>
 
                 {/* Collections list */}
-                <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+                <div className="border rounded-lg overflow-hidden max-h-80 overflow-y-auto">
                   {collections.length === 0 && !loadingCollections ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       No collections found
@@ -568,7 +572,7 @@ export function ExerciseFormDialog({
                         <button
                           key={collection.id}
                           type="button"
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted transition-colors border-b last:border-b-0 ${
+                          className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted transition-colors border-b last:border-b-0 ${
                             isSelected ? "bg-primary/5 border-l-2 border-l-primary" : ""
                           }`}
                           onClick={() =>
@@ -578,19 +582,19 @@ export function ExerciseFormDialog({
                             )
                           }
                         >
-                          <Library className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
+                          <Library className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="text-sm font-medium leading-snug break-words">
                               {collection.title}
                             </p>
                             {collection.description && (
-                              <p className="text-xs text-muted-foreground truncate">
+                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">
                                 {collection.description}
                               </p>
                             )}
                           </div>
                           {isSelected && (
-                            <Badge variant="outline" className="text-xs shrink-0">
+                            <Badge variant="outline" className="text-xs shrink-0 mt-0.5">
                               Selected
                             </Badge>
                           )}
@@ -599,10 +603,20 @@ export function ExerciseFormDialog({
                     })
                   )}
                 </div>
+
+                {/* Import Viva PDF Button — Only on Collection Tab */}
+                {form.watch("collectionId") && (
+                  <div className="flex items-center justify-between border-t pt-3 mt-2">
+                    <span className="text-xs text-muted-foreground">
+                      Attach 50 Viva questions to this assigned collection:
+                    </span>
+                    <ImportVivaDialog collectionId={form.watch("collectionId")!} />
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>

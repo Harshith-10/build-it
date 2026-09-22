@@ -9,18 +9,22 @@ import { toast } from "sonner";
 
 interface DownloadReportButtonProps {
   exerciseId: string;
+  studentId?: string;
   exerciseTitle?: string;
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
+  label?: string;
 }
 
 export function DownloadReportButton({
   exerciseId,
+  studentId,
   exerciseTitle,
   variant = "outline",
   size = "sm",
   className = "",
+  label,
 }: DownloadReportButtonProps) {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<ExerciseReportData | null>(null);
@@ -29,7 +33,7 @@ export function DownloadReportButton({
   const handleDownload = async () => {
     try {
       setLoading(true);
-      const res = await getExerciseReportData(exerciseId);
+      const res = await getExerciseReportData(exerciseId, studentId);
 
       if (!res.success || !res.data) {
         toast.error(res.error || "Failed to load report data");
@@ -191,7 +195,7 @@ export function DownloadReportButton({
         ) : (
           <FileText className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
         )}
-        Download Report
+        {label ?? "Download Report"}
       </Button>
 
       {/* Hidden container for print content extraction (No preview modal) */}

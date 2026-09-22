@@ -21,6 +21,9 @@ import { LabSidebar } from "./lab-sidebar";
 import { LabHeader } from "./lab-header";
 import { LabProblemViewer } from "./lab-problem-viewer";
 import { LabCodePlayground } from "./lab-code-playground";
+import { VivaQuestionViewer } from "./viva-question-viewer";
+import { VivaAnswerEditor } from "./viva-answer-editor";
+import { getAssignedVivaQuestions, saveVivaAnswerAction, type AssignedVivaQuestion } from "@/actions/student/labs/viva";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -74,7 +77,28 @@ export function LabIDEShell({
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [_mounted, setMounted] = useState(false);
   const [locked, setLocked] = useState(false);
+
+  // Viva state
+  const [vivaQuestions, setVivaQuestions] = useState<AssignedVivaQuestion[]>([]);
+  const [submittedVivaIds, setSubmittedVivaIds] = useState<Set<string>>(new Set());
+  const [activeVivaIndex, setActiveVivaIndex] = useState<number | null>(null);
+
   useEffect(() => setMounted(true), []);
+
+  // Fetch assigned Viva questions for student
+  useEffect(() => {
+    getAssignedVivaQuestions(exercise.id).then((res) => {
+      if (res.success && res.questions) {
+        setVivaQuestions(res.questions);
+        const preSubmitted = new Set(
+          res.questions
+            .filter((q) => q.answerText && q.answerText.trim().length > 0)
+            .map((q) => q.vivaQuestionId)
+        );
+        setSubmittedVivaIds(preSubmitted);
+      }
+    });
+  }, [exercise.id]);
 
   // Poll every 30s to detect if attendance has been posted and student is absent
   useEffect(() => {
@@ -97,7 +121,33 @@ export function LabIDEShell({
   const activeProgram =
     programs.find((p) => p.id === activeProgramId) || programs[0];
 
-  if (!activeProgram) {
+  const handleSelectProgram = (id: string) => {
+    setActiveVivaIndex(null);
+    setActiveProgramId(id);
+  };
+
+  const handleSelectViva = (index: number) => {
+    setActiveVivaIndex(index);
+  };
+
+  const handleVivaAnswerSubmitted = (vivaQuestionId: string, answerText: string) => {
+    setSubmittedVivaIds((prev) => new Set([...prev, vivaQuestionId]));
+    setVivaQuestions((prev) =>
+      prev.map((q) =>
+        q.vivaQuestionId === vivaQuestionId ? { ...q, answerText } : q
+      )
+    );
+  };
+
+  const handleVivaAnswerTextChange = (vivaQuestionId: string, answerText: string) => {
+    setVivaQuestions((prev) =>
+      prev.map((q) =>
+        q.vivaQuestionId === vivaQuestionId ? { ...q, answerText } : q
+      )
+    );
+  };
+
+  if (!activeProgram && vivaQuestions.length === 0) {
     return (
       <div className="flex h-screen items-center justify-center">
         No programs available.
@@ -135,6 +185,12 @@ export function LabIDEShell({
     setShowSubmitDialog(true);
   };
 
+  const vivaAnsweredIndices = vivaQuestions
+    .map((q, idx) => (submittedVivaIds.has(q.vivaQuestionId) ? idx : -1))
+    .filter((idx) => idx !== -1);
+  const vivaAnsweredCount = vivaAnsweredIndices.length;
+  const activeVivaQuestion = activeVivaIndex !== null ? vivaQuestions[activeVivaIndex] : null;
+
   return (
     // ✅ fixed inset-0 z-50 overlays the entire student layout
     <div className="fixed inset-0 z-50">
@@ -143,9 +199,14 @@ export function LabIDEShell({
           exerciseTitle={exercise.title}
           exerciseNo={exercise.exerciseNo}
           programs={programs}
-          activeId={activeProgramId || activeProgram.id}
-          onSelect={setActiveProgramId}
+          activeId={activeProgramId || activeProgram?.id || null}
+          onSelect={handleSelectProgram}
           solvedIds={[...solvedSet]}
+          vivaQuestionsCount={vivaQuestions.length}
+          activeVivaIndex={activeVivaIndex}
+          onSelectViva={handleSelectViva}
+          vivaAnsweredCount={vivaAnsweredCount}
+          vivaAnsweredIndices={vivaAnsweredIndices}
         />
         <SidebarInset className="h-screen overflow-hidden flex flex-col">
           <LabHeader
@@ -157,24 +218,48 @@ export function LabIDEShell({
           />
           <div className="flex-1 min-h-0 overflow-hidden">
             <ResizablePanelGroup orientation="horizontal" className="h-full">
-              <ResizablePanel defaultSize={40} minSize={30}>
-                <LabProblemViewer
-                  program={activeProgram}
-                  exercise={exercise}
-                  isSolved={solvedSet.has(activeProgram.id)}
-                />
-              </ResizablePanel>
-              <ResizableHandle withHandle handleOrientation="vertical" />
-              <ResizablePanel defaultSize={60} minSize={30}>
-                <LabCodePlayground
-                  key={activeProgram.id}
-                  program={activeProgram}
-                  exercise={exercise}
-                  labId={labId}
-                  isSolved={solvedSet.has(activeProgram.id)}
-                  onSolved={() => handleSolved(activeProgram.id)}
-                />
-              </ResizablePanel>
+              {activeVivaQuestion ? (
+                <>
+                  <ResizablePanel defaultSize={40} minSize={30}>
+                    <VivaQuestionViewer
+                      question={activeVivaQuestion}
+                      totalQuestions={vivaQuestions.length}
+                    />
+                  </ResizablePanel>
+                  <ResizableHandle withHandle handleOrientation="vertical" />
+                  <ResizablePanel defaultSize={60} minSize={30}>
+                    <VivaAnswerEditor
+                      key={activeVivaQuestion.vivaQuestionId}
+                      exerciseId={exercise.id}
+                      question={activeVivaQuestion}
+                      isQuestionSubmitted={submittedVivaIds.has(activeVivaQuestion.vivaQuestionId)}
+                      onAnswerSubmitted={handleVivaAnswerSubmitted}
+                      onAnswerTextChange={handleVivaAnswerTextChange}
+                    />
+                  </ResizablePanel>
+                </>
+              ) : (
+                <>
+                  <ResizablePanel defaultSize={40} minSize={30}>
+                    <LabProblemViewer
+                      program={activeProgram}
+                      exercise={exercise}
+                      isSolved={solvedSet.has(activeProgram.id)}
+                    />
+                  </ResizablePanel>
+                  <ResizableHandle withHandle handleOrientation="vertical" />
+                  <ResizablePanel defaultSize={60} minSize={30}>
+                    <LabCodePlayground
+                      key={activeProgram.id}
+                      program={activeProgram}
+                      exercise={exercise}
+                      labId={labId}
+                      isSolved={solvedSet.has(activeProgram.id)}
+                      onSolved={() => handleSolved(activeProgram.id)}
+                    />
+                  </ResizablePanel>
+                </>
+              )}
             </ResizablePanelGroup>
           </div>
         </SidebarInset>
@@ -195,6 +280,16 @@ export function LabIDEShell({
             <AlertDialogAction
               className="bg-green-600 hover:bg-green-700 text-white"
               onClick={async () => {
+                // Save any pending/unsubmitted Viva answers to guarantee report inclusion
+                for (const vq of vivaQuestions) {
+                  if (vq.answerText && vq.answerText.trim().length > 0) {
+                    await saveVivaAnswerAction({
+                      exerciseId: exercise.id,
+                      vivaQuestionId: vq.vivaQuestionId,
+                      answerText: vq.answerText,
+                    }).catch(() => {});
+                  }
+                }
                 const res = await submitExercise(exercise.id);
                 if (res.success) {
                   router.push(`/labs/${labId}/${exercise.id}/results`);
