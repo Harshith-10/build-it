@@ -223,7 +223,7 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
       questionNo: idx + 1,
       questionText: sub.vivaQuestion?.questionText ?? "Viva Question",
       answerText: sub.answerText ?? "",
-      maxMarks: sub.vivaQuestion?.maxMarks ?? "2.5",
+      maxMarks: sub.vivaQuestion?.maxMarks ?? "4",
     }));
 
     // 6. Format programs list

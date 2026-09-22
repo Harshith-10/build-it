@@ -1,6 +1,6 @@
 "use client";
 
-import { HelpCircle, Sparkles } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { AssignedVivaQuestion } from "@/actions/student/labs/viva";
 

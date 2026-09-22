@@ -253,7 +253,7 @@ export const vivaQuestionPool = pgTable("viva_question_pool", {
   questionText: text("question_text").notNull(),
   maxMarks: numeric("max_marks", { precision: 5, scale: 2 })
     .notNull()
-    .default("2.5"),
+    .default("4.0"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
