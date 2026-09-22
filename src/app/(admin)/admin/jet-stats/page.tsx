@@ -819,9 +819,9 @@ export default function JetStatsPage() {
                             labelFormatter={(label, payload) => {
                               const item = payload?.[0]?.payload as
                                 | {
-                                    ageAgoSeconds?: number;
-                                    timestampLabel?: string;
-                                  }
+                                  ageAgoSeconds?: number;
+                                  timestampLabel?: string;
+                                }
                                 | undefined;
                               return item?.timestampLabel
                                 ? `${item.ageAgoSeconds ?? label}s ago • ${item.timestampLabel}`
@@ -949,9 +949,9 @@ export default function JetStatsPage() {
                             labelFormatter={(label, payload) => {
                               const item = payload?.[0]?.payload as
                                 | {
-                                    ageAgoSeconds?: number;
-                                    timestampLabel?: string;
-                                  }
+                                  ageAgoSeconds?: number;
+                                  timestampLabel?: string;
+                                }
                                 | undefined;
                               return item?.timestampLabel
                                 ? `${item.ageAgoSeconds ?? label}s ago • ${item.timestampLabel}`

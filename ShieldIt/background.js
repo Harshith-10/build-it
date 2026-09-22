@@ -16,41 +16,16 @@ let state = {
   isLockdownActive: false,
   activeExamId: null,
   examTabId: null,
+  examWindowId: null,
   disabledExtensions: [],
   sessionSecret: null
 };
 
 let isRestoring = false;
 
-// Restore state on service worker startup
-let initPromise = null;
-async function initServiceWorker() {
-  try {
-    const data = await chrome.storage.local.get([
-      STORAGE_KEYS.LOCKDOWN_STATE,
-      STORAGE_KEYS.ACTIVE_EXAM,
-      STORAGE_KEYS.EXAM_TAB_ID,
-      STORAGE_KEYS.DISABLED_EXTENSIONS,
-      STORAGE_KEYS.SESSION_SECRET
-    ]);
-
-    state.isLockdownActive = !!data[STORAGE_KEYS.LOCKDOWN_STATE];
-    state.activeExamId = data[STORAGE_KEYS.ACTIVE_EXAM] || null;
-    state.examTabId = data[STORAGE_KEYS.EXAM_TAB_ID] || null;
-    state.disabledExtensions = data[STORAGE_KEYS.DISABLED_EXTENSIONS] || [];
-    state.sessionSecret = data[STORAGE_KEYS.SESSION_SECRET] || null;
-
-    console.log("[ShieldIt] Service worker initialized. Active:", state.isLockdownActive, "Secret loaded:", !!state.sessionSecret);
-  } catch (err) {
-    console.error("[ShieldIt] Failed to initialize state:", err);
-  }
-}
-
-initPromise = initServiceWorker();
-
-// Auto-inject content scripts and styles into open BuildIt tabs upon extension install or reload
-chrome.runtime.onInstalled.addListener(async () => {
-  console.log("[ShieldIt] Extension installed/reloaded. Scanning for existing BuildIt tabs...");
+// Scan and inject content scripts and styles into open BuildIt tabs
+async function injectTabs() {
+  console.log("[ShieldIt] Scanning for open BuildIt tabs to inject content scripts...");
   try {
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
@@ -73,13 +48,51 @@ chrome.runtime.onInstalled.addListener(async () => {
           });
           console.log(`[ShieldIt] Auto-injected into existing tab ${tab.id}: ${tab.url}`);
         } catch (err) {
-          // Tab might already have the script running or is restricted
+          console.warn(`[ShieldIt] Auto-injection failed on tab ${tab.id}:`, err);
         }
       }
     }
   } catch (err) {
     console.error("[ShieldIt] Error during tab auto-injection:", err);
   }
+}
+
+// Restore state on service worker startup
+let initPromise = null;
+async function initServiceWorker() {
+  try {
+    const data = await chrome.storage.local.get([
+      STORAGE_KEYS.LOCKDOWN_STATE,
+      STORAGE_KEYS.ACTIVE_EXAM,
+      STORAGE_KEYS.EXAM_TAB_ID,
+      STORAGE_KEYS.DISABLED_EXTENSIONS,
+      STORAGE_KEYS.SESSION_SECRET
+    ]);
+
+    state.isLockdownActive = !!data[STORAGE_KEYS.LOCKDOWN_STATE];
+    state.activeExamId = data[STORAGE_KEYS.ACTIVE_EXAM] || null;
+    state.examTabId = data[STORAGE_KEYS.EXAM_TAB_ID] || null;
+    state.disabledExtensions = data[STORAGE_KEYS.DISABLED_EXTENSIONS] || [];
+    state.sessionSecret = data[STORAGE_KEYS.SESSION_SECRET] || null;
+
+    console.log("[ShieldIt] Service worker initialized. Active:", state.isLockdownActive, "Secret loaded:", !!state.sessionSecret);
+
+    // Auto-inject into open tabs so existing sessions detect the extension immediately upon toggle ON
+    await injectTabs();
+  } catch (err) {
+    console.error("[ShieldIt] Failed to initialize state:", err);
+  }
+}
+
+initPromise = initServiceWorker();
+
+// Ensure injection on install/update or browser startup
+chrome.runtime.onInstalled.addListener(async () => {
+  await injectTabs();
+});
+
+chrome.runtime.onStartup.addListener(async () => {
+  await injectTabs();
 });
 
 // Save state to chrome.storage
@@ -117,6 +130,10 @@ async function startLockdown(examId, tabId, options = {}, sessionSecret = null) 
     // Guard: If lockdown is already active and we already have a snapshot, do not overwrite it!
     if (state.isLockdownActive && state.disabledExtensions && state.disabledExtensions.length > 0) {
       console.log("[ShieldIt] Lockdown already active. Preserving current pre-exam snapshot.");
+      if (tabId) {
+        state.examTabId = tabId;
+        await persistState();
+      }
       return {
         success: true,
         disabledCount: state.disabledExtensions.length,
@@ -163,7 +180,24 @@ async function startLockdown(examId, tabId, options = {}, sessionSecret = null) 
     state.examTabId = tabId || null;
     state.disabledExtensions = disabledIds;
     state.sessionSecret = activeSecret;
+
+    if (tabId) {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        if (tab?.windowId) {
+          state.examWindowId = tab.windowId;
+        }
+      } catch (err) {}
+    }
+
     await persistState();
+
+    // Broadcast lockdown started to all exam tabs immediately
+    sendPayloadToExamTabs({
+      source: "SHIELDIT_EXTENSION",
+      type: "LOCKDOWN_STARTED",
+      examId
+    });
 
     // Cumulative backup in storage so we never lose paused extensions across sessions
     const histData = await chrome.storage.local.get("shieldit_all_paused_history");
@@ -288,10 +322,17 @@ async function stopLockdown(forceAll = false, providedSecret = null) {
     // Reset state & storage
     state.activeExamId = null;
     state.examTabId = null;
+    state.examWindowId = null;
     state.disabledExtensions = [];
     state.sessionSecret = null;
     await chrome.storage.local.remove("shieldit_all_paused_history");
     await persistState();
+
+    // Broadcast lockdown stopped to all exam tabs immediately
+    sendPayloadToExamTabs({
+      source: "SHIELDIT_EXTENSION",
+      type: "LOCKDOWN_STOPPED"
+    });
 
     // Settle delay before re-enabling anti-tamper check
     setTimeout(() => {
@@ -305,6 +346,28 @@ async function stopLockdown(forceAll = false, providedSecret = null) {
     console.error("[ShieldIt] Error restoring extensions:", err);
     return { success: false, error: err.message };
   }
+}
+
+/**
+ * Helper to broadcast messages to all open BuildIt exam tabs
+ */
+function sendPayloadToExamTabs(payload) {
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs || []) {
+      const isTarget =
+        (state.examTabId && tab.id === state.examTabId) ||
+        (tab.url &&
+          (tab.url.includes("/session") ||
+           tab.url.includes("/labs") ||
+           tab.url.includes("test_sandbox") ||
+           tab.url.includes("localhost") ||
+           tab.url.includes("127.0.0.1")));
+
+      if (tab.id && isTarget) {
+        chrome.tabs.sendMessage(tab.id, payload).catch(() => {});
+      }
+    }
+  });
 }
 
 /**
@@ -324,18 +387,7 @@ function sendViolationToExamTab(violation) {
   };
 
   console.warn("[ShieldIt VIOLATION]", violation);
-
-  // Send to the tracked exam tab if known
-  if (state.examTabId) {
-    chrome.tabs.sendMessage(state.examTabId, payload).catch(() => {});
-  }
-
-  // Also broadcast to active tab in case tab ID changed
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]?.id && tabs[0].id !== state.examTabId) {
-      chrome.tabs.sendMessage(tabs[0].id, payload).catch(() => {});
-    }
-  });
+  sendPayloadToExamTabs(payload);
 }
 
 // ----------------------------------------------------------------------
@@ -366,32 +418,70 @@ chrome.management.onEnabled.addListener((info) => {
 /**
  * 2. Tab Switch Guard: Detect when the user switches tabs
  */
-chrome.tabs.onActivated.addListener((activeInfo) => {
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
   if (!state.isLockdownActive) return;
 
-  if (state.examTabId && activeInfo.tabId !== state.examTabId) {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    if (!tab) return;
+
+    // Check if the newly activated tab is an exam session or lab tab
+    const isExamTab =
+      tab.url &&
+      (tab.url.includes("/session") ||
+       tab.url.includes("/labs") ||
+       tab.url.includes("test_sandbox"));
+
+    if (isExamTab) {
+      // Student returned to or is on an exam tab
+      state.examTabId = activeInfo.tabId;
+      state.examWindowId = activeInfo.windowId;
+      return;
+    }
+
+    // Student activated a non-exam tab!
+    console.warn(`[ShieldIt] Tab switch violation: Active tab ${activeInfo.tabId} (${tab.url})`);
     sendViolationToExamTab({
       type: "TAB_SWITCH",
-      severity: "MEDIUM",
-      fromTabId: state.examTabId,
+      severity: "HIGH",
       toTabId: activeInfo.tabId,
-      message: "Switched away from the exam tab"
+      toUrl: tab.url || "unknown",
+      message: "Tab switch detected: Navigated away from examination"
     });
+  } catch (err) {
+    if (state.examTabId && activeInfo.tabId !== state.examTabId) {
+      sendViolationToExamTab({
+        type: "TAB_SWITCH",
+        severity: "HIGH",
+        fromTabId: state.examTabId,
+        toTabId: activeInfo.tabId,
+        message: "Switched away from the exam tab"
+      });
+    }
   }
 });
 
 /**
- * 3. Window Blur / Focus Guard: Detect when window loses focus
+ * 3. Window Blur / Focus Guard: Detect when window loses focus (Alt+Tab, app switch, etc.)
  */
-chrome.windows.onFocusChanged.addListener((windowId) => {
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
   if (!state.isLockdownActive) return;
 
-  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+  // Loss of focus if switched to a non-browser app (WINDOW_ID_NONE)
+  // OR switched to another Chrome window outside the exam window
+  const isBlur =
+    windowId === chrome.windows.WINDOW_ID_NONE ||
+    (state.examWindowId && windowId !== state.examWindowId);
+
+  if (isBlur) {
+    console.warn(`[ShieldIt] Window blur detected: windowId=${windowId}, examWindowId=${state.examWindowId}`);
     sendViolationToExamTab({
       type: "WINDOW_BLUR",
-      severity: "MEDIUM",
-      message: "Browser window lost focus (minimized or clicked outside)"
+      severity: "HIGH",
+      message: "Exam window lost focus (Alt+Tab or switched application/window)"
     });
+  } else if (windowId === state.examWindowId) {
+    console.log("[ShieldIt] Student focused back onto exam window:", windowId);
   }
 });
 
@@ -465,8 +555,18 @@ async function handleIncomingMessage(message, sender) {
 
     case "START_LOCKDOWN": {
       const tabId = sender.tab?.id || payload?.tabId;
+      if (sender.tab?.windowId) {
+        state.examWindowId = sender.tab.windowId;
+      }
       const secret = payload?.sessionSecret || payload?.options?.sessionSecret;
       return await startLockdown(payload?.examId || "unknown", tabId, payload?.options, secret);
+    }
+
+    case "REPORT_VIOLATION": {
+      if (state.isLockdownActive && payload) {
+        sendViolationToExamTab(payload);
+      }
+      return { success: true };
     }
 
     case "STOP_LOCKDOWN": {

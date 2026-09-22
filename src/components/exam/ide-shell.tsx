@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/resizable";
 import { toast } from "sonner";
 import type { ExamTimingSnapshot } from "@/lib/exam";
-import { AlertTriangle, RotateCw, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Check, Copy, RotateCw, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useExamStore } from "@/stores/exam-store";
 import { useShieldIt } from "@/lib/shieldit/shieldit-client";
@@ -89,6 +89,42 @@ export function IDEShell({
   const initForExam = useExamStore((s) => s.initForExam);
   const { violations, isInstalled, isLockdownActive, startLockdown, checkStatus } =
     useShieldIt(assignmentId);
+
+  const [isCheckingExtension, setIsCheckingExtension] = useState(false);
+  const [copiedExtensionsUrl, setCopiedExtensionsUrl] = useState(false);
+
+  const handleManualRecheck = async () => {
+    setIsCheckingExtension(true);
+    try {
+      const status = await checkStatus();
+      if (status.installed) {
+        toast.success("ShieldIt detected! Resuming examination...");
+      } else {
+        toast.error("ShieldIt is still not detected", {
+          description:
+            "Please ensure the toggle is ON in chrome://extensions and try again.",
+        });
+      }
+    } catch {
+      toast.error("Extension check timed out. Please verify ShieldIt is turned ON.");
+    } finally {
+      setIsCheckingExtension(false);
+    }
+  };
+
+  const handleCopyExtensionsUrl = async () => {
+    try {
+      await navigator.clipboard.writeText("chrome://extensions");
+      setCopiedExtensionsUrl(true);
+      toast.success("Copied 'chrome://extensions' to clipboard!", {
+        description:
+          "Open a new tab (Ctrl+T / Cmd+T), paste into address bar, and toggle ShieldIt ON.",
+      });
+      setTimeout(() => setCopiedExtensionsUrl(false), 3000);
+    } catch {
+      toast.info("Please open chrome://extensions in a new tab to manage extensions.");
+    }
+  };
 
   // Reinforce lockdown if in active exam session
   useEffect(() => {
@@ -222,18 +258,39 @@ export function IDEShell({
                 Turning off proctoring extensions mid-exam is recorded as an academic integrity violation. The examination environment has been frozen until ShieldIt is re-enabled.
               </p>
             </div>
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Button
                 variant="default"
-                className="bg-destructive hover:bg-destructive/90 text-white gap-2"
-                onClick={() => checkStatus()}
+                disabled={isCheckingExtension}
+                className="bg-destructive hover:bg-destructive/90 text-white gap-2 shadow-sm font-medium"
+                onClick={handleManualRecheck}
               >
-                <RotateCw className="h-4 w-4" /> Re-check Extension Status
+                <RotateCw className={`h-4 w-4 ${isCheckingExtension ? "animate-spin" : ""}`} />
+                {isCheckingExtension ? "Checking Status..." : "Re-check Extension Status"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2 border-destructive/30 hover:bg-destructive/10 text-foreground font-medium"
+                onClick={handleCopyExtensionsUrl}
+              >
+                {copiedExtensionsUrl ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4 text-muted-foreground" />
+                )}
+                {copiedExtensionsUrl ? "Copied chrome://extensions" : "Copy chrome://extensions"}
               </Button>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Go to <code className="bg-muted px-1.5 py-0.5 rounded font-mono">chrome://extensions</code> and toggle <strong>ShieldIt</strong> back ON to resume your exam.
-            </p>
+            <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
+              <p>
+                Open a new tab to <code className="bg-muted px-1.5 py-0.5 rounded font-mono select-all">chrome://extensions</code> and toggle <strong>ShieldIt</strong> back ON.
+              </p>
+              <p className="text-emerald-500 font-medium">
+                ⚡ Auto-resumes immediately once ShieldIt is enabled — no page reload required.
+              </p>
+            </div>
           </div>
         )}
       </SidebarInset>

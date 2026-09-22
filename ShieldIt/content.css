@@ -28,6 +28,11 @@
   cursor: grab !important;
   animation: shieldit-fadein 0.3s ease-out;
   user-select: none;
+  width: fit-content !important;
+  max-width: fit-content !important;
+  height: auto !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
 }
 
 #shieldit-status-badge .shieldit-indicator {

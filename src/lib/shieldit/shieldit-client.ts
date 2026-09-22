@@ -71,30 +71,36 @@ export function sendShieldItMessage<T = Record<string, unknown>>(
 /**
  * Check if the ShieldIt extension is installed and responsive.
  */
-export async function checkShieldItInstalled(): Promise<{
+export async function checkShieldItInstalled(retries: number = 1): Promise<{
   installed: boolean;
   version?: string;
   displayCount?: number;
 }> {
-  // Live ping check with timeout
-  try {
-    const res = await sendShieldItMessage<ShieldItStatus>("PING", {}, 1200);
-    const isLive =
-      res?.success === true && res?.installed === true && res?.name === "ShieldIt";
-    if (!isLive && typeof document !== "undefined") {
-      document.documentElement.removeAttribute("data-shieldit-installed");
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await sendShieldItMessage<ShieldItStatus>("PING", {}, 1000);
+      const isLive =
+        res?.success === true && res?.installed === true && res?.name === "ShieldIt";
+      if (isLive) {
+        return {
+          installed: true,
+          version: res?.version || "1.0.1",
+          displayCount: res?.displayCount
+        };
+      }
+    } catch {
+      // Ignore and retry if attempts remain
     }
-    return {
-      installed: isLive,
-      version: res?.version || "1.0.1",
-      displayCount: res?.displayCount
-    };
-  } catch {
-    if (typeof document !== "undefined") {
-      document.documentElement.removeAttribute("data-shieldit-installed");
+
+    if (attempt < retries) {
+      await new Promise((r) => setTimeout(r, 250));
     }
-    return { installed: false };
   }
+
+  if (typeof document !== "undefined") {
+    document.documentElement.removeAttribute("data-shieldit-installed");
+  }
+  return { installed: false };
 }
 
 /**
@@ -174,7 +180,7 @@ export function useShieldIt(examId?: string) {
   const [violations, setViolations] = useState<ShieldItViolation[]>([]);
 
   const checkStatus = useCallback(async () => {
-    const status = await checkShieldItInstalled();
+    const status = await checkShieldItInstalled(1);
     if (status.installed) {
       setIsInstalled(true);
       if (status.version) setExtensionVersion(status.version);
@@ -217,8 +223,18 @@ export function useShieldIt(examId?: string) {
         return;
       }
 
-      if (event.data.type === "SHIELDIT_STATUS_UPDATE" || event.data.action === "STATUS_UPDATE") {
+      if (event.data.type === "SHIELDIT_VIOLATION" && event.data.violation) {
+        setViolations((prev) => [...prev, event.data.violation]);
+        return;
+      }
+
+      if (
+        event.data.type === "SHIELDIT_STATUS_UPDATE" ||
+        event.data.action === "STATUS_UPDATE" ||
+        event.data.type === "SHIELDIT_READY"
+      ) {
         setIsInstalled(true);
+        if (event.data.version) setExtensionVersion(event.data.version);
         if (event.data.displayCount !== undefined) setDisplayCount(event.data.displayCount);
         if (event.data.isLockdownActive !== undefined) setIsLockdownActive(event.data.isLockdownActive);
       }
@@ -230,7 +246,7 @@ export function useShieldIt(examId?: string) {
     // 3. Heartbeat watchdog poll (every 1.5s) to detect disabling / disconnect
     let missedPings = 0;
     const pollInterval = setInterval(() => {
-      checkShieldItInstalled().then((status) => {
+      checkShieldItInstalled(0).then((status) => {
         if (!isMounted) return;
         if (status.installed) {
           missedPings = 0;
@@ -260,11 +276,19 @@ export function useShieldIt(examId?: string) {
       handleViolation as EventListener
     );
 
+    // 5. Auto-check whenever user refocuses the exam tab
+    const handleFocus = () => {
+      if (!isMounted) return;
+      checkStatus();
+    };
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       isMounted = false;
       clearInterval(pollInterval);
       window.removeEventListener("shieldit:ready" as unknown as keyof WindowEventMap, handleReady as EventListener);
       window.removeEventListener("message", handleStatusMessage);
+      window.removeEventListener("focus", handleFocus);
       window.removeEventListener(
         "shieldit:violation" as unknown as keyof WindowEventMap,
         handleViolation as EventListener
@@ -326,6 +350,10 @@ if (typeof window !== "undefined") {
       badge.style.setProperty("transform", "none", "important");
       badge.style.setProperty("z-index", "2147483647", "important");
       badge.style.setProperty("cursor", "grab", "important");
+      badge.style.setProperty("width", "fit-content", "important");
+      badge.style.setProperty("max-width", "fit-content", "important");
+      badge.style.setProperty("height", "auto", "important");
+      badge.style.setProperty("white-space", "nowrap", "important");
       badge.title = "ShieldIt Active • Drag to reposition";
 
       let isDragging = false;
@@ -343,6 +371,10 @@ if (typeof window !== "undefined") {
         origY = rect.top;
         badge.style.setProperty("bottom", "auto", "important");
         badge.style.setProperty("right", "auto", "important");
+        badge.style.setProperty("width", "fit-content", "important");
+        badge.style.setProperty("max-width", "fit-content", "important");
+        badge.style.setProperty("height", "auto", "important");
+        badge.style.setProperty("white-space", "nowrap", "important");
         badge.style.setProperty("left", `${origX}px`, "important");
         badge.style.setProperty("top", `${origY}px`, "important");
         badge.style.setProperty("cursor", "grabbing", "important");
@@ -357,6 +389,10 @@ if (typeof window !== "undefined") {
         const newTop = Math.max(10, Math.min(window.innerHeight - badge.offsetHeight - 10, origY + dy));
         badge.style.setProperty("left", `${newLeft}px`, "important");
         badge.style.setProperty("top", `${newTop}px`, "important");
+        badge.style.setProperty("bottom", "auto", "important");
+        badge.style.setProperty("right", "auto", "important");
+        badge.style.setProperty("width", "fit-content", "important");
+        badge.style.setProperty("height", "auto", "important");
       });
 
       window.addEventListener("mouseup", () => {

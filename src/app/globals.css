@@ -254,13 +254,21 @@ html.lenis body {
 /* -------------------------------------------------------------------------- */
 #shieldit-status-badge {
   position: fixed !important;
+  z-index: 2147483647 !important;
+  cursor: grab !important;
+  width: fit-content !important;
+  max-width: fit-content !important;
+  height: auto !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+#shieldit-status-badge:not([style*="left"]) {
   top: auto !important;
   left: auto !important;
   bottom: 16px !important;
   right: 18px !important;
   transform: none !important;
-  z-index: 2147483647 !important;
-  cursor: grab !important;
 }
 
 #shieldit-status-badge:active {
