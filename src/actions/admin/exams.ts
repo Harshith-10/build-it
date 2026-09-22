@@ -328,7 +328,9 @@ export async function getExams({
     ? eq(exams.departmentId, userDepartmentId)
     : isNull(exams.departmentId);
 
-  const whereClause = and(ownershipClause, searchClause, departmentClause);
+  const typeClause = eq(exams.assessmentType, "exam");
+
+  const whereClause = and(ownershipClause, searchClause, departmentClause, typeClause);
 
   let orderBy = desc(exams.createdAt);
   if (sort) {

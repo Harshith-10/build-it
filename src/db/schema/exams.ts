@@ -15,6 +15,7 @@ import { user } from "./auth";
 import { userGroups } from "./groups";
 import { examCollections } from "./question-collections";
 import { departments } from "./departments";
+import { labs } from "./labs";
 
 export const examStatusEnum = pgEnum("exam_status", [
   "upcoming",
@@ -88,6 +89,13 @@ export const exams = pgTable("exams", {
   departmentId: uuid("department_id").references(() => departments.id, {
     onDelete: "set null",
   }),
+  labId: uuid("lab_id").references(() => labs.id, {
+    onDelete: "set null",
+  }),
+  assessmentType: text("assessment_type")
+    .$type<"exam" | "lab_assessment" | "coding_assessment">()
+    .default("exam")
+    .notNull(),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),
@@ -182,7 +190,11 @@ export const examGroupFaculty = pgTable(
   (t) => [unique().on(t.examId, t.groupId, t.facultyId)],
 );
 
-export const examsRelations = relations(exams, ({ many }) => ({
+export const examsRelations = relations(exams, ({ many, one }) => ({
+  lab: one(labs, {
+    fields: [exams.labId],
+    references: [labs.id],
+  }),
   groups: many(examGroups),
   groupFaculty: many(examGroupFaculty),
   collections: many(examCollections),
