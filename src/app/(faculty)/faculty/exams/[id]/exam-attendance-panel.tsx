@@ -77,7 +77,7 @@ export function ExamAttendancePanel({
       try {
         const available = await getAvailableExamSections(examId);
         setSections(available);
-        if (available.length === 1) {
+        if (available.length > 0) {
           setSelectedGroupId(available[0].id);
         }
       } catch (err) {
@@ -144,6 +144,7 @@ export function ExamAttendancePanel({
         examId,
         presentStudentIds: presentIds,
         filterGroupId: selectedGroupId === "all" ? undefined : selectedGroupId,
+        allStudentIds: students.map((s) => s.id),
       });
       if (res.success) {
         toast.success("Attendance saved successfully.");
@@ -160,6 +161,7 @@ export function ExamAttendancePanel({
         examId,
         presentStudentIds: presentIds,
         filterGroupId: selectedGroupId === "all" ? undefined : selectedGroupId,
+        allStudentIds: students.map((s) => s.id),
       });
       if (!saveRes.success) {
         toast.error(saveRes.error || "Failed to save attendance before posting");

@@ -116,6 +116,40 @@ function highlightCode(code: string): React.ReactNode {
   );
 }
 
+function getDivision(branch?: string | null, section?: string | null): string | null {
+  const normBranch = normalizeBranch(branch);
+  const normSection = (section || "").trim().toUpperCase();
+
+  if (normBranch === "CSE") {
+    if (["A", "B", "C"].includes(normSection)) {
+      return "Division-1";
+    }
+    if (["D", "E", "F"].includes(normSection)) {
+      return "Division-2";
+    }
+    // Remaining sections of CSE come under Division-3
+    if (normSection) {
+      return "Division-3";
+    }
+    return "Division-1";
+  }
+
+  if (normBranch === "CSM") {
+    if (["A", "B"].includes(normSection)) {
+      return "Division-1";
+    }
+    if (["C", "D"].includes(normSection)) {
+      return "Division-2";
+    }
+    if (normSection) {
+      return "Division-2";
+    }
+    return "Division-1";
+  }
+
+  return null;
+}
+
 export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
   const { student, course, exercise, faculty } = data;
   const todayStr = new Date().toLocaleDateString("en-IN", {
@@ -130,6 +164,7 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
 
   const normalizedBranch = normalizeBranch(student.branch || "CSE");
   const normalizedSection = (student.section || "A").toUpperCase();
+  const division = getDivision(student.branch, student.section);
   const normalizedCourseCode = (course.courseCode || "CS301").toUpperCase();
   const normalizedFacultyId = (faculty?.facultyId || "").toUpperCase();
 
@@ -214,7 +249,7 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
 
                 {/* Roll Number Box Grid */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-bold text-xs uppercase">Roll Number</span>
+                  <span className="font-bold text-xs">Roll Number :</span>
                   <div className="flex border-2 border-black divide-x-2 divide-black bg-gray-50">
                     {rollChars.map((char, idx) => (
                       <div
@@ -232,7 +267,7 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                 <div className="flex items-center gap-2">
                   <span className="font-bold">Class :</span>
                   <span className="font-semibold border-b border-black flex-1 px-1">
-                    {normalizedBranch} - Sec {normalizedSection}
+                    {normalizedBranch}-{normalizedSection}{division ? ` ${division}` : ""}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -275,19 +310,19 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
 
               <div className="grid grid-cols-3 gap-3 pt-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold">Exercise Number :</span>
+                  <span className="whitespace-nowrap font-bold">No. of Programs :</span>
                   <span className="font-bold border-b border-black flex-1 px-1">
-                    {exercise.exerciseNo}
+                    {solutions.length || data.programs?.length || 1}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold">Week Number :</span>
+                  <span className="whitespace-nowrap font-bold">Week Number :</span>
                   <span className="font-semibold border-b border-black flex-1 px-1">
                     {exercise.exerciseNo}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold">Date :</span>
+                  <span className="whitespace-nowrap font-bold">Date :</span>
                   <span className="font-semibold border-b border-black flex-1 px-1">
                     {todayStr}
                   </span>
@@ -301,10 +336,7 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
             <table className="w-full h-full border-collapse border-2 border-black text-[10px] text-center">
               <thead>
                 <tr className="bg-gray-100 font-bold border-b-2 border-black">
-                  <th rowSpan={2} className="border border-black px-1 py-1 w-8">
-                    S. No
-                  </th>
-                  <th rowSpan={2} className="border border-black px-1 py-1 w-12">
+                  <th rowSpan={2} className="border border-black px-1 py-1 w-16">
                     Exercise Number
                   </th>
                   <th rowSpan={2} className="border border-black px-2 py-1 text-left">
@@ -347,7 +379,8 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
               <tbody>
                 {Array.from({ length: 14 }).map((_, index) => {
                   const sNo = index + 1;
-                  const ev = data.evaluations?.find((e) => e.exerciseNo === sNo);
+                  const isFuture = sNo > exercise.exerciseNo;
+                  const ev = !isFuture ? data.evaluations?.find((e) => e.exerciseNo === sNo) : null;
                   const m = ev ? ev.marks : null;
                   const fmt = (v: number | null | undefined) =>
                     v !== null && v !== undefined && !isNaN(v)
@@ -361,9 +394,8 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                       key={sNo}
                       className="h-6"
                     >
-                      <td className="border border-black py-1">{sNo}</td>
-                      <td className="border border-black py-1">{ev ? ev.exerciseNo : ""}</td>
-                      <td className="border border-black text-left px-2 truncate max-w-[180px] py-1">
+                      <td className="border border-black py-1 font-semibold">{sNo}</td>
+                      <td className="border border-black text-left px-2 truncate max-w-[200px] py-1">
                         {ev ? ev.title : ""}
                       </td>
                       <td className="border border-black py-1">{m ? fmt(m.aim) : ""}</td>

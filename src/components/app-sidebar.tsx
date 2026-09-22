@@ -142,7 +142,7 @@ const facultyNavMain = [
     icon: GraduationCap,
   },
   {
-    title: "Labs",
+    title: "Laboratory",
     url: "/faculty/labs",
     icon: FlaskConical,
   },

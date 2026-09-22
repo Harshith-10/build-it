@@ -1,5 +1,4 @@
 // Generates a fully standalone interactive HTML results dashboard based on the provided exam data.
-import { IARE_HEADER_DATA_URL } from "./iare-header";
 
 export interface DashboardStudent {
   slot: number;
@@ -28,10 +27,12 @@ export function generateResultsDashboardHtml({
   examTitle,
   students,
   branchOrder,
+  headerImg = "",
 }: {
   examTitle: string;
   students: DashboardStudent[];
   branchOrder: string[];
+  headerImg?: string;
 }): string {
   const safeExamTitle = examTitle.trim() || "Exam";
   const maxScore = Math.max(...students.map((s) => s.score || 0), 100);
@@ -40,7 +41,7 @@ export function generateResultsDashboardHtml({
     branchOrder,
     examTitle: safeExamTitle,
     maxScore,
-    headerImg: IARE_HEADER_DATA_URL,
+    headerImg: headerImg || "",
   });
 
   return `<!DOCTYPE html>
