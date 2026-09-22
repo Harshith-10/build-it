@@ -794,6 +794,7 @@ export function LabsManager() {
           onSaved={() => fetchExercises(selectedLab.id)}
           labId={selectedLab.id}
           initial={editingExercise}
+          defaultExerciseNo={exercises.length + 1}
           onUpdateExercise={async (data) => {
             return data.id
               ? await updateExercise({
