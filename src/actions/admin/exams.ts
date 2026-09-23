@@ -944,6 +944,161 @@ export async function getExamAbsentees(examId: string) {
   };
 }
 
+export interface ExamSubmissionStats {
+  totalAssigned: number;
+  ongoing: number;
+  submitted: number;
+  absent: number;
+  isExamEnded: boolean;
+  effectiveEnd: Date | null;
+}
+
+export async function getExamSubmissionStats(
+  examId: string,
+): Promise<{ success: boolean; stats?: ExamSubmissionStats; error?: string }> {
+  try {
+    const access = await ensureExamReadAccess(examId);
+    if (!access.examRecord) {
+      return { success: false, error: "Exam not found or unauthorized" };
+    }
+
+    const examData = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+      columns: { endTime: true },
+    });
+    const examEndTime = examData?.endTime ?? null;
+
+    let targetGroupIds: string[] = [];
+
+    if (!access.isAdmin && !access.isOwner) {
+      const facultySections = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, access.session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+
+      if (facultySections.length > 0) {
+        targetGroupIds = facultySections.map((s) => s.groupId);
+      } else {
+        const examGroupRows = await db.query.examGroups.findMany({
+          where: eq(examGroups.examId, examId),
+          columns: { groupId: true },
+        });
+        targetGroupIds = examGroupRows.map((g) => g.groupId);
+      }
+    } else {
+      const examGroupRows = await db.query.examGroups.findMany({
+        where: eq(examGroups.examId, examId),
+        columns: { groupId: true },
+      });
+      targetGroupIds = examGroupRows.map((g) => g.groupId);
+    }
+
+    if (targetGroupIds.length === 0) {
+      const now = new Date();
+      const isExamEnded = examEndTime ? now > examEndTime : false;
+      return {
+        success: true,
+        stats: {
+          totalAssigned: 0,
+          ongoing: 0,
+          submitted: 0,
+          absent: 0,
+          isExamEnded,
+          effectiveEnd: examEndTime,
+        },
+      };
+    }
+
+    // Get all unique student users enrolled in these target groups
+    const members = await db
+      .select({
+        userId: userGroupMembers.userId,
+      })
+      .from(userGroupMembers)
+      .innerJoin(user, eq(userGroupMembers.userId, user.id))
+      .where(
+        and(
+          inArray(userGroupMembers.groupId, targetGroupIds),
+          ne(user.role, "admin"),
+          ne(user.role, "faculty"),
+        ),
+      );
+
+    const studentIds = [...new Set(members.map((m) => m.userId))];
+    const totalAssigned = studentIds.length;
+
+    if (totalAssigned === 0) {
+      const now = new Date();
+      const isExamEnded = examEndTime ? now > examEndTime : false;
+      return {
+        success: true,
+        stats: {
+          totalAssigned: 0,
+          ongoing: 0,
+          submitted: 0,
+          absent: 0,
+          isExamEnded,
+          effectiveEnd: examEndTime,
+        },
+      };
+    }
+
+    // Get all assignments for this exam for these students
+    const assignmentRows = await db
+      .select({
+        id: examAssignments.id,
+        status: examAssignments.status,
+        userId: examAssignments.userId,
+      })
+      .from(examAssignments)
+      .where(
+        and(
+          eq(examAssignments.examId, examId),
+          inArray(examAssignments.userId, studentIds),
+        ),
+      );
+
+    let ongoing = 0;
+    let submitted = 0;
+    const attemptedUserIds = new Set<string>();
+
+    for (const row of assignmentRows) {
+      if (row.status === "in_progress") {
+        ongoing++;
+        attemptedUserIds.add(row.userId);
+      } else if (row.status === "completed") {
+        submitted++;
+        attemptedUserIds.add(row.userId);
+      }
+    }
+
+    const absent = Math.max(0, totalAssigned - attemptedUserIds.size);
+    const now = new Date();
+    const isExamEnded = examEndTime ? now > examEndTime : false;
+
+    return {
+      success: true,
+      stats: {
+        totalAssigned,
+        ongoing,
+        submitted,
+        absent,
+        isExamEnded,
+        effectiveEnd: examEndTime,
+      },
+    };
+  } catch (error: any) {
+    console.error("Failed to get exam submission stats:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to calculate submission statistics",
+    };
+  }
+}
+
 export async function getFacultyModeratorCandidates({
   search = "",
   limit = 50,
