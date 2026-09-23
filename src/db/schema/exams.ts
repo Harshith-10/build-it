@@ -182,7 +182,11 @@ export const examGroupFaculty = pgTable(
   (t) => [unique().on(t.examId, t.groupId, t.facultyId)],
 );
 
-export const examsRelations = relations(exams, ({ many }) => ({
+export const examsRelations = relations(exams, ({ one, many }) => ({
+  department: one(departments, {
+    fields: [exams.departmentId],
+    references: [departments.id],
+  }),
   groups: many(examGroups),
   groupFaculty: many(examGroupFaculty),
   collections: many(examCollections),

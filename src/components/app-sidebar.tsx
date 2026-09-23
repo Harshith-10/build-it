@@ -81,6 +81,11 @@ const adminNavMain = [
     icon: FlaskConical,
   },
   {
+    title: "Reports",
+    url: "/admin/reports",
+    icon: BarChart2,
+  },
+  {
     title: "Jet Stats",
     url: "/admin/jet-stats",
     icon: Activity,
