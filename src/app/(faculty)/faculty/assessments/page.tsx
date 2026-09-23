@@ -3,10 +3,10 @@ import { FacultyAssessmentsManager } from "@/components/faculty/assessments/facu
 
 export default function FacultyAssessmentsPage() {
   return (
-    <div className="flex flex-1 flex-col gap-4 min-h-0 overflow-y-auto pr-1">
+    <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden h-full">
       <PageHeader
         title="Assessments"
-        description="Schedule assessment windows for your assigned sections, set PINs, and review submissions"
+        description="Schedule and manage assessments"
       />
       <FacultyAssessmentsManager />
     </div>

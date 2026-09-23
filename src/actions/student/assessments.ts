@@ -122,6 +122,12 @@ export async function getStudentAssessments() {
       const totalMarks =
         (assessment.gradingConfig as any)?.totalMarks ?? 100;
 
+      const questionCount =
+        (assessment.strategyConfig as any)?.count ??
+        (Array.isArray((assessment.strategyConfig as any)?.exerciseIds)
+          ? (assessment.strategyConfig as any).exerciseIds.length
+          : null);
+
       return {
         id: assessment.id,
         title: assessment.title,
@@ -132,6 +138,7 @@ export async function getStudentAssessments() {
         lab: assessment.lab,
         durationMinutes: assessment.durationMinutes,
         totalMarks,
+        questionCount,
         requiresPin: hasPin,
         startTime: effectiveStart,
         endTime: effectiveEnd,

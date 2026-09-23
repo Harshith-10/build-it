@@ -2,16 +2,28 @@
 
 import { useMemo, useState } from "react";
 import {
+  Calendar,
   ChevronRight,
   Clock,
   Code2,
   FlaskConical,
   Folder,
   Key,
+  LayoutList,
+  Timer,
+  Trophy,
   Users,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { LocalDateTimeText } from "@/components/ui/local-date-time-text";
 import { ExamCardAction } from "@/app/(student)/exams/exam-card-action";
 
@@ -27,6 +39,7 @@ export interface StudentAssessmentItem {
   } | null;
   durationMinutes: number;
   totalMarks: number;
+  questionCount?: number | null;
   requiresPin: boolean;
   startTime: Date;
   endTime: Date;
@@ -49,6 +62,19 @@ export function StudentAssessmentsManager({
     "lab_assessment" | "coding_assessment"
   >("lab_assessment");
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active":
+        return "bg-green-500 hover:bg-green-600 text-white";
+      case "upcoming":
+        return "bg-blue-500 hover:bg-blue-600 text-white";
+      case "ended":
+        return "bg-neutral-500 hover:bg-neutral-600 text-white";
+      default:
+        return "bg-neutral-500 hover:bg-neutral-600 text-white";
+    }
+  };
 
   const labAssessments = useMemo(
     () => assessments.filter((a) => a.assessmentType === "lab_assessment"),
@@ -103,16 +129,13 @@ export function StudentAssessmentsManager({
     return labFolders.find((f) => f.id === selectedLabId) || null;
   }, [selectedLabId, labFolders]);
 
-  const displayedAssessments = useMemo(() => {
-    if (selectedCategory === "lab_assessment") {
-      return selectedLabId
-        ? labAssessments.filter(
-            (a) => (a.lab?.id || "general") === selectedLabId,
-          )
-        : [];
-    }
-    return codingAssessments;
-  }, [selectedCategory, selectedLabId, labAssessments, codingAssessments]);
+  const displayedLabAssessments = useMemo(() => {
+    return selectedLabId
+      ? labAssessments.filter(
+          (a) => (a.lab?.id || "general") === selectedLabId,
+        )
+      : [];
+  }, [selectedLabId, labAssessments]);
 
   return (
     <div className="flex flex-col gap-5 max-w-6xl w-full">
@@ -229,11 +252,11 @@ export function StudentAssessmentsManager({
         </div>
       )}
 
-      {/* ─── 3. INSIDE LAB OR CODING ASSESSMENTS VIEW (MATCHES LAB UI) ──── */}
-      {(selectedCategory === "coding_assessment" || (selectedCategory === "lab_assessment" && selectedLabId)) && (
+      {/* ─── 3. INSIDE LAB ASSESSMENTS (CARDS GRID) ────────────────────────── */}
+      {selectedCategory === "lab_assessment" && selectedLabId && (
         <div className="flex flex-col gap-3">
           {/* Breadcrumb Header */}
-          {selectedCategory === "lab_assessment" && selectedLab && (
+          {selectedLab && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
               <button
                 type="button"
@@ -251,11 +274,11 @@ export function StudentAssessmentsManager({
 
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {displayedAssessments.length} assessment{displayedAssessments.length !== 1 ? "s" : ""}
+              {displayedLabAssessments.length} assessment{displayedLabAssessments.length !== 1 ? "s" : ""}
             </p>
           </div>
 
-          {displayedAssessments.length === 0 ? (
+          {displayedLabAssessments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border border-dashed bg-muted/20">
               <FlaskConical className="h-8 w-8 text-muted-foreground/60 mb-2" />
               <p className="text-sm font-medium text-foreground">
@@ -266,112 +289,215 @@ export function StudentAssessmentsManager({
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              {displayedAssessments.map((assessment, index) => {
-                const isActive = assessment.status === "active";
-                const isUpcoming = assessment.status === "upcoming";
-                const isSubmitted = assessment.attemptStatus === "completed";
-
-                return (
-                  <div
-                    key={assessment.id}
-                    className="border rounded-lg p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-primary/50 transition-colors bg-card min-w-0"
-                  >
-                    {/* Number Box & Content */}
-                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-xs font-semibold shrink-0 text-foreground">
-                        {index + 1}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {displayedLabAssessments.map((assessment) => (
+                <Card key={assessment.id} className="flex flex-col">
+                  <CardHeader>
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(assessment.status)}>
+                          {assessment.status.charAt(0).toUpperCase() +
+                            assessment.status.slice(1)}
+                        </Badge>
+                        {assessment.requiresPin && (
+                          <Badge variant="outline" className="text-[10px] py-0 font-normal gap-1">
+                            <Key className="h-2.5 w-2.5 text-amber-500" />
+                            PIN
+                          </Badge>
+                        )}
                       </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-sm text-foreground break-words">
-                            {assessment.title}
-                          </p>
-                          {assessment.requiresPin && (
-                            <Badge variant="outline" className="text-[10px] py-0 font-normal gap-1">
-                              <Key className="h-2.5 w-2.5 text-amber-500" />
-                              PIN
-                            </Badge>
-                          )}
-                        </div>
-
-                        {/* Window & Score */}
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3 shrink-0" />
-                            <LocalDateTimeText
-                              value={assessment.startTime}
-                              options={{
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "numeric",
-                              }}
-                            />
-                            {" → "}
-                            <LocalDateTimeText
-                              value={assessment.endTime}
-                              options={{
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "numeric",
-                              }}
-                            />
-                            {isActive && (
-                              <span className="ml-1 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                            )}
-                          </span>
-
-                          {isSubmitted && (
-                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                              Score: {assessment.score ?? 0} / {assessment.totalMarks || 100}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right side: Badge & Action Button */}
-                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-center w-full sm:w-auto">
-                      {isActive ? (
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-normal shrink-0"
-                        >
-                          Active
-                        </Badge>
-                      ) : isUpcoming ? (
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 font-normal shrink-0"
-                        >
-                          Upcoming
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-xs text-muted-foreground font-normal shrink-0"
-                        >
-                          Ended
-                        </Badge>
+                      {assessment.status === "active" && (
+                        <span className="flex h-2 w-2 animate-pulse rounded-full bg-green-500" />
                       )}
-
-                      <div className="min-w-[140px] flex-1 sm:flex-initial">
-                        <ExamCardAction
-                          examId={assessment.id}
-                          status={assessment.status}
-                          effectiveStart={assessment.startTime}
-                          isSubmitted={isSubmitted}
-                          isInProgress={assessment.attemptStatus === "in_progress"}
-                          serverNowMs={serverNowMs}
-                        />
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                    <CardTitle className="line-clamp-1">{assessment.title}</CardTitle>
+                    <CardDescription className="line-clamp-2 min-h-[40px]">
+                      {assessment.description || "No description provided."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm text-neutral-600 dark:text-neutral-400">
+                      <div className="col-span-2 flex items-start gap-2">
+                        <Calendar className="mt-0.5 h-4 w-4" />
+                        <div className="leading-tight">
+                          <span className="font-bold">Starts At:</span>{" "}
+                          <LocalDateTimeText
+                            value={assessment.startTime}
+                            options={{
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              timeZoneName: "short",
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-span-2 flex items-start gap-2">
+                        <Calendar className="mt-0.5 h-4 w-4" />
+                        <div className="leading-tight">
+                          <span className="font-bold">Ends At:</span>{" "}
+                          <LocalDateTimeText
+                            value={assessment.endTime}
+                            options={{
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              timeZoneName: "short",
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Timer className="h-4 w-4" />
+                        <span>{assessment.durationMinutes} mins</span>
+                      </div>
+                      {assessment.totalMarks ? (
+                        <div className="flex items-center gap-2">
+                          <Trophy className="h-4 w-4" />
+                          <span>{assessment.totalMarks} Total Marks</span>
+                        </div>
+                      ) : null}
+                      {assessment.questionCount ? (
+                        <div className="flex items-center gap-2">
+                          <LayoutList className="h-4 w-4" />
+                          <span>{assessment.questionCount} Questions</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <ExamCardAction
+                      examId={assessment.id}
+                      status={assessment.status}
+                      effectiveStart={assessment.startTime}
+                      isSubmitted={assessment.attemptStatus === "completed"}
+                      isInProgress={assessment.attemptStatus === "in_progress"}
+                      serverNowMs={serverNowMs}
+                    />
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── 4. CODING ASSESSMENTS (CARDS GRID MATCHING EXAMS) ──────────── */}
+      {selectedCategory === "coding_assessment" && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {codingAssessments.length} assessment{codingAssessments.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          {codingAssessments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border border-dashed bg-muted/20">
+              <Code2 className="h-8 w-8 text-muted-foreground/60 mb-2" />
+              <p className="text-sm font-medium text-foreground">
+                No coding assessments found
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                No coding assessments scheduled in your section.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {codingAssessments.map((assessment) => (
+                <Card key={assessment.id} className="flex flex-col">
+                  <CardHeader>
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(assessment.status)}>
+                          {assessment.status.charAt(0).toUpperCase() +
+                            assessment.status.slice(1)}
+                        </Badge>
+                        {assessment.requiresPin && (
+                          <Badge variant="outline" className="text-[10px] py-0 font-normal gap-1">
+                            <Key className="h-2.5 w-2.5 text-amber-500" />
+                            PIN
+                          </Badge>
+                        )}
+                      </div>
+                      {assessment.status === "active" && (
+                        <span className="flex h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                      )}
+                    </div>
+                    <CardTitle className="line-clamp-1">{assessment.title}</CardTitle>
+                    <CardDescription className="line-clamp-2 min-h-[40px]">
+                      {assessment.description || "No description provided."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm text-neutral-600 dark:text-neutral-400">
+                      <div className="col-span-2 flex items-start gap-2">
+                        <Calendar className="mt-0.5 h-4 w-4" />
+                        <div className="leading-tight">
+                          <span className="font-bold">Starts At:</span>{" "}
+                          <LocalDateTimeText
+                            value={assessment.startTime}
+                            options={{
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              timeZoneName: "short",
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-span-2 flex items-start gap-2">
+                        <Calendar className="mt-0.5 h-4 w-4" />
+                        <div className="leading-tight">
+                          <span className="font-bold">Ends At:</span>{" "}
+                          <LocalDateTimeText
+                            value={assessment.endTime}
+                            options={{
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              timeZoneName: "short",
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Timer className="h-4 w-4" />
+                        <span>{assessment.durationMinutes} mins</span>
+                      </div>
+                      {assessment.totalMarks ? (
+                        <div className="flex items-center gap-2">
+                          <Trophy className="h-4 w-4" />
+                          <span>{assessment.totalMarks} Total Marks</span>
+                        </div>
+                      ) : null}
+                      {assessment.questionCount ? (
+                        <div className="flex items-center gap-2">
+                          <LayoutList className="h-4 w-4" />
+                          <span>{assessment.questionCount} Questions</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <ExamCardAction
+                      examId={assessment.id}
+                      status={assessment.status}
+                      effectiveStart={assessment.startTime}
+                      isSubmitted={assessment.attemptStatus === "completed"}
+                      isInProgress={assessment.attemptStatus === "in_progress"}
+                      serverNowMs={serverNowMs}
+                    />
+                  </CardFooter>
+                </Card>
+              ))}
             </div>
           )}
         </div>
