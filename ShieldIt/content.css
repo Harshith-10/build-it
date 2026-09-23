@@ -1,18 +1,13 @@
 /* ShieldIt Content Stylesheet */
 
-/* Security badge pinned to bottom-right corner so it never covers exam headers or timers */
+/* Security badge - default position is bottom-right corner, fully draggable by student anywhere */
 #shieldit-status-badge {
   position: fixed !important;
-  bottom: 16px !important;
-  right: 18px !important;
-  top: auto !important;
-  left: auto !important;
-  transform: none !important;
   z-index: 2147483647 !important;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(16, 185, 129, 0.4);
@@ -27,12 +22,28 @@
   pointer-events: auto !important;
   cursor: grab !important;
   animation: shieldit-fadein 0.3s ease-out;
-  user-select: none;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: none !important;
   width: fit-content !important;
   max-width: fit-content !important;
   height: auto !important;
   white-space: nowrap !important;
   box-sizing: border-box !important;
+}
+
+#shieldit-status-badge:not([data-user-moved="true"]) {
+  bottom: 16px !important;
+  right: 18px !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+}
+
+#shieldit-status-badge:active,
+#shieldit-status-badge.shieldit-dragging {
+  cursor: grabbing !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 16px rgba(16, 185, 129, 0.4);
 }
 
 #shieldit-status-badge .shieldit-indicator {

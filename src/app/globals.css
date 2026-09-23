@@ -249,8 +249,7 @@ html.lenis body {
 
 /* -------------------------------------------------------------------------- */
 /* ShieldIt Extension Status Badge Override                                  */
-/* Relocates badge to bottom-right corner so it never covers the countdown   */
-/* timer or header navigation elements.                                      */
+/* Default position is bottom-right; fully draggable anywhere by student     */
 /* -------------------------------------------------------------------------- */
 #shieldit-status-badge {
   position: fixed !important;
@@ -261,9 +260,12 @@ html.lenis body {
   height: auto !important;
   white-space: nowrap !important;
   box-sizing: border-box !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
-#shieldit-status-badge:not([style*="left"]) {
+#shieldit-status-badge:not([data-user-moved="true"]):not([style*="left"]) {
   top: auto !important;
   left: auto !important;
   bottom: 16px !important;
@@ -271,7 +273,8 @@ html.lenis body {
   transform: none !important;
 }
 
-#shieldit-status-badge:active {
+#shieldit-status-badge:active,
+#shieldit-status-badge.shieldit-dragging {
   cursor: grabbing !important;
 }
 

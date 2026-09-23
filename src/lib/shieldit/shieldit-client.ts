@@ -339,68 +339,108 @@ export function useShieldIt(examId?: string) {
  * and attaches drag handlers so students can move it anywhere on their screen.
  */
 if (typeof window !== "undefined") {
-  const repositionBadge = () => {
-    const badge = document.getElementById("shieldit-status-badge");
-    if (badge && !badge.dataset.shielditPositionFixed) {
-      badge.dataset.shielditPositionFixed = "true";
-      badge.style.setProperty("top", "auto", "important");
-      badge.style.setProperty("left", "auto", "important");
-      badge.style.setProperty("bottom", "16px", "important");
-      badge.style.setProperty("right", "18px", "important");
-      badge.style.setProperty("transform", "none", "important");
-      badge.style.setProperty("z-index", "2147483647", "important");
-      badge.style.setProperty("cursor", "grab", "important");
+  const attachBadgeDragClient = (badge: HTMLElement) => {
+    if ((badge as unknown as { _shielditDragAttached?: boolean })._shielditDragAttached) return;
+    (badge as unknown as { _shielditDragAttached?: boolean })._shielditDragAttached = true;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let origLeft = 0;
+    let origTop = 0;
+
+    badge.addEventListener("pointerdown", (e: PointerEvent) => {
+      if (e.button !== 0) return;
+
+      isDragging = true;
+      badge.dataset.userMoved = "true";
+      badge.classList.add("shieldit-dragging");
+      badge.style.setProperty("cursor", "grabbing", "important");
+
+      const rect = badge.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = rect.left;
+      origTop = rect.top;
+
+      badge.style.setProperty("bottom", "auto", "important");
+      badge.style.setProperty("right", "auto", "important");
+      badge.style.setProperty("left", `${origLeft}px`, "important");
+      badge.style.setProperty("top", `${origTop}px`, "important");
       badge.style.setProperty("width", "fit-content", "important");
       badge.style.setProperty("max-width", "fit-content", "important");
       badge.style.setProperty("height", "auto", "important");
       badge.style.setProperty("white-space", "nowrap", "important");
-      badge.title = "ShieldIt Active • Drag to reposition";
 
-      let isDragging = false;
-      let startX = 0;
-      let startY = 0;
-      let origX = 0;
-      let origY = 0;
+      try {
+        badge.setPointerCapture(e.pointerId);
+      } catch (_) {}
 
-      badge.addEventListener("mousedown", (e) => {
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        const rect = badge.getBoundingClientRect();
-        origX = rect.left;
-        origY = rect.top;
-        badge.style.setProperty("bottom", "auto", "important");
-        badge.style.setProperty("right", "auto", "important");
-        badge.style.setProperty("width", "fit-content", "important");
-        badge.style.setProperty("max-width", "fit-content", "important");
-        badge.style.setProperty("height", "auto", "important");
-        badge.style.setProperty("white-space", "nowrap", "important");
-        badge.style.setProperty("left", `${origX}px`, "important");
-        badge.style.setProperty("top", `${origY}px`, "important");
-        badge.style.setProperty("cursor", "grabbing", "important");
-        e.preventDefault();
-      });
+      e.preventDefault();
+      e.stopPropagation();
+    });
 
-      window.addEventListener("mousemove", (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        const newLeft = Math.max(10, Math.min(window.innerWidth - badge.offsetWidth - 10, origX + dx));
-        const newTop = Math.max(10, Math.min(window.innerHeight - badge.offsetHeight - 10, origY + dy));
-        badge.style.setProperty("left", `${newLeft}px`, "important");
-        badge.style.setProperty("top", `${newTop}px`, "important");
-        badge.style.setProperty("bottom", "auto", "important");
-        badge.style.setProperty("right", "auto", "important");
-        badge.style.setProperty("width", "fit-content", "important");
-        badge.style.setProperty("height", "auto", "important");
-      });
+    badge.addEventListener("pointermove", (e: PointerEvent) => {
+      if (!isDragging) return;
 
-      window.addEventListener("mouseup", () => {
-        if (isDragging) {
-          isDragging = false;
-          badge.style.setProperty("cursor", "grab", "important");
-        }
-      });
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const maxLeft = Math.max(8, window.innerWidth - badge.offsetWidth - 8);
+      const maxTop = Math.max(8, window.innerHeight - badge.offsetHeight - 8);
+
+      const newLeft = Math.max(8, Math.min(maxLeft, origLeft + dx));
+      const newTop = Math.max(8, Math.min(maxTop, origTop + dy));
+
+      badge.style.setProperty("left", `${newLeft}px`, "important");
+      badge.style.setProperty("top", `${newTop}px`, "important");
+      badge.style.setProperty("bottom", "auto", "important");
+      badge.style.setProperty("right", "auto", "important");
+
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    const stopDragging = (e: PointerEvent) => {
+      if (isDragging) {
+        isDragging = false;
+        badge.classList.remove("shieldit-dragging");
+        badge.style.setProperty("cursor", "grab", "important");
+        try {
+          badge.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+      }
+    };
+
+    badge.addEventListener("pointerup", stopDragging);
+    badge.addEventListener("pointercancel", stopDragging);
+  };
+
+  const repositionBadge = () => {
+    const badge = document.getElementById("shieldit-status-badge");
+    if (badge) {
+      attachBadgeDragClient(badge);
+
+      badge.style.setProperty("position", "fixed", "important");
+      badge.style.setProperty("z-index", "2147483647", "important");
+      badge.style.setProperty("cursor", "grab", "important");
+      badge.style.setProperty("user-select", "none", "important");
+      badge.style.setProperty("-webkit-user-select", "none", "important");
+      badge.style.setProperty("touch-action", "none", "important");
+      badge.style.setProperty("width", "fit-content", "important");
+      badge.style.setProperty("max-width", "fit-content", "important");
+      badge.style.setProperty("height", "auto", "important");
+      badge.style.setProperty("white-space", "nowrap", "important");
+      badge.title = "ShieldIt Active • Drag anywhere to move";
+
+      if (badge.dataset.userMoved !== "true" && !badge.dataset.shielditPositionFixed) {
+        badge.dataset.shielditPositionFixed = "true";
+        badge.style.setProperty("top", "auto", "important");
+        badge.style.setProperty("left", "auto", "important");
+        badge.style.setProperty("bottom", "16px", "important");
+        badge.style.setProperty("right", "18px", "important");
+        badge.style.setProperty("transform", "none", "important");
+      }
     }
   };
 
@@ -412,7 +452,7 @@ if (typeof window !== "undefined") {
     }
     const observer = new MutationObserver(repositionBadge);
     observer.observe(document.documentElement, { childList: true, subtree: true });
-    setInterval(repositionBadge, 500);
+    setInterval(repositionBadge, 1000);
   }
 }
 

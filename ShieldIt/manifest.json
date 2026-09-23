@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ShieldIt - Exam & Lab Lockdown",
   "version": "1.0.1",
-  "description": "Official secure exam environment and lockdown extension for BuildIt.",
+  "description": "Official secure exam environment and lockdown extension for BuildIt at IARE.",
   "permissions": [
     "management",
     "tabs",
@@ -11,7 +11,11 @@
     "scripting"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://buildit.iare.ac.in/*",
+    "http://localhost/*",
+    "http://localhost:*/*",
+    "http://127.0.0.1/*",
+    "http://127.0.0.1:*/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -19,7 +23,11 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://buildit.iare.ac.in/*",
+        "http://localhost/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:*/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
@@ -29,15 +37,23 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["test_sandbox.html", "test_sandbox.js", "icons/*", "content.css"],
-      "matches": ["<all_urls>"]
+      "resources": ["icons/*", "content.css"],
+      "matches": [
+        "https://buildit.iare.ac.in/*",
+        "http://localhost/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:*/*"
+      ]
     }
   ],
   "externally_connectable": {
     "matches": [
+      "https://buildit.iare.ac.in/*",
+      "http://localhost/*",
       "http://localhost:*/*",
-      "http://127.0.0.1:*/*",
-      "https://*/*"
+      "http://127.0.0.1/*",
+      "http://127.0.0.1:*/*"
     ]
   },
   "action": {

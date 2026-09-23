@@ -30,7 +30,7 @@ interface UseExamSecurityReturn {
   resetViolationState: () => void;
 }
 
-const DEBOUNCE_MS = 1000;
+const DEBOUNCE_MS = 2500;
 
 function isLinuxClient() {
   if (typeof navigator === "undefined") {
@@ -59,8 +59,10 @@ export const useExamSecurity = ({
   // Track whether the first external paste warning has already been shown
   const externalPasteWarned = useRef<boolean>(false);
 
-  // Debounce refs
+  // Debounce refs and startup grace period
   const lastViolationTime = useRef<number>(0);
+  const mountTime = useRef<number>(Date.now());
+  const STARTUP_GRACE_PERIOD_MS = 4000;
 
   // State to track if we expect the user to be in fullscreen
   // We assume yes initially if they are in the exam session
@@ -79,6 +81,16 @@ export const useExamSecurity = ({
       if (now - lastViolationTime.current < DEBOUNCE_MS) {
         return;
       }
+
+      // Suppress transient blur/fullscreen violations during initial page mount & hydration
+      if (
+        (type === "window_blur" || type === "tab_switch" || type === "exited_fullscreen") &&
+        Date.now() - mountTime.current < STARTUP_GRACE_PERIOD_MS
+      ) {
+        console.log(`[ExamSecurity] Startup grace period active; ignored violation: ${type}`);
+        return;
+      }
+
       lastViolationTime.current = now;
 
       console.log(`[ExamSecurity] Violation: ${type} (Severe: ${isSevere})`);
@@ -190,19 +202,39 @@ export const useExamSecurity = ({
 
     // 3. Detect Tab Switching
     const handleVisibilityChange = () => {
+      if (Date.now() - mountTime.current < STARTUP_GRACE_PERIOD_MS) {
+        return;
+      }
       if (document.hidden) {
         reportViolation("tab_switch", true, "Tab switch or window minimized");
       }
     };
 
     // 4. Detect Window Blur (Alt+Tab, clicking outside, switching to another app/window)
-    const handleWindowBlur = () => {
-      reportViolation("window_blur", true, "Exam window lost focus (Alt+Tab or clicked outside)");
+    const handleWindowBlur = (e: Event) => {
+      // Ignore if focus is merely shifting between internal child DOM elements
+      if (e.target && e.target !== window && e.target !== document) {
+        return;
+      }
+
+      if (Date.now() - mountTime.current < STARTUP_GRACE_PERIOD_MS) {
+        return;
+      }
+
+      // Small delay to verify if document really lost focus (vs intra-window focus change)
+      setTimeout(() => {
+        if (!document.hasFocus()) {
+          reportViolation("window_blur", true, "Exam window lost focus (Alt+Tab or clicked outside)");
+        }
+      }, 200);
     };
 
     // 5. Fullscreen Check
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
+        if (Date.now() - mountTime.current < STARTUP_GRACE_PERIOD_MS) {
+          return;
+        }
         // If we expect fullscreen and lost it -> Violation
         if (expectFullscreen) {
           reportViolation("exited_fullscreen", true, "Exited fullscreen mode");

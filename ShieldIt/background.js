@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
 // In-memory state cache
 let state = {
   isLockdownActive: false,
+  lockdownStartTime: 0,
   activeExamId: null,
   examTabId: null,
   examWindowId: null,
@@ -35,7 +36,8 @@ async function injectTabs() {
         (tab.url.includes("localhost") ||
          tab.url.includes("127.0.0.1") ||
          tab.url.includes("build-it") ||
-         tab.url.includes("buildit"))
+         tab.url.includes("buildit") ||
+         tab.url.includes("iare.ac.in"))
       ) {
         try {
           await chrome.scripting.executeScript({
@@ -54,6 +56,46 @@ async function injectTabs() {
     }
   } catch (err) {
     console.error("[ShieldIt] Error during tab auto-injection:", err);
+  }
+}
+
+/**
+ * Re-scans all extensions during an active lockdown and disables any that were turned on
+ * (e.g. while ShieldIt was temporarily disabled).
+ * Preserves state.disabledExtensions so the original pre-exam restore snapshot is NOT overwritten!
+ */
+async function enforceLockdown() {
+  if (!state.isLockdownActive || isRestoring) return;
+
+  try {
+    const allExtensions = await chrome.management.getAll();
+    const selfId = chrome.runtime.id;
+
+    // Filter ANY extension that is currently enabled (including third-party and unpacked extensions)
+    const unauthorizedEnabled = allExtensions.filter(
+      (ext) => ext.id !== selfId && ext.enabled && ext.type !== "theme" && ext.mayDisable !== false
+    );
+
+    if (unauthorizedEnabled.length > 0) {
+      console.warn(`[ShieldIt Re-Enforce] Detected ${unauthorizedEnabled.length} extensions active during lockdown:`, unauthorizedEnabled.map((e) => e.name));
+
+      for (const ext of unauthorizedEnabled) {
+        try {
+          await chrome.management.setEnabled(ext.id, false);
+          console.log(`[ShieldIt Re-Enforce] Blocked & disabled: ${ext.name} (${ext.id})`);
+        } catch (err) {
+          console.warn(`[ShieldIt Re-Enforce] Could not disable ${ext.name}:`, err);
+        }
+      }
+
+      sendViolationToExamTab({
+        type: "UNAUTHORIZED_EXTENSION_ENABLED",
+        severity: "CRITICAL",
+        message: `Blocked ${unauthorizedEnabled.length} unauthorized extension(s) activated while proctoring was interrupted (${unauthorizedEnabled.map((e) => e.name).join(", ")}).`
+      });
+    }
+  } catch (err) {
+    console.error("[ShieldIt Re-Enforce] Error:", err);
   }
 }
 
@@ -79,6 +121,12 @@ async function initServiceWorker() {
 
     // Auto-inject into open tabs so existing sessions detect the extension immediately upon toggle ON
     await injectTabs();
+
+    // If lockdown was active when extension was toggled back ON:
+    // Immediately re-enforce lockdown to pause any extensions enabled while ShieldIt was OFF!
+    if (state.isLockdownActive) {
+      await enforceLockdown();
+    }
   } catch (err) {
     console.error("[ShieldIt] Failed to initialize state:", err);
   }
@@ -129,11 +177,15 @@ async function startLockdown(examId, tabId, options = {}, sessionSecret = null) 
 
     // Guard: If lockdown is already active and we already have a snapshot, do not overwrite it!
     if (state.isLockdownActive && state.disabledExtensions && state.disabledExtensions.length > 0) {
-      console.log("[ShieldIt] Lockdown already active. Preserving current pre-exam snapshot.");
+      console.log("[ShieldIt] Lockdown already active. Preserving current pre-exam snapshot and re-enforcing lockdown.");
       if (tabId) {
         state.examTabId = tabId;
         await persistState();
       }
+
+      // Re-scan and immediately disable any extensions enabled while ShieldIt was paused:
+      await enforceLockdown();
+
       return {
         success: true,
         disabledCount: state.disabledExtensions.length,
@@ -176,6 +228,7 @@ async function startLockdown(examId, tabId, options = {}, sessionSecret = null) 
 
     // Persist snapshot BEFORE disabling
     state.isLockdownActive = true;
+    state.lockdownStartTime = Date.now();
     state.activeExamId = examId;
     state.examTabId = tabId || null;
     state.disabledExtensions = disabledIds;
@@ -360,6 +413,8 @@ function sendPayloadToExamTabs(payload) {
           (tab.url.includes("/session") ||
            tab.url.includes("/labs") ||
            tab.url.includes("test_sandbox") ||
+           tab.url.includes("buildit") ||
+           tab.url.includes("iare.ac.in") ||
            tab.url.includes("localhost") ||
            tab.url.includes("127.0.0.1")));
 
@@ -464,8 +519,15 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 /**
  * 3. Window Blur / Focus Guard: Detect when window loses focus (Alt+Tab, app switch, etc.)
  */
+let lastWindowBlurTime = 0;
+
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
   if (!state.isLockdownActive) return;
+
+  // Suppress blur events during initial startup / extension disable transition (first 4 seconds)
+  if (state.lockdownStartTime && Date.now() - state.lockdownStartTime < 4000) {
+    return;
+  }
 
   // Loss of focus if switched to a non-browser app (WINDOW_ID_NONE)
   // OR switched to another Chrome window outside the exam window
@@ -474,6 +536,12 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
     (state.examWindowId && windowId !== state.examWindowId);
 
   if (isBlur) {
+    const now = Date.now();
+    if (now - lastWindowBlurTime < 2500) {
+      return;
+    }
+    lastWindowBlurTime = now;
+
     console.warn(`[ShieldIt] Window blur detected: windowId=${windowId}, examWindowId=${state.examWindowId}`);
     sendViolationToExamTab({
       type: "WINDOW_BLUR",
@@ -575,7 +643,8 @@ async function handleIncomingMessage(message, sender) {
         senderUrl.includes("localhost") ||
         senderUrl.includes("127.0.0.1") ||
         senderUrl.includes("build-it") ||
-        senderUrl.includes("buildit");
+        senderUrl.includes("buildit") ||
+        senderUrl.includes("iare.ac.in");
       const isResultsPage = senderUrl.includes("/results") || senderUrl.includes("/dashboard");
       // Allow valid secret, or authorized origin at completion/results
       const secret = payload?.sessionSecret || ((isResultsPage || isAuthorizedOrigin) ? state.sessionSecret : null);
@@ -586,6 +655,9 @@ async function handleIncomingMessage(message, sender) {
       const displays = await getConnectedDisplays();
       if (sender.tab?.id && state.isLockdownActive) {
         state.examTabId = sender.tab.id;
+      }
+      if (state.isLockdownActive) {
+        enforceLockdown().catch(() => {});
       }
       return {
         success: true,

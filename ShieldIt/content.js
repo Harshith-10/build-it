@@ -86,6 +86,10 @@
   } catch (e) {}
 
   let isExamLockdown = false;
+  const pageLoadTimestamp = Date.now();
+  let lockdownActivatedTime = 0;
+  const GRACE_PERIOD_MS = 4000;
+  let lastBlurViolationTime = 0;
 
   // ----------------------------------------------------------------------
   // 1. FORBIDDEN SHORTCUTS & INPUT GUARDS
@@ -167,13 +171,48 @@
   // Window Blur Guard: Detects Alt+Tab, switching to another app, minimizing, or clicking outside
   window.addEventListener(
     "blur",
-    () => {
+    (e) => {
       if (!isExamLockdown) return;
-      notifyViolation({
-        type: "WINDOW_BLUR",
-        severity: "HIGH",
-        message: "Exam window lost focus (Alt+Tab or application switch detected)"
-      });
+
+      // 1. Ignore if focus is just shifting between internal DOM elements (inputs, buttons, modal, Monaco editor)
+      if (e.target && e.target !== window && e.target !== document) {
+        return;
+      }
+
+      // 2. Suppress blurs during initial startup & page navigation grace period (first 4 seconds)
+      if (
+        Date.now() - pageLoadTimestamp < GRACE_PERIOD_MS ||
+        Date.now() - lockdownActivatedTime < GRACE_PERIOD_MS
+      ) {
+        return;
+      }
+
+      // 3. Debounce window blur to prevent duplicate strikes
+      const now = Date.now();
+      if (now - lastBlurViolationTime < 2500) {
+        return;
+      }
+
+      // 4. Give the browser 180ms to settle: if document STILL has focus, ignore internal focus transitions
+      setTimeout(() => {
+        if (!isExamLockdown) return;
+        if (document.hasFocus()) {
+          return;
+        }
+        if (
+          Date.now() - pageLoadTimestamp < GRACE_PERIOD_MS ||
+          Date.now() - lockdownActivatedTime < GRACE_PERIOD_MS
+        ) {
+          return;
+        }
+
+        lastBlurViolationTime = Date.now();
+        notifyViolation({
+          type: "WINDOW_BLUR",
+          severity: "HIGH",
+          message: "Exam window lost focus (Alt+Tab or application switch detected)"
+        });
+      }, 180);
     },
     { capture: true, signal }
   );
@@ -183,6 +222,12 @@
     "visibilitychange",
     () => {
       if (!isExamLockdown) return;
+      if (
+        Date.now() - pageLoadTimestamp < GRACE_PERIOD_MS ||
+        Date.now() - lockdownActivatedTime < GRACE_PERIOD_MS
+      ) {
+        return;
+      }
       if (document.hidden) {
         notifyViolation({
           type: "TAB_SWITCH",
@@ -230,6 +275,83 @@
   // 2. STATUS BADGE / PILL
   // ----------------------------------------------------------------------
 
+  function attachBadgeDrag(badge) {
+    if (!badge || badge._shielditDragAttached) return;
+    badge._shielditDragAttached = true;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let origLeft = 0;
+    let origTop = 0;
+
+    badge.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return; // Only primary mouse button or touch
+
+      isDragging = true;
+      badge.dataset.userMoved = "true";
+      badge.classList.add("shieldit-dragging");
+      badge.style.setProperty("cursor", "grabbing", "important");
+
+      const rect = badge.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = rect.left;
+      origTop = rect.top;
+
+      badge.style.setProperty("bottom", "auto", "important");
+      badge.style.setProperty("right", "auto", "important");
+      badge.style.setProperty("left", `${origLeft}px`, "important");
+      badge.style.setProperty("top", `${origTop}px`, "important");
+      badge.style.setProperty("width", "fit-content", "important");
+      badge.style.setProperty("max-width", "fit-content", "important");
+      badge.style.setProperty("height", "auto", "important");
+      badge.style.setProperty("white-space", "nowrap", "important");
+
+      try {
+        badge.setPointerCapture(e.pointerId);
+      } catch (_) {}
+
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    badge.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const maxLeft = Math.max(8, window.innerWidth - badge.offsetWidth - 8);
+      const maxTop = Math.max(8, window.innerHeight - badge.offsetHeight - 8);
+
+      const newLeft = Math.max(8, Math.min(maxLeft, origLeft + dx));
+      const newTop = Math.max(8, Math.min(maxTop, origTop + dy));
+
+      badge.style.setProperty("left", `${newLeft}px`, "important");
+      badge.style.setProperty("top", `${newTop}px`, "important");
+      badge.style.setProperty("bottom", "auto", "important");
+      badge.style.setProperty("right", "auto", "important");
+
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    const stopDragging = (e) => {
+      if (isDragging) {
+        isDragging = false;
+        badge.classList.remove("shieldit-dragging");
+        badge.style.setProperty("cursor", "grab", "important");
+        try {
+          badge.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+      }
+    };
+
+    badge.addEventListener("pointerup", stopDragging);
+    badge.addEventListener("pointercancel", stopDragging);
+  }
+
   function updateLockdownUI(active) {
     const isExamPage =
       window.location.pathname.includes("/session") ||
@@ -237,7 +359,11 @@
       window.location.pathname.includes("test_sandbox") ||
       window.location.pathname.includes("shieldit-test");
 
-    isExamLockdown = active && isExamPage;
+    const willBeLockdown = active && isExamPage;
+    if (willBeLockdown && !isExamLockdown) {
+      lockdownActivatedTime = Date.now();
+    }
+    isExamLockdown = willBeLockdown;
 
     // If called early at document_start before body is ready, wait for body
     if (!document.body) {
@@ -259,72 +385,31 @@
           <span class="shieldit-text">ShieldIt Active &bull; Exam Protected</span>
         `;
 
-        // Guarantee bottom-right corner positioning regardless of cached stylesheets
         badge.style.setProperty("position", "fixed", "important");
-        badge.style.setProperty("bottom", "16px", "important");
-        badge.style.setProperty("right", "18px", "important");
-        badge.style.setProperty("top", "auto", "important");
-        badge.style.setProperty("left", "auto", "important");
         badge.style.setProperty("z-index", "2147483647", "important");
         badge.style.setProperty("margin", "0", "important");
-        badge.style.setProperty("transform", "none", "important");
         badge.style.setProperty("cursor", "grab", "important");
         badge.style.setProperty("user-select", "none", "important");
-        badge.title = "ShieldIt Active • Drag to reposition";
+        badge.style.setProperty("-webkit-user-select", "none", "important");
+        badge.style.setProperty("touch-action", "none", "important");
+        badge.style.setProperty("width", "fit-content", "important");
+        badge.style.setProperty("max-width", "fit-content", "important");
+        badge.style.setProperty("height", "auto", "important");
+        badge.style.setProperty("white-space", "nowrap", "important");
+        badge.title = "ShieldIt Active • Drag anywhere to move";
 
-        // Drag-to-reposition handler
-        let isDragging = false;
-        let startX, startY, origLeft, origTop;
-
-        badge.addEventListener("mousedown", (e) => {
-          isDragging = true;
-          badge.style.setProperty("cursor", "grabbing", "important");
-          const rect = badge.getBoundingClientRect();
-          startX = e.clientX;
-          startY = e.clientY;
-          origLeft = rect.left;
-          origTop = rect.top;
-
-          badge.style.setProperty("bottom", "auto", "important");
-          badge.style.setProperty("right", "auto", "important");
-          badge.style.setProperty("width", "fit-content", "important");
-          badge.style.setProperty("max-width", "fit-content", "important");
-          badge.style.setProperty("height", "auto", "important");
-          badge.style.setProperty("white-space", "nowrap", "important");
-          badge.style.setProperty("left", `${origLeft}px`, "important");
-          badge.style.setProperty("top", `${origTop}px`, "important");
-          e.preventDefault();
-        });
-
-        window.addEventListener("mousemove", (e) => {
-          if (!isDragging) return;
-          const dx = e.clientX - startX;
-          const dy = e.clientY - startY;
-          const newLeft = Math.max(10, Math.min(window.innerWidth - badge.offsetWidth - 10, origLeft + dx));
-          const newTop = Math.max(10, Math.min(window.innerHeight - badge.offsetHeight - 10, origTop + dy));
-          badge.style.setProperty("left", `${newLeft}px`, "important");
-          badge.style.setProperty("top", `${newTop}px`, "important");
-          badge.style.setProperty("bottom", "auto", "important");
-          badge.style.setProperty("right", "auto", "important");
-          badge.style.setProperty("width", "fit-content", "important");
-          badge.style.setProperty("height", "auto", "important");
-        }, { signal });
-
-        window.addEventListener("mouseup", () => {
-          if (isDragging) {
-            isDragging = false;
-            badge.style.setProperty("cursor", "grab", "important");
-          }
-        }, { signal });
-
+        attachBadgeDrag(badge);
         document.body.appendChild(badge);
       } else if (badge) {
-        // Enforce bottom-right on existing badge if stylesheet had cached top-center
-        badge.style.setProperty("top", "auto", "important");
-        badge.style.setProperty("left", "auto", "important");
-        badge.style.setProperty("bottom", "16px", "important");
-        badge.style.setProperty("right", "18px", "important");
-        badge.style.setProperty("transform", "none", "important");
+        attachBadgeDrag(badge);
+        // Only position at bottom-right if student hasn't dragged it
+        if (badge.dataset.userMoved !== "true") {
+          badge.style.setProperty("top", "auto", "important");
+          badge.style.setProperty("left", "auto", "important");
+          badge.style.setProperty("bottom", "16px", "important");
+          badge.style.setProperty("right", "18px", "important");
+          badge.style.setProperty("transform", "none", "important");
+        }
       }
     } else {
       if (document.body) {
