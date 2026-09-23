@@ -35,14 +35,7 @@ export function LabHeader({
           asChild
           className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2"
         >
-          <Link
-            href={`/labs/${labId}`}
-            onClick={async () => {
-              if (typeof document !== "undefined" && document.fullscreenElement) {
-                await document.exitFullscreen().catch(() => {});
-              }
-            }}
-          >
+          <Link href={`/labs/${labId}`}>
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline text-sm">Back</span>
           </Link>

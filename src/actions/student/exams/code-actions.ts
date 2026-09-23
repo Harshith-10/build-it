@@ -94,7 +94,7 @@ async function validateCodingWindow(
         eq(examAttendance.userId, userId),
       ),
     });
-    if (!attendance || !attendance.present) {
+    if (attendance && !attendance.present) {
       return "Attendance Lockout: You have been marked absent for this exam.";
     }
   }

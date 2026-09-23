@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { vivaQuestionPool, questionCollections } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth-access";
@@ -12,6 +12,14 @@ export async function importVivaQuestionsAction(
   try {
     await requireAdmin();
 
+    if (!collectionId) {
+      return { success: false as const, error: "Collection ID is required" };
+    }
+
+    if (!Array.isArray(questions)) {
+      return { success: false as const, error: "Invalid questions list format" };
+    }
+
     const collection = await db.query.questionCollections.findFirst({
       where: eq(questionCollections.id, collectionId),
     });
@@ -22,26 +30,28 @@ export async function importVivaQuestionsAction(
 
     // Filter out empty lines
     const cleanQuestions = questions
-      .map((q) => q.trim())
+      .map((q) => (typeof q === "string" ? q.trim() : ""))
       .filter((q) => q.length > 0);
 
     if (cleanQuestions.length === 0) {
       return { success: false as const, error: "No valid questions provided" };
     }
 
-    // Replace existing questions for this collection
-    await db
-      .delete(vivaQuestionPool)
-      .where(eq(vivaQuestionPool.collectionId, collectionId));
-
     const records = cleanQuestions.map((text, idx) => ({
       collectionId,
       questionNo: idx + 1,
       questionText: text,
-      maxMarks: "2.5",
+      maxMarks: "4",
     }));
 
-    await db.insert(vivaQuestionPool).values(records);
+    // ✅ Atomic Transaction: Prevents deleting questions if insertion fails
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(vivaQuestionPool)
+        .where(eq(vivaQuestionPool.collectionId, collectionId));
+
+      await tx.insert(vivaQuestionPool).values(records);
+    });
 
     return {
       success: true as const,
@@ -59,6 +69,10 @@ export async function importVivaQuestionsAction(
 export async function getCollectionVivaQuestionsAction(collectionId: string) {
   try {
     await requireAdmin();
+
+    if (!collectionId) {
+      return { success: false as const, error: "Collection ID is required" };
+    }
 
     const questions = await db.query.vivaQuestionPool.findMany({
       where: eq(vivaQuestionPool.collectionId, collectionId),

@@ -21,7 +21,6 @@ import { LabSidebar } from "./lab-sidebar";
 import { LabHeader } from "./lab-header";
 import { LabProblemViewer } from "./lab-problem-viewer";
 import { LabCodePlayground } from "./lab-code-playground";
-import { LabProtection } from "./lab-protection";
 import { VivaQuestionViewer } from "./viva-question-viewer";
 import { VivaAnswerEditor } from "./viva-answer-editor";
 import { getAssignedVivaQuestions, saveVivaAnswerAction, type AssignedVivaQuestion } from "@/actions/student/labs/viva";
@@ -171,16 +170,7 @@ export function LabIDEShell({
             </p>
           </div>
           <Button asChild>
-            <Link
-              href={`/labs/${labId}`}
-              onClick={async () => {
-                if (typeof document !== "undefined" && document.fullscreenElement) {
-                  await document.exitFullscreen().catch(() => {});
-                }
-              }}
-            >
-              Back to Labs
-            </Link>
+            <Link href={`/labs/${labId}`}>Back to Labs</Link>
           </Button>
         </div>
       </div>
@@ -275,8 +265,6 @@ export function LabIDEShell({
         </SidebarInset>
       </SidebarProvider>
 
-      <LabProtection />
-
       <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
         <AlertDialogContent className="md:ml-32">
           <AlertDialogHeader>
@@ -292,9 +280,6 @@ export function LabIDEShell({
             <AlertDialogAction
               className="bg-green-600 hover:bg-green-700 text-white"
               onClick={async () => {
-                if (typeof document !== "undefined" && document.fullscreenElement) {
-                  await document.exitFullscreen().catch(() => {});
-                }
                 // Save any pending/unsubmitted Viva answers to guarantee report inclusion
                 for (const vq of vivaQuestions) {
                   if (vq.answerText && vq.answerText.trim().length > 0) {

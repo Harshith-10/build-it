@@ -11,7 +11,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { userGroups } from "./groups";
-import { questionCollections } from "./question-collections"; // ✅ added
+import { questionCollections } from "./question-collections";
+import { exams } from "./exams";
 
 // ─── Labs ────────────────────────────────────────────────────────────────────
 
@@ -163,6 +164,7 @@ export const exerciseMarks = pgTable(
 export const labsRelations = relations(labs, ({ many }) => ({
   exercises: many(exercises),
   facultyAssignments: many(labGroupFaculty),
+  exams: many(exams),
 }));
 
 export const exercisesRelations = relations(exercises, ({ one, many }) => ({
@@ -253,7 +255,7 @@ export const vivaQuestionPool = pgTable("viva_question_pool", {
   questionText: text("question_text").notNull(),
   maxMarks: numeric("max_marks", { precision: 5, scale: 2 })
     .notNull()
-    .default("2.5"),
+    .default("4.0"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

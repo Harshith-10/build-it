@@ -123,7 +123,7 @@ export function FacultySelect({
         </div>
 
         <ScrollArea className="max-h-56">
-          <div className="space-y-1 pr-1">
+          <div className="space-y-1 pr-2">
             {/* Unassign option */}
             <button
               type="button"

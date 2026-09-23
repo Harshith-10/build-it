@@ -46,7 +46,7 @@ export default async function OnboardingPage({ params }: PageProps) {
       ),
     });
 
-    if (!attendance || !attendance.present) {
+    if (attendance && !attendance.present) {
       return (
         <div className="flex h-screen w-screen items-center justify-center bg-background p-4">
           <div className="max-w-md w-full rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center space-y-5 shadow-lg backdrop-blur-sm">

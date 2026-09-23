@@ -48,7 +48,7 @@ export default async function SessionLayout({
         eq(examAttendance.userId, session.user.id),
       ),
     });
-    if (!attendance || !attendance.present) {
+    if (attendance && !attendance.present) {
       redirect(`/exams/${examId}/onboarding`);
     }
   }

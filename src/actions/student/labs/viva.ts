@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { exercises, vivaQuestionPool, vivaSubmissions } from "@/db/schema";
 import { requireUser } from "@/lib/auth-access";
@@ -17,6 +17,10 @@ export async function getAssignedVivaQuestions(exerciseId: string) {
   try {
     const session = await requireUser();
     const userId = session.user.id;
+
+    if (!exerciseId) {
+      return { success: false as const, error: "Exercise ID is required" };
+    }
 
     // 1. Fetch exercise to get its collectionId
     const exercise = await db.query.exercises.findFirst({
@@ -47,7 +51,7 @@ export async function getAssignedVivaQuestions(exerciseId: string) {
           vivaQuestionId: sub.vivaQuestionId,
           questionNo: idx + 1,
           questionText: sub.vivaQuestion?.questionText ?? "Viva Question",
-          maxMarks: sub.vivaQuestion?.maxMarks ?? "2.5",
+          maxMarks: sub.vivaQuestion?.maxMarks ?? "4",
           answerText: sub.answerText ?? "",
         }))
         .sort((a, b) => a.questionNo - b.questionNo);
@@ -81,14 +85,26 @@ export async function getAssignedVivaQuestions(exerciseId: string) {
       answerText: "",
     }));
 
-    await db.insert(vivaSubmissions).values(newSubmissions);
+    // Insert with onConflictDoNothing to gracefully handle race conditions
+    await db.insert(vivaSubmissions).values(newSubmissions).onConflictDoNothing();
 
-    const questions: AssignedVivaQuestion[] = selected.map((q, idx) => ({
-      vivaQuestionId: q.id,
+    // Fetch confirmed assigned submissions to guarantee consistency
+    const confirmedSubmissions = await db.query.vivaSubmissions.findMany({
+      where: and(
+        eq(vivaSubmissions.userId, userId),
+        eq(vivaSubmissions.exerciseId, exerciseId)
+      ),
+      with: {
+        vivaQuestion: true,
+      },
+    });
+
+    const questions: AssignedVivaQuestion[] = confirmedSubmissions.map((sub, idx) => ({
+      vivaQuestionId: sub.vivaQuestionId,
       questionNo: idx + 1,
-      questionText: q.questionText,
-      maxMarks: q.maxMarks,
-      answerText: "",
+      questionText: sub.vivaQuestion?.questionText ?? "Viva Question",
+      maxMarks: sub.vivaQuestion?.maxMarks ?? "4",
+      answerText: sub.answerText ?? "",
     }));
 
     return {
@@ -113,10 +129,14 @@ export async function saveVivaAnswerAction(input: {
     const session = await requireUser();
     const userId = session.user.id;
 
+    if (!input?.exerciseId || !input?.vivaQuestionId) {
+      return { success: false as const, error: "Missing required question parameters" };
+    }
+
     await db
       .update(vivaSubmissions)
       .set({
-        answerText: input.answerText,
+        answerText: typeof input.answerText === "string" ? input.answerText : "",
         submittedAt: new Date(),
       })
       .where(

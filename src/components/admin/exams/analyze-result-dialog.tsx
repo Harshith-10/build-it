@@ -119,7 +119,7 @@ export function AnalyzeResultDialog() {
     const toastId = toast.loading("Processing Excel and generating dashboard...");
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: "array" });
@@ -220,10 +220,28 @@ export function AnalyzeResultDialog() {
         });
 
         const finalTitle = examTitle.trim() || "Exam";
+
+        // Dynamically load IARE header banner for black-box-free PDF export
+        let headerImg = "";
+        try {
+          const resp = await fetch("/iare-header.jpg");
+          if (resp.ok) {
+            const blob = await resp.blob();
+            headerImg = await new Promise<string>((resolve) => {
+              const r = new FileReader();
+              r.onloadend = () => resolve((r.result as string) || "");
+              r.readAsDataURL(blob);
+            });
+          }
+        } catch (e) {
+          console.warn("Could not load header image", e);
+        }
+
         const html = generateResultsDashboardHtml({
           examTitle: finalTitle,
           students,
           branchOrder,
+          headerImg,
         });
 
         setGeneratedHtml(html);

@@ -3,6 +3,7 @@
 import {
   Activity,
   BarChart2,
+  ClipboardCheck,
   Code,
   Cog,
   FileQuestion,
@@ -11,6 +12,7 @@ import {
   Group,
   LayoutDashboard,
   Library,
+  MessageSquare,
   Terminal,
   User,
   Users,
@@ -86,9 +88,19 @@ const adminNavMain = [
     icon: BarChart2,
   },
   {
+    title: "Assessments",
+    url: "/admin/assessments",
+    icon: ClipboardCheck,
+  },
+  {
     title: "Jet Stats",
     url: "/admin/jet-stats",
     icon: Activity,
+  },
+  {
+    title: "Requests",
+    url: "/admin/requests",
+    icon: MessageSquare,
   },
 ];
 
@@ -119,6 +131,11 @@ const studentNavMain = [
     icon: FlaskConical,
   },
   {
+    title: "Assessments",
+    url: "/assessments",
+    icon: ClipboardCheck,
+  },
+  {
     title: "Analytics",
     url: "/analytics",
     icon: BarChart2,
@@ -147,9 +164,19 @@ const facultyNavMain = [
     icon: GraduationCap,
   },
   {
-    title: "Labs",
+    title: "Laboratory",
     url: "/faculty/labs",
     icon: FlaskConical,
+  },
+  {
+    title: "Assessments",
+    url: "/faculty/assessments",
+    icon: ClipboardCheck,
+  },
+  {
+    title: "Requests",
+    url: "/faculty/requests",
+    icon: MessageSquare,
   },
 ];
 
