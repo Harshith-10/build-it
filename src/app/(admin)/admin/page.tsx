@@ -1,5 +1,6 @@
 import {
   FileQuestion,
+  FlaskConical,
   GraduationCap,
   Library,
   MessageSquare,
@@ -7,25 +8,38 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { getDashboardAnalytics } from "@/actions/admin/analytics";
 import { getCollections } from "@/actions/admin/collections";
 import { getExams } from "@/actions/admin/exams";
 import { getGroups } from "@/actions/admin/groups";
+import { getLabs } from "@/actions/admin/labs";
 import { getProblems } from "@/actions/admin/problems";
 import { getUsers } from "@/actions/admin/users";
 import { getOpenTicketCount } from "@/actions/tickets";
+import { DashboardAnalytics } from "@/components/admin/dashboard/dashboard-analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default async function AdminDashboard() {
-  const [usersData, examsData, problemsData, groupsData, collectionsData, openRequestCount] =
-    await Promise.all([
-      getUsers({ limit: 1 }),
-      getExams({ limit: 1 }),
-      getProblems({ limit: 1 }),
-      getGroups({ limit: 1 }),
-      getCollections({ limit: 1 }),
-      getOpenTicketCount(),
-    ]);
+  const [
+    usersData,
+    examsData,
+    labsData,
+    problemsData,
+    groupsData,
+    collectionsData,
+    openRequestCount,
+    analyticsData,
+  ] = await Promise.all([
+    getUsers({ limit: 1 }),
+    getExams({ limit: 1 }),
+    getLabs(),
+    getProblems({ limit: 1 }),
+    getGroups({ limit: 1 }),
+    getCollections({ limit: 1 }),
+    getOpenTicketCount(),
+    getDashboardAnalytics(),
+  ]);
 
   const stats = [
     {
@@ -45,6 +59,15 @@ export default async function AdminDashboard() {
       color:
         "from-violet-500/10 to-violet-500/5 dark:from-violet-500/20 dark:to-violet-500/5",
       iconColor: "text-violet-600 dark:text-violet-400",
+    },
+    {
+      title: "Laboratories",
+      value: Array.isArray(labsData) ? labsData.length : 0,
+      icon: FlaskConical,
+      href: "/admin/labs",
+      color:
+        "from-cyan-500/10 to-cyan-500/5 dark:from-cyan-500/20 dark:to-cyan-500/5",
+      iconColor: "text-cyan-600 dark:text-cyan-400",
     },
     {
       title: "Problems",
@@ -98,6 +121,12 @@ export default async function AdminDashboard() {
       description: "Schedule a new exam",
     },
     {
+      label: "Create Lab",
+      href: "/admin/labs/new",
+      icon: FlaskConical,
+      description: "Setup laboratory exercises",
+    },
+    {
       label: "Import Users",
       href: "/admin/users",
       icon: Users,
@@ -112,54 +141,60 @@ export default async function AdminDashboard() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8 pb-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          Overview of the BuildIT platform
+          Real-time analytics and overview of the BuildIT platform
         </p>
       </div>
-      <Separator />
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      {/* Resource Stats */}
+      <div className="grid gap-3.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-7">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card
-              className={`bg-linear-to-br ${stat.color} border transition-shadow hover:shadow-md cursor-pointer`}
+              className={`bg-linear-to-br ${stat.color} border transition-all hover:shadow-md hover:scale-[1.01] cursor-pointer`}
             >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3.5 pb-1">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
                   {stat.title}
                 </CardTitle>
-                <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
+                <stat.icon className={`h-3.5 w-3.5 ${stat.iconColor}`} />
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stat.value}</div>
+              <CardContent className="p-3.5 pt-0">
+                <div className="text-2xl font-bold">{stat.value}</div>
               </CardContent>
             </Card>
           </Link>
         ))}
       </div>
 
+      <Separator />
+
+      {/* Live Visit & Group Analytics Section */}
+      <DashboardAnalytics initialData={analyticsData} />
+
+      <Separator />
+
       {/* Quick Actions */}
       <div>
         <h2 className="text-lg font-semibold mb-3">Quick Actions</h2>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
           {quickActions.map((action) => (
             <Link key={action.label} href={action.href}>
-              <Card className="transition-all hover:shadow-md hover:border-primary/30 cursor-pointer group">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="rounded-lg bg-primary/10 p-2.5 group-hover:bg-primary/20 transition-colors">
+              <Card className="transition-all hover:shadow-md hover:border-primary/30 cursor-pointer group h-full">
+                <CardContent className="flex items-center gap-3.5 p-4">
+                  <div className="rounded-lg bg-primary/10 p-2.5 group-hover:bg-primary/20 transition-colors shrink-0">
                     <action.icon className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
-                    <div className="font-medium flex items-center gap-1">
-                      {action.label}
-                      <Plus className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm flex items-center gap-1">
+                      <span className="truncate">{action.label}</span>
+                      <Plus className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       {action.description}
                     </p>
                   </div>

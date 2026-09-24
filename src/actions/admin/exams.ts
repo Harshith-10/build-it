@@ -418,7 +418,7 @@ export async function getExam(id: string) {
               email: true,
               username: true,
             },
-          },
+          },  
         },
       },
       collections: {
