@@ -1,5 +1,3 @@
-import { config } from "dotenv";
-config({ path: ".env.local" });
 import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
 
