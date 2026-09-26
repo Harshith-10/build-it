@@ -128,7 +128,7 @@ export default async function ExamsPage() {
     <div className="flex flex-1 flex-col gap-6 min-h-0 w-full">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Exams</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Examinations</h2>
           <p className="text-muted-foreground">
             View upcoming and active exams assigned to you.
           </p>
