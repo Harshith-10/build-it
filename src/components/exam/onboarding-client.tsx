@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   BookOpen,
   Clock,
-  Download,
   ExternalLink,
   KeyRound,
   Monitor,
@@ -41,7 +40,6 @@ import { useExamOnboarding } from "@/hooks/use-exam-onboarding";
 import {
   useShieldIt,
   SHIELDIT_CHROME_STORE_URL,
-  SHIELDIT_ZIP_DOWNLOAD_URL,
 } from "@/lib/shieldit/shieldit-client";
 
 interface OnboardingClientProps {
@@ -219,51 +217,40 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
                     ShieldIt Proctor Extension Required
                   </AlertTitle>
                   <AlertDescription className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                    This examination requires the official <strong>ShieldIt</strong> proctor extension to enforce browser lockdown and pause third-party extensions.
+                    This examination requires the official <strong>ShieldIt</strong> proctor extension from the Chrome Web Store to enforce browser lockdown and ensure fair testing.
                   </AlertDescription>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {SHIELDIT_CHROME_STORE_URL ? (
-                      <Button
-                        size="sm"
-                        className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
-                        asChild
-                      >
-                        <a
-                          href={SHIELDIT_CHROME_STORE_URL}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Add to Chrome (Web Store)
-                        </a>
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
-                        onClick={() => setShowInstallModal(true)}
+                    <Button
+                      size="sm"
+                      className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                      asChild
+                    >
+                      <a
+                        href={SHIELDIT_CHROME_STORE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
-                        Add to Chrome
-                      </Button>
-                    )}
+                        Install from Chrome Web Store
+                      </a>
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       className="gap-1.5 border-amber-500/30"
                       onClick={() => setShowInstallModal(true)}
                     >
-                      <Download className="h-3.5 w-3.5" />
-                      Download & Install Guide
+                      <Shield className="h-3.5 w-3.5" />
+                      Installation Guide
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="gap-1.5 text-xs text-muted-foreground"
+                      className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                       onClick={() => checkStatus()}
                     >
                       <RotateCw className="h-3.5 w-3.5" />
-                      Verify Now
+                      Verify Extension
                     </Button>
                   </div>
                 </div>
@@ -368,69 +355,72 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
         </Card>
       </div>
 
-      {/* Installation Guide Modal */}
+      {/* Official Chrome Web Store Installation Modal */}
       <Dialog open={showInstallModal} onOpenChange={setShowInstallModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
-              <Shield className="h-5 w-5 text-primary" />
+              <ShieldCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               Install ShieldIt Proctor Extension
             </DialogTitle>
             <DialogDescription>
-              Follow these simple steps to install the extension in your Chromium browser (Chrome, Edge, Brave).
+              ShieldIt is the official academic integrity extension for BuildIt examinations at IARE.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2 text-sm">
-            <div className="rounded-lg border p-3 flex items-start gap-3 bg-muted/40">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+          <div className="space-y-3.5 py-2 text-sm">
+            {/* Step 1 */}
+            <div className="rounded-lg border p-3.5 flex items-start gap-3 bg-muted/40">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-xs">
                 1
               </div>
               <div className="flex-1">
-                <p className="font-medium">Download the Extension Package</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Download and unzip the official ShieldIt zip bundle on your computer.
+                <p className="font-semibold text-foreground">Open Chrome Web Store</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  Click the button below to visit the official ShieldIt listing on the Google Chrome Web Store.
                 </p>
-                <Button size="sm" variant="secondary" className="mt-2.5 gap-1.5" asChild>
-                  <a href={SHIELDIT_ZIP_DOWNLOAD_URL} download="shieldit.zip">
-                    <Download className="h-3.5 w-3.5" />
-                    Download ShieldIt (.zip)
+                <Button size="sm" className="mt-2.5 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white" asChild>
+                  <a href={SHIELDIT_CHROME_STORE_URL} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Open Chrome Web Store Page
                   </a>
                 </Button>
               </div>
             </div>
 
-            <div className="rounded-lg border p-3 flex items-start gap-3 bg-muted/40">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+            {/* Step 2 */}
+            <div className="rounded-lg border p-3.5 flex items-start gap-3 bg-muted/40">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-xs">
                 2
               </div>
-              <div>
-                <p className="font-medium">Open Chrome Extensions</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Open a new tab, visit <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">chrome://extensions</code>, and turn <strong>Developer mode</strong> (top-right toggle) ON.
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Click &quot;Add to Chrome&quot;</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  On the Chrome Web Store page, click the blue <strong>&quot;Add to Chrome&quot;</strong> button, then click <strong>&quot;Add extension&quot;</strong> in the browser confirmation prompt.
                 </p>
               </div>
             </div>
 
-            <div className="rounded-lg border p-3 flex items-start gap-3 bg-muted/40">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+            {/* Step 3 */}
+            <div className="rounded-lg border p-3.5 flex items-start gap-3 bg-muted/40">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-xs">
                 3
               </div>
-              <div>
-                <p className="font-medium">Load Unpacked</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Click <strong>Load unpacked</strong> and select the <strong>ShieldIt</strong> folder. It will auto-connect to this page immediately!
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Return &amp; Start Exam</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  Switch back to this tab. BuildIt will automatically detect ShieldIt. You can also click <strong>&quot;Verify Extension&quot;</strong> below to confirm immediately.
                 </p>
               </div>
             </div>
 
-            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-900 dark:text-blue-200">
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-950 dark:text-blue-200">
               <p className="font-semibold flex items-center gap-1.5">
-                <ExternalLink className="h-3.5 w-3.5" />
-                Chrome Web Store (Production)
+                <Shield className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                Official Verified Extension ID
               </p>
-              <p className="mt-1 opacity-90 leading-relaxed">
-                Once published to the Chrome Web Store, students can install with a single click without developer mode. Configure <code className="font-mono bg-blue-500/20 px-1 py-0.5 rounded">NEXT_PUBLIC_SHIELDIT_CHROME_STORE_URL</code> in your environment to activate the direct store link.
+              <p className="mt-1 font-mono text-[11px] opacity-90 break-all select-all">
+                opjkppmncihahojoofiohhhlhdjpikfg
               </p>
             </div>
           </div>
@@ -445,7 +435,7 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               }}
             >
               <RotateCw className="h-3.5 w-3.5" />
-              Verify Detection
+              Verify Extension
             </Button>
             <Button
               size="sm"
@@ -454,7 +444,7 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
                 setShowInstallModal(false);
               }}
             >
-              Done & Continue
+              Done &amp; Continue
             </Button>
           </DialogFooter>
         </DialogContent>

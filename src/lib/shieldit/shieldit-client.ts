@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 
 export const SHIELDIT_CHROME_STORE_URL =
-  process.env.NEXT_PUBLIC_SHIELDIT_CHROME_STORE_URL || "";
+  process.env.NEXT_PUBLIC_SHIELDIT_CHROME_STORE_URL ||
+  "https://chromewebstore.google.com/detail/shieldit-exam-lab-lockdow/opjkppmncihahojoofiohhhlhdjpikfg?authuser=0&hl=en-GB";
 export const SHIELDIT_ZIP_DOWNLOAD_URL = "/downloads/shieldit.zip";
 
 export interface ShieldItStatus {
@@ -455,4 +456,36 @@ if (typeof window !== "undefined") {
     setInterval(repositionBadge, 1000);
   }
 }
+
+/**
+ * Request an HMAC challenge signature from the active ShieldIt extension.
+ */
+export async function requestShieldItSignature(
+  userId: string,
+  examId: string,
+  challenge: { nonce: string; timestamp: number }
+): Promise<{
+  success: boolean;
+  signature?: string;
+  nonce?: string;
+  timestamp?: number;
+  extensionId?: string;
+  version?: string;
+  error?: string;
+}> {
+  try {
+    return await sendShieldItMessage("SIGN_CHALLENGE", {
+      userId,
+      examId,
+      nonce: challenge.nonce,
+      timestamp: challenge.timestamp
+    }, 2000);
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || "Failed to sign ShieldIt security challenge"
+    };
+  }
+}
+
 

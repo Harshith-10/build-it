@@ -621,6 +621,45 @@ async function handleIncomingMessage(message, sender) {
       };
     }
 
+    case "SIGN_CHALLENGE": {
+      try {
+        const { userId, examId, nonce, timestamp } = payload || {};
+        if (!userId || !examId || !nonce || !timestamp) {
+          return { success: false, error: "Missing challenge parameters" };
+        }
+        const secret = "iare_buildit_shieldit_secure_key_2026";
+        const canonical = `shieldit-auth-v1\n${userId}\n${examId}\n${nonce}\n${timestamp}`;
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(secret);
+        const cryptoKey = await crypto.subtle.importKey(
+          "raw",
+          keyData,
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+        const signatureBuf = await crypto.subtle.sign(
+          "HMAC",
+          cryptoKey,
+          encoder.encode(canonical)
+        );
+        const signatureHex = Array.from(new Uint8Array(signatureBuf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        return {
+          success: true,
+          signature: signatureHex,
+          nonce,
+          timestamp,
+          extensionId: chrome.runtime.id,
+          version: "1.0.1"
+        };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+
     case "START_LOCKDOWN": {
       const tabId = sender.tab?.id || payload?.tabId;
       if (sender.tab?.windowId) {

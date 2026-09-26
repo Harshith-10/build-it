@@ -3,13 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { initializeExamSession } from "@/actions/student/exams/exam-actions";
+import {
+  getShieldItExamChallenge,
+  initializeExamSession,
+} from "@/actions/student/exams/exam-actions";
 import { useSession } from "@/lib/auth-client";
 import { useExamStore } from "@/stores/exam-store";
 
 import {
   startShieldItLockdown,
   stopShieldItLockdown,
+  requestShieldItSignature,
 } from "@/lib/shieldit/shieldit-client";
 
 interface UseExamOnboardingProps {
@@ -60,8 +64,31 @@ export function useExamOnboarding({
         return;
       }
 
-      // 3. Initialize Session on server
-      const result = await initializeExamSession(examId, pin);
+      // 3. Optional Cryptographic Handshake Signature
+      let shielditPayload = null;
+      try {
+        const challengeRes = await getShieldItExamChallenge();
+        if (challengeRes.success && challengeRes.userId && challengeRes.nonce) {
+          const sigRes = await requestShieldItSignature(challengeRes.userId, examId, {
+            nonce: challengeRes.nonce,
+            timestamp: challengeRes.timestamp,
+          });
+          if (sigRes.success && sigRes.signature && sigRes.nonce && sigRes.timestamp && sigRes.extensionId) {
+            shielditPayload = {
+              extensionId: sigRes.extensionId,
+              version: sigRes.version || "1.0.1",
+              nonce: sigRes.nonce,
+              timestamp: sigRes.timestamp,
+              signature: sigRes.signature,
+            };
+          }
+        }
+      } catch (handshakeErr) {
+        console.warn("ShieldIt cryptographic handshake skipped/deferred:", handshakeErr);
+      }
+
+      // 4. Initialize Session on server
+      const result = await initializeExamSession(examId, pin, shielditPayload);
 
       if (result.success && result.assignmentId) {
         initForExam(session?.user?.id || "", result.assignmentId);

@@ -15,8 +15,37 @@ import {
   userGroupMembers,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import {
+  generateShieldItChallenge,
+  verifyShieldItSignature,
+  type ShieldItSignaturePayload,
+} from "@/lib/shieldit/shieldit-verifier";
 
-export async function initializeExamSession(examId: string, pin?: string) {
+export async function getShieldItExamChallenge(): Promise<
+  | { success: true; userId: string; nonce: string; timestamp: number }
+  | { success: false; error: string }
+> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session?.user) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const challenge = generateShieldItChallenge();
+  return {
+    success: true,
+    userId: session.user.id,
+    ...challenge,
+  };
+}
+
+export async function initializeExamSession(
+  examId: string,
+  pin?: string,
+  shielditPayload?: ShieldItSignaturePayload | null,
+) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -26,6 +55,30 @@ export async function initializeExamSession(examId: string, pin?: string) {
   }
 
   const userId = session.user.id;
+
+  // 0. Optional / Configurable ShieldIt HMAC Handshake Verification
+  if (process.env.REQUIRE_SHIELDIT_HMAC === "true" || shielditPayload) {
+    if (!shielditPayload) {
+      return {
+        success: false,
+        error:
+          "ShieldIt Proctor Verification Required: Please ensure the official ShieldIt extension is active.",
+      };
+    }
+    const verification = verifyShieldItSignature(
+      userId,
+      examId,
+      shielditPayload,
+    );
+    if (!verification.valid) {
+      return {
+        success: false,
+        error:
+          verification.reason ||
+          "ShieldIt security verification failed: Unofficial or tampered extension detected.",
+      };
+    }
+  }
 
   try {
     // 1. Check for existing assignment (Idempotency)
