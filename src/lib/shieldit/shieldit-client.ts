@@ -458,7 +458,7 @@ if (typeof window !== "undefined") {
 }
 
 /**
- * Request an HMAC challenge signature from the active ShieldIt extension.
+ * Request an attestation challenge handshake from the active ShieldIt extension.
  */
 export async function requestShieldItSignature(
   userId: string,
@@ -466,7 +466,6 @@ export async function requestShieldItSignature(
   challenge: { nonce: string; timestamp: number }
 ): Promise<{
   success: boolean;
-  signature?: string;
   nonce?: string;
   timestamp?: number;
   extensionId?: string;
@@ -483,7 +482,7 @@ export async function requestShieldItSignature(
   } catch (err: any) {
     return {
       success: false,
-      error: err?.message || "Failed to sign ShieldIt security challenge"
+      error: err?.message || "Failed to complete ShieldIt security handshake"
     };
   }
 }

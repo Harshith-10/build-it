@@ -73,13 +73,12 @@ export function useExamOnboarding({
             nonce: challengeRes.nonce,
             timestamp: challengeRes.timestamp,
           });
-          if (sigRes.success && sigRes.signature && sigRes.nonce && sigRes.timestamp && sigRes.extensionId) {
+          if (sigRes.success && sigRes.nonce && sigRes.timestamp && sigRes.extensionId) {
             shielditPayload = {
               extensionId: sigRes.extensionId,
               version: sigRes.version || "1.0.1",
               nonce: sigRes.nonce,
               timestamp: sigRes.timestamp,
-              signature: sigRes.signature,
             };
           }
         }
