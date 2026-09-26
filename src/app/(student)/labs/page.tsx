@@ -30,7 +30,7 @@ export default async function StudentLabsPage() {
   return (
     <div className="flex flex-col gap-6 overflow-y-auto min-h-0 pr-1">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Labs</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Laboratory</h1>
         <p className="text-muted-foreground">
           Your lab exercises for this semester
         </p>
