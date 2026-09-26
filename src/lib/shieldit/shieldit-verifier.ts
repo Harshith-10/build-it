@@ -9,8 +9,24 @@ export interface ShieldItSignaturePayload {
 }
 
 export const OFFICIAL_EXTENSION_ID = "opjkppmncihahojoofiohhhlhdjpikfg";
-export const DEFAULT_HMAC_SECRET =
-  process.env.SHIELDIT_HMAC_SECRET || "iare_buildit_shieldit_attest_key_2026";
+
+/**
+ * Safely resolves the server-side HMAC secret.
+ * In production, this strictly requires the SHIELDIT_HMAC_SECRET environment variable
+ * and will NEVER fallback to an insecure hardcoded secret.
+ */
+export function getShieldItSecret(): string {
+  const secret = process.env.SHIELDIT_HMAC_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "CRITICAL SECURITY CONFIGURATION ERROR: SHIELDIT_HMAC_SECRET environment variable is missing in production."
+      );
+    }
+    return "dev_local_shieldit_test_secret_only";
+  }
+  return secret;
+}
 
 interface ActiveChallenge {
   userId: string;
@@ -67,10 +83,11 @@ export function computeShieldItHmac(
   examId: string,
   nonce: string,
   timestamp: number,
-  secret: string = DEFAULT_HMAC_SECRET
+  secret?: string
 ): string {
+  const resolvedSecret = secret ?? getShieldItSecret();
   const canonical = buildShieldItCanonicalString(userId, examId, nonce, timestamp);
-  return crypto.createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
+  return crypto.createHmac("sha256", resolvedSecret).update(canonical, "utf8").digest("hex");
 }
 
 /**
@@ -128,7 +145,7 @@ export function verifyShieldItSignature(
   const { extensionId, nonce, timestamp, signature } = payload;
   const maxAgeMs = options.maxAgeMs ?? 120_000; // 2 minutes skew tolerance
   const isProduction = process.env.NODE_ENV === "production";
-  const secret = options.secret ?? DEFAULT_HMAC_SECRET;
+  const secret = options.secret ?? getShieldItSecret();
 
   // 1. Strict Extension ID Verification
   if (options.strictExtensionId !== false) {

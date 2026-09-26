@@ -5,8 +5,9 @@ import {
   computeShieldItHmac,
   clearShieldItChallengeStore,
   OFFICIAL_EXTENSION_ID,
-  DEFAULT_HMAC_SECRET,
 } from "../src/lib/shieldit/shieldit-verifier";
+
+const TEST_SECRET = "shieldit_isolated_test_suite_key_2026";
 
 function testGenuineVerification() {
   clearShieldItChallengeStore();
@@ -19,16 +20,21 @@ function testGenuineVerification() {
     examId,
     challenge.nonce,
     challenge.timestamp,
-    DEFAULT_HMAC_SECRET
+    TEST_SECRET
   );
 
-  const res = verifyShieldItSignature(userId, examId, {
-    extensionId: OFFICIAL_EXTENSION_ID,
-    version: "1.0.1",
-    nonce: challenge.nonce,
-    timestamp: challenge.timestamp,
-    signature,
-  });
+  const res = verifyShieldItSignature(
+    userId,
+    examId,
+    {
+      extensionId: OFFICIAL_EXTENSION_ID,
+      version: "1.0.1",
+      nonce: challenge.nonce,
+      timestamp: challenge.timestamp,
+      signature,
+    },
+    { secret: TEST_SECRET }
+  );
 
   assert.equal(res.valid, true, "Valid challenge and signature must pass verification");
   console.log("✔ Genuine verification passed");
@@ -45,16 +51,21 @@ function testRejectFakeNonce() {
     examId,
     fakeNonce,
     timestamp,
-    DEFAULT_HMAC_SECRET
+    TEST_SECRET
   );
 
-  const res = verifyShieldItSignature(userId, examId, {
-    extensionId: OFFICIAL_EXTENSION_ID,
-    version: "1.0.1",
-    nonce: fakeNonce,
-    timestamp,
-    signature,
-  });
+  const res = verifyShieldItSignature(
+    userId,
+    examId,
+    {
+      extensionId: OFFICIAL_EXTENSION_ID,
+      version: "1.0.1",
+      nonce: fakeNonce,
+      timestamp,
+      signature,
+    },
+    { secret: TEST_SECRET }
+  );
 
   assert.equal(res.valid, false, "Fake nonce not issued by server must fail");
   assert.match(res.reason || "", /not recognized|expired|already consumed/i);
@@ -72,7 +83,7 @@ function testRejectReplayAttack() {
     examId,
     challenge.nonce,
     challenge.timestamp,
-    DEFAULT_HMAC_SECRET
+    TEST_SECRET
   );
 
   const payload = {
@@ -83,11 +94,11 @@ function testRejectReplayAttack() {
     signature,
   };
 
-  const first = verifyShieldItSignature(userId, examId, payload);
+  const first = verifyShieldItSignature(userId, examId, payload, { secret: TEST_SECRET });
   assert.equal(first.valid, true, "First verification should pass");
 
   // Replay attempt with same nonce
-  const replay = verifyShieldItSignature(userId, examId, payload);
+  const replay = verifyShieldItSignature(userId, examId, payload, { secret: TEST_SECRET });
   assert.equal(replay.valid, false, "Replayed nonce must be rejected");
   assert.match(replay.reason || "", /already consumed/i);
   console.log("✔ Single-use anti-replay verified");
@@ -102,16 +113,21 @@ function testRejectCrossUserReuse() {
     examId,
     aliceChallenge.nonce,
     aliceChallenge.timestamp,
-    DEFAULT_HMAC_SECRET
+    TEST_SECRET
   );
 
-  const res = verifyShieldItSignature("usr_bob", examId, {
-    extensionId: OFFICIAL_EXTENSION_ID,
-    version: "1.0.1",
-    nonce: aliceChallenge.nonce,
-    timestamp: aliceChallenge.timestamp,
-    signature: bobSignature,
-  });
+  const res = verifyShieldItSignature(
+    "usr_bob",
+    examId,
+    {
+      extensionId: OFFICIAL_EXTENSION_ID,
+      version: "1.0.1",
+      nonce: aliceChallenge.nonce,
+      timestamp: aliceChallenge.timestamp,
+      signature: bobSignature,
+    },
+    { secret: TEST_SECRET }
+  );
 
   assert.equal(res.valid, false, "Cross-user nonce reuse must fail");
   assert.match(res.reason || "", /different student account/i);
@@ -127,16 +143,21 @@ function testRejectCrossExamReuse() {
     "exam_2",
     exam1Challenge.nonce,
     exam1Challenge.timestamp,
-    DEFAULT_HMAC_SECRET
+    TEST_SECRET
   );
 
-  const res = verifyShieldItSignature(userId, "exam_2", {
-    extensionId: OFFICIAL_EXTENSION_ID,
-    version: "1.0.1",
-    nonce: exam1Challenge.nonce,
-    timestamp: exam1Challenge.timestamp,
-    signature,
-  });
+  const res = verifyShieldItSignature(
+    userId,
+    "exam_2",
+    {
+      extensionId: OFFICIAL_EXTENSION_ID,
+      version: "1.0.1",
+      nonce: exam1Challenge.nonce,
+      timestamp: exam1Challenge.timestamp,
+      signature,
+    },
+    { secret: TEST_SECRET }
+  );
 
   assert.equal(res.valid, false, "Cross-exam nonce reuse must fail");
   assert.match(res.reason || "", /different examination session/i);
@@ -150,13 +171,18 @@ function testRejectTamperedSignature() {
   const challenge = generateShieldItChallenge(userId, examId);
   const badSignature = "deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678";
 
-  const res = verifyShieldItSignature(userId, examId, {
-    extensionId: OFFICIAL_EXTENSION_ID,
-    version: "1.0.1",
-    nonce: challenge.nonce,
-    timestamp: challenge.timestamp,
-    signature: badSignature,
-  });
+  const res = verifyShieldItSignature(
+    userId,
+    examId,
+    {
+      extensionId: OFFICIAL_EXTENSION_ID,
+      version: "1.0.1",
+      nonce: challenge.nonce,
+      timestamp: challenge.timestamp,
+      signature: badSignature,
+    },
+    { secret: TEST_SECRET }
+  );
 
   assert.equal(res.valid, false, "Tampered signature must be rejected");
   assert.match(res.reason || "", /Invalid cryptographic signature/i);
@@ -174,16 +200,21 @@ function testRejectExpiredChallenge() {
     examId,
     challenge.nonce,
     expiredTimestamp,
-    DEFAULT_HMAC_SECRET
+    TEST_SECRET
   );
 
-  const res = verifyShieldItSignature(userId, examId, {
-    extensionId: OFFICIAL_EXTENSION_ID,
-    version: "1.0.1",
-    nonce: challenge.nonce,
-    timestamp: expiredTimestamp,
-    signature,
-  });
+  const res = verifyShieldItSignature(
+    userId,
+    examId,
+    {
+      extensionId: OFFICIAL_EXTENSION_ID,
+      version: "1.0.1",
+      nonce: challenge.nonce,
+      timestamp: expiredTimestamp,
+      signature,
+    },
+    { secret: TEST_SECRET }
+  );
 
   assert.equal(res.valid, false, "Expired timestamp must fail");
   assert.match(res.reason || "", /expired/i);
@@ -205,16 +236,21 @@ function testRejectUnofficialExtensionInProduction() {
       examId,
       challenge.nonce,
       challenge.timestamp,
-      DEFAULT_HMAC_SECRET
+      TEST_SECRET
     );
 
-    const res = verifyShieldItSignature(userId, examId, {
-      extensionId: "fake_untrusted_extension_id_9999",
-      version: "1.0.1",
-      nonce: challenge.nonce,
-      timestamp: challenge.timestamp,
-      signature,
-    });
+    const res = verifyShieldItSignature(
+      userId,
+      examId,
+      {
+        extensionId: "fake_untrusted_extension_id_9999",
+        version: "1.0.1",
+        nonce: challenge.nonce,
+        timestamp: challenge.timestamp,
+        signature,
+      },
+      { secret: TEST_SECRET }
+    );
 
     assert.equal(res.valid, false, "Unofficial extension in production must fail");
     assert.match(res.reason || "", /Unofficial extension detected/i);

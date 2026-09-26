@@ -5,7 +5,6 @@ import { useEffect, useState, useCallback } from "react";
 export const SHIELDIT_CHROME_STORE_URL =
   process.env.NEXT_PUBLIC_SHIELDIT_CHROME_STORE_URL ||
   "https://chromewebstore.google.com/detail/shieldit-exam-lab-lockdow/opjkppmncihahojoofiohhhlhdjpikfg?authuser=0&hl=en-GB";
-export const SHIELDIT_ZIP_DOWNLOAD_URL = "/downloads/shieldit.zip";
 
 export interface ShieldItStatus {
   success: boolean;
