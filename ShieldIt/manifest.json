@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ShieldIt - Exam & Lab Lockdown",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Official secure exam environment and lockdown extension for BuildIt at IARE.",
   "permissions": [
     "management",
