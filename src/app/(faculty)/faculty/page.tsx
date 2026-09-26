@@ -1,17 +1,22 @@
-import { FileQuestion, GraduationCap, Library, Plus } from "lucide-react";
+import { FileQuestion, FlaskConical, GraduationCap, Library, MessageSquare, Plus } from "lucide-react";
 import Link from "next/link";
 import { getCollections } from "@/actions/admin/collections";
 import { getExams } from "@/actions/admin/exams";
 import { getProblems } from "@/actions/admin/problems";
+import { getOpenTicketCount } from "@/actions/tickets";
+import { getLabs } from "@/actions/admin/labs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default async function FacultyDashboardPage() {
-  const [problemsData, collectionsData, examsData] = await Promise.all([
-    getProblems({ limit: 1 }),
-    getCollections({ limit: 1 }),
-    getExams({ limit: 1 }),
-  ]);
+  const [problemsData, collectionsData, examsData, labsData, openRequestCount] =
+    await Promise.all([
+      getProblems({ limit: 1 }),
+      getCollections({ limit: 1 }),
+      getExams({ limit: 1 }),
+      getLabs(),
+      getOpenTicketCount(),
+    ]);
 
   const stats = [
     {
@@ -31,6 +36,18 @@ export default async function FacultyDashboardPage() {
       value: examsData.total,
       icon: GraduationCap,
       href: "/faculty/exams",
+    },
+    {
+      title: "My Labs",
+      value: labsData.length,
+      icon: FlaskConical,
+      href: "/faculty/labs",
+    },
+    {
+      title: "Open Requests",
+      value: openRequestCount,
+      icon: MessageSquare,
+      href: "/faculty/requests",
     },
   ];
 
@@ -53,6 +70,12 @@ export default async function FacultyDashboardPage() {
       icon: GraduationCap,
       description: "Create and assign a private exam",
     },
+    {
+      label: "Raise Request",
+      href: "/faculty/requests",
+      icon: MessageSquare,
+      description: "Request a lab or content change",
+    },
   ];
 
   return (
@@ -65,7 +88,7 @@ export default async function FacultyDashboardPage() {
       </div>
       <Separator />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card className="border transition-shadow hover:shadow-md cursor-pointer">
