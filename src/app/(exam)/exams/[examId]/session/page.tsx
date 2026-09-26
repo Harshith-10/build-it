@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { IDEShell } from "@/components/exam/ide-shell";
 import { db } from "@/db";
 import { examAssignments, exams, questions, submissions } from "@/db/schema";
@@ -16,7 +17,9 @@ export default async function SessionPage({
     headers: await headers(),
   });
 
-  if (!session?.user) return null;
+  if (!session?.user) {
+    redirect(`/auth/sign-in?callbackURL=/exams/${examId}/session`);
+  }
 
   const assignment = await db.query.examAssignments.findFirst({
     where: and(

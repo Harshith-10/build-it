@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { AlertCircle } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import OnboardingClient from "@/components/exam/onboarding-client";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
@@ -23,7 +23,7 @@ export default async function OnboardingPage({ params }: PageProps) {
   });
 
   if (!session?.user) {
-    notFound();
+    redirect(`/auth/sign-in?callbackURL=/exams/${examId}/onboarding`);
   }
 
   const userId = session.user.id;
