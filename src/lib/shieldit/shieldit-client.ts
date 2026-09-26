@@ -298,7 +298,7 @@ export function useShieldIt(examId?: string) {
   }, [checkStatus]);
 
   const startLockdown = useCallback(
-    async (targetExamId?: string, allowMultipleDisplays: boolean = true) => {
+    async (targetExamId?: string, allowMultipleDisplays: boolean = false) => {
       const activeId = targetExamId || examId || "exam_session";
       const result = await startShieldItLockdown(activeId, {
         allowMultipleDisplays
@@ -466,6 +466,7 @@ export async function requestShieldItSignature(
   challenge: { nonce: string; timestamp: number }
 ): Promise<{
   success: boolean;
+  signature?: string;
   nonce?: string;
   timestamp?: number;
   extensionId?: string;

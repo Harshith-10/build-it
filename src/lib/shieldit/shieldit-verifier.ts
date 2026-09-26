@@ -5,31 +5,117 @@ export interface ShieldItSignaturePayload {
   version: string;
   nonce: string;
   timestamp: number;
+  signature: string;
 }
 
 export const OFFICIAL_EXTENSION_ID = "opjkppmncihahojoofiohhhlhdjpikfg";
+export const DEFAULT_HMAC_SECRET =
+  process.env.SHIELDIT_HMAC_SECRET || "iare_buildit_shieldit_attest_key_2026";
+
+interface ActiveChallenge {
+  userId: string;
+  examId?: string;
+  nonce: string;
+  timestamp: number;
+  expiresAt: number;
+}
+
+// In-memory challenge store bound to user + exam session
+// Uses globalThis to ensure stability across module evaluations in server runtimes
+const challengeStore: Map<string, ActiveChallenge> =
+  (globalThis as unknown as { __shielditChallengeStore?: Map<string, ActiveChallenge> })
+    .__shielditChallengeStore ||
+  ((
+    globalThis as unknown as { __shielditChallengeStore: Map<string, ActiveChallenge> }
+  ).__shielditChallengeStore = new Map());
+
+// Periodic cleanup of expired challenges
+if (
+  typeof setInterval !== "undefined" &&
+  !(globalThis as unknown as { __shielditCleanupTimer?: NodeJS.Timeout })
+    .__shielditCleanupTimer
+) {
+  (
+    globalThis as unknown as { __shielditCleanupTimer: NodeJS.Timeout }
+  ).__shielditCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [nonce, entry] of challengeStore.entries()) {
+      if (entry.expiresAt < now) {
+        challengeStore.delete(nonce);
+      }
+    }
+  }, 60_000);
+}
 
 /**
- * Generates a short-lived random nonce and timestamp for client-side extension handshake.
+ * Builds the canonical message string to sign and verify.
  */
-export function generateShieldItChallenge(): { nonce: string; timestamp: number } {
-  return {
-    nonce: crypto.randomBytes(16).toString("hex"),
-    timestamp: Date.now(),
-  };
+export function buildShieldItCanonicalString(
+  userId: string,
+  examId: string,
+  nonce: string,
+  timestamp: number
+): string {
+  return `shieldit-attest-v1\n${userId}\n${examId}\n${nonce}\n${timestamp}`;
+}
+
+/**
+ * Helper to generate signature (used by extension and tests).
+ */
+export function computeShieldItHmac(
+  userId: string,
+  examId: string,
+  nonce: string,
+  timestamp: number,
+  secret: string = DEFAULT_HMAC_SECRET
+): string {
+  const canonical = buildShieldItCanonicalString(userId, examId, nonce, timestamp);
+  return crypto.createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
+}
+
+/**
+ * Generates a short-lived random nonce and stores it server-side
+ * bound to the user + exam session.
+ */
+export function generateShieldItChallenge(
+  userId: string,
+  examId?: string,
+  ttlMs: number = 120_000
+): { nonce: string; timestamp: number } {
+  const nonce = crypto.randomBytes(16).toString("hex");
+  const timestamp = Date.now();
+
+  challengeStore.set(nonce, {
+    userId,
+    examId,
+    nonce,
+    timestamp,
+    expiresAt: timestamp + ttlMs,
+  });
+
+  return { nonce, timestamp };
+}
+
+/**
+ * Clears the challenge store (helper for testing).
+ */
+export function clearShieldItChallengeStore(): void {
+  challengeStore.clear();
 }
 
 /**
  * Verifies that the incoming exam initialization request was made with a valid,
- * unexpired challenge and originated from the official Chrome Web Store extension.
+ * unexpired, server-issued challenge, signed by the extension with HMAC, and originated
+ * from the official Chrome Web Store extension.
  */
 export function verifyShieldItSignature(
-  _userId: string,
-  _examId: string,
+  userId: string,
+  examId: string,
   payload?: ShieldItSignaturePayload | null,
   options: {
     maxAgeMs?: number;
     strictExtensionId?: boolean;
+    secret?: string;
   } = {}
 ): { valid: boolean; reason?: string } {
   if (!payload) {
@@ -39,9 +125,10 @@ export function verifyShieldItSignature(
     };
   }
 
-  const { extensionId, nonce, timestamp } = payload;
+  const { extensionId, nonce, timestamp, signature } = payload;
   const maxAgeMs = options.maxAgeMs ?? 120_000; // 2 minutes skew tolerance
   const isProduction = process.env.NODE_ENV === "production";
+  const secret = options.secret ?? DEFAULT_HMAC_SECRET;
 
   // 1. Strict Extension ID Verification
   if (options.strictExtensionId !== false) {
@@ -53,7 +140,6 @@ export function verifyShieldItSignature(
     }
 
     if (isProduction) {
-      // In production, strictly enforce the official Chrome Web Store Extension ID
       if (extensionId !== OFFICIAL_EXTENSION_ID) {
         return {
           valid: false,
@@ -61,7 +147,6 @@ export function verifyShieldItSignature(
         };
       }
     } else {
-      // In local development, allow official ID or dev_ prefixed IDs
       if (extensionId !== OFFICIAL_EXTENSION_ID && !extensionId.startsWith("dev_")) {
         return {
           valid: false,
@@ -71,7 +156,43 @@ export function verifyShieldItSignature(
     }
   }
 
-  // 2. Verify Timestamp freshness (Anti-replay window)
+  // 2. Nonce Format Validation
+  if (!nonce || typeof nonce !== "string" || nonce.length < 8) {
+    return {
+      valid: false,
+      reason: "Invalid or missing challenge nonce.",
+    };
+  }
+
+  // 3. Server-bound Challenge Verification & Anti-Replay
+  const storedChallenge = challengeStore.get(nonce);
+  if (!storedChallenge) {
+    return {
+      valid: false,
+      reason: "Challenge nonce not recognized, expired, or already consumed. Please retry.",
+    };
+  }
+
+  // Immediately consume the nonce so it can NEVER be reused (single-use token)
+  challengeStore.delete(nonce);
+
+  // Check user binding
+  if (storedChallenge.userId !== userId) {
+    return {
+      valid: false,
+      reason: "Challenge token was issued for a different student account.",
+    };
+  }
+
+  // Check exam binding
+  if (storedChallenge.examId && storedChallenge.examId !== examId) {
+    return {
+      valid: false,
+      reason: "Challenge token was issued for a different examination session.",
+    };
+  }
+
+  // 4. Timestamp Freshness Check
   const now = Date.now();
   if (typeof timestamp !== "number" || Math.abs(now - timestamp) > maxAgeMs) {
     return {
@@ -80,11 +201,30 @@ export function verifyShieldItSignature(
     };
   }
 
-  // 3. Verify Nonce structure
-  if (!nonce || typeof nonce !== "string" || nonce.length < 8) {
+  // 5. Cryptographic HMAC Signature Verification
+  if (!signature || typeof signature !== "string") {
     return {
       valid: false,
-      reason: "Invalid or missing challenge nonce.",
+      reason: "Missing cryptographic signature from extension.",
+    };
+  }
+
+  const expectedSignature = computeShieldItHmac(userId, examId, nonce, timestamp, secret);
+
+  try {
+    const sigBuf = Buffer.from(signature, "hex");
+    const expBuf = Buffer.from(expectedSignature, "hex");
+
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return {
+        valid: false,
+        reason: "Invalid cryptographic signature. Tampering or spoofing detected.",
+      };
+    }
+  } catch {
+    return {
+      valid: false,
+      reason: "Signature verification failed.",
     };
   }
 

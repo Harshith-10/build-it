@@ -126,10 +126,10 @@ export function IDEShell({
     }
   };
 
-  // Reinforce lockdown if in active exam session
+  // Reinforce lockdown if in active exam session (strictly enforce single-display policy)
   useEffect(() => {
     if (isInstalled && !isLockdownActive) {
-      startLockdown(assignmentId, true).catch(() => {});
+      startLockdown(assignmentId, false).catch(() => {});
     }
   }, [isInstalled, isLockdownActive, assignmentId, startLockdown]);
 

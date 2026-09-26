@@ -291,7 +291,7 @@ async function startLockdown(examId, tabId, options = {}, sessionSecret = null) 
  */
 async function stopLockdown(forceAll = false, providedSecret = null) {
   try {
-    console.log(`[ShieldIt v1.0.1] Stop lockdown request: forceAll=${forceAll}, providedSecret=${providedSecret}, storedSecret=${state.sessionSecret}, isLockdownActive=${state.isLockdownActive}`);
+    console.log(`[ShieldIt v1.0.1] Stop lockdown request: forceAll=${forceAll}, hasProvidedSecret=${!!providedSecret}, isLockdownActive=${state.isLockdownActive}`);
 
     // Anti-tamper check: If lockdown is active, verify authorization
     if (state.isLockdownActive) {
@@ -307,10 +307,7 @@ async function stopLockdown(forceAll = false, providedSecret = null) {
 
       // STRICT CHECK: An active exam MUST be unlocked with the matching sessionSecret!
       if (!providedSecret || !state.sessionSecret || providedSecret !== state.sessionSecret) {
-        console.warn("[ShieldIt VIOLATION] Unauthorized attempt to unlock exam without valid sessionSecret!", {
-          provided: providedSecret,
-          expected: state.sessionSecret ? "[PROTECTED]" : "NONE"
-        });
+        console.warn("[ShieldIt VIOLATION] Unauthorized attempt to unlock exam without valid sessionSecret.");
         sendViolationToExamTab({
           type: "SECURITY_TAMPERING",
           severity: "CRITICAL",
@@ -495,12 +492,11 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     }
 
     // Student activated a non-exam tab!
-    console.warn(`[ShieldIt] Tab switch violation: Active tab ${activeInfo.tabId} (${tab.url})`);
+    console.warn(`[ShieldIt] Tab switch violation: User switched to tab ${activeInfo.tabId}`);
     sendViolationToExamTab({
       type: "TAB_SWITCH",
       severity: "HIGH",
       toTabId: activeInfo.tabId,
-      toUrl: tab.url || "unknown",
       message: "Tab switch detected: Navigated away from examination"
     });
   } catch (err) {
@@ -628,8 +624,28 @@ async function handleIncomingMessage(message, sender) {
           return { success: false, error: "Missing challenge parameters" };
         }
 
+        const ATTEST_KEY = "iare_buildit_shieldit_attest_key_2026";
+        const canonical = `shieldit-attest-v1\n${userId}\n${examId}\n${nonce}\n${timestamp}`;
+        const encoder = new TextEncoder();
+        const cryptoKey = await crypto.subtle.importKey(
+          "raw",
+          encoder.encode(ATTEST_KEY),
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+        const signatureBuf = await crypto.subtle.sign(
+          "HMAC",
+          cryptoKey,
+          encoder.encode(canonical)
+        );
+        const signatureHex = Array.from(new Uint8Array(signatureBuf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
         return {
           success: true,
+          signature: signatureHex,
           nonce,
           timestamp,
           extensionId: chrome.runtime.id,
@@ -658,16 +674,16 @@ async function handleIncomingMessage(message, sender) {
     }
 
     case "STOP_LOCKDOWN": {
-      const senderUrl = sender.tab?.url || sender.url || "";
-      const isAuthorizedOrigin =
-        senderUrl.includes("localhost") ||
-        senderUrl.includes("127.0.0.1") ||
-        senderUrl.includes("build-it") ||
-        senderUrl.includes("buildit") ||
-        senderUrl.includes("iare.ac.in");
-      const isResultsPage = senderUrl.includes("/results") || senderUrl.includes("/dashboard");
-      // Allow valid secret, or authorized origin at completion/results
-      const secret = payload?.sessionSecret || ((isResultsPage || isAuthorizedOrigin) ? state.sessionSecret : null);
+      // STRICT SECURITY: A valid sessionSecret must ALWAYS be explicitly provided by the caller.
+      // Origin alone NEVER bypasses session secret verification.
+      const secret = payload?.sessionSecret;
+      if (!secret && state.isLockdownActive && !payload?.forceAll) {
+        return {
+          success: false,
+          error: "MISSING_SECRET",
+          message: "A valid session secret is required to terminate active examination lockdown."
+        };
+      }
       return await stopLockdown(payload?.forceAll || false, secret);
     }
 

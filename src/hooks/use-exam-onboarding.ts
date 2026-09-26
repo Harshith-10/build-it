@@ -67,18 +67,19 @@ export function useExamOnboarding({
       // 3. Optional Cryptographic Handshake Signature
       let shielditPayload = null;
       try {
-        const challengeRes = await getShieldItExamChallenge();
+        const challengeRes = await getShieldItExamChallenge(examId);
         if (challengeRes.success && challengeRes.userId && challengeRes.nonce) {
           const sigRes = await requestShieldItSignature(challengeRes.userId, examId, {
             nonce: challengeRes.nonce,
             timestamp: challengeRes.timestamp,
           });
-          if (sigRes.success && sigRes.nonce && sigRes.timestamp && sigRes.extensionId) {
+          if (sigRes.success && sigRes.signature && sigRes.nonce && sigRes.timestamp && sigRes.extensionId) {
             shielditPayload = {
               extensionId: sigRes.extensionId,
               version: sigRes.version || "1.0.1",
               nonce: sigRes.nonce,
               timestamp: sigRes.timestamp,
+              signature: sigRes.signature,
             };
           }
         }

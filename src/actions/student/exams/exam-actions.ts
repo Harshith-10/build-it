@@ -21,7 +21,7 @@ import {
   type ShieldItSignaturePayload,
 } from "@/lib/shieldit/shieldit-verifier";
 
-export async function getShieldItExamChallenge(): Promise<
+export async function getShieldItExamChallenge(examId?: string): Promise<
   | { success: true; userId: string; nonce: string; timestamp: number }
   | { success: false; error: string }
 > {
@@ -33,7 +33,7 @@ export async function getShieldItExamChallenge(): Promise<
     return { success: false, error: "Unauthorized" };
   }
 
-  const challenge = generateShieldItChallenge();
+  const challenge = generateShieldItChallenge(session.user.id, examId);
   return {
     success: true,
     userId: session.user.id,
