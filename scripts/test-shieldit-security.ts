@@ -191,8 +191,9 @@ function testRejectExpiredChallenge() {
 }
 
 function testRejectUnofficialExtensionInProduction() {
-  const originalEnv = process.env.NODE_ENV;
-  process.env.NODE_ENV = "production";
+  const env = process.env as Record<string, string | undefined>;
+  const originalEnv = env.NODE_ENV;
+  env.NODE_ENV = "production";
 
   try {
     clearShieldItChallengeStore();
@@ -219,7 +220,7 @@ function testRejectUnofficialExtensionInProduction() {
     assert.match(res.reason || "", /Unofficial extension detected/i);
     console.log("✔ Unofficial extension ID in production rejected");
   } finally {
-    process.env.NODE_ENV = originalEnv;
+    env.NODE_ENV = originalEnv;
   }
 }
 
