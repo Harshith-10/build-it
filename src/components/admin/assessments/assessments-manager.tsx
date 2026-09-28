@@ -1583,6 +1583,12 @@ function AssessmentFormDialog({
         if (targetId) {
           const lab = availableLabs.find((l) => l.id === targetId);
           setSelectedExerciseIds(lab?.exercises?.map((e: any) => e.id) || []);
+          const labCols = (lab?.exercises || [])
+            .map((e: any) => e.collectionId)
+            .filter(Boolean);
+          if (labCols.length > 0) {
+            setSelectedCollectionIds(Array.from(new Set(labCols)));
+          }
 
           if (lab?.facultyAssignments && lab.facultyAssignments.length > 0) {
             const map: Record<string, string[]> = {};
@@ -1618,6 +1624,12 @@ function AssessmentFormDialog({
     const targetLab = availableLabs.find((l) => l.id === labId);
     if (targetLab) {
       setSelectedExerciseIds(targetLab.exercises?.map((e: any) => e.id) || []);
+      const labCols = (targetLab.exercises || [])
+        .map((e: any) => e.collectionId)
+        .filter(Boolean);
+      if (labCols.length > 0 && selectedCollectionIds.length === 0) {
+        setSelectedCollectionIds(Array.from(new Set(labCols)));
+      }
     }
 
     if (targetLab?.facultyAssignments && targetLab.facultyAssignments.length > 0) {
@@ -1709,19 +1721,29 @@ function AssessmentFormDialog({
       return;
     }
 
+    // Collect collection IDs for lab exercises if isLab
+    let labCollectionIds: string[] = [];
+    if (isLab && selectedLabObj?.exercises) {
+      const activeExercises = selectedLabObj.exercises.filter((ex: any) =>
+        selectedExerciseIds.includes(ex.id),
+      );
+      labCollectionIds = activeExercises
+        .map((ex: any) => ex.collectionId)
+        .filter(Boolean);
+    }
+
+    const finalCollectionIds =
+      selectedCollectionIds.length > 0
+        ? selectedCollectionIds
+        : labCollectionIds;
+
+    if (finalCollectionIds.length === 0) {
+      toast.error("Please select at least one problem collection");
+      return;
+    }
+
     try {
       setSubmitting(true);
-
-      // Collect collection IDs for lab exercises if isLab
-      let labCollectionIds: string[] = [];
-      if (isLab && selectedLabObj?.exercises) {
-        const activeExercises = selectedLabObj.exercises.filter((ex: any) =>
-          selectedExerciseIds.includes(ex.id),
-        );
-        labCollectionIds = activeExercises
-          .map((ex: any) => ex.collectionId)
-          .filter(Boolean);
-      }
 
       const payload: UpsertAssessmentInput = {
         id: initial?.id,
@@ -1737,7 +1759,10 @@ function AssessmentFormDialog({
         strategyType: "random_n",
         strategyConfig: {
           count: Number(questionCount) || (isLab ? 2 : 3),
-          collectionIds: isLab ? labCollectionIds : selectedCollectionIds,
+          collectionIds: finalCollectionIds,
+          ...(isLab && selectedExerciseIds.length > 0
+            ? { exerciseIds: selectedExerciseIds }
+            : {}),
         },
         gradingStrategy: "linear",
         gradingConfig: {
