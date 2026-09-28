@@ -624,7 +624,8 @@ async function handleIncomingMessage(message, sender) {
           return { success: false, error: "Missing challenge parameters" };
         }
 
-        const ATTEST_KEY = "iare_buildit_shieldit_attest_key_2026";
+        // Production secret is injected during packaging/build.
+        const ATTEST_KEY = "__SHIELDIT_ATTEST_KEY_PLACEHOLDER__";
         const canonical = `shieldit-attest-v1\n${userId}\n${examId}\n${nonce}\n${timestamp}`;
         const encoder = new TextEncoder();
         const cryptoKey = await crypto.subtle.importKey(
