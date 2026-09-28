@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Code2, FileText, Target, BookOpen, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { PageHeader } from "@/components/admin/page-header";
+
 export default function ReportsPage() {
   const categories = [
     {
@@ -44,10 +46,11 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Reports Dashboard</h1>
-        <p className="text-muted-foreground">Select a category to view detailed reports</p>
-      </div>
+      <PageHeader
+        title="Reports Dashboard"
+        description="Select a category to view detailed reports"
+        backHref="/admin/dashboard"
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {categories.map((category) => (

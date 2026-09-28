@@ -28,6 +28,7 @@ export default async function AssessmentReportPage({ params }: AssessmentReportP
       <PageHeader
         title={`${exam.title} Report`}
         description="View and download student performance for this assessment."
+        backHref={exam.assessmentType === "lab_assessment" ? "/admin/reports/assessments/lab" : "/admin/reports/assessments/cdc"}
       />
 
       <div className="mt-6">

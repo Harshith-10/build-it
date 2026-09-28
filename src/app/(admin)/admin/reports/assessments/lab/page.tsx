@@ -15,13 +15,14 @@ export const metadata: Metadata = {
 export default async function LabAssessmentsList() {
   const allExams = await getAssessmentsForReports();
   // Filter for Lab exams
-  const exams = allExams.filter(e => e.title.toLowerCase().includes("lab"));
+  const exams = allExams.filter(e => e.assessmentType === "lab_assessment");
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <PageHeader
         title="Lab Assessments"
         description="View detailed reports for laboratory-based examinations."
+        backHref="/admin/reports/assessments"
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6">

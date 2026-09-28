@@ -62,19 +62,27 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
     });
   }, [studentRows]);
 
-  const availableBranches = useMemo(() => {
-    return Array.from(new Set(formattedStudentRows.map((s) => s.branch || "—"))).sort();
-  }, [formattedStudentRows]);
+  const BRANCH_SECTIONS: Record<string, number> = {
+    "CSE": 7,
+    "IT": 2,
+    "AIML": 4,
+    "DS": 1,
+    "ECE": 2,
+    "EEE": 1,
+    "MECH": 1,
+    "CIVIL": 1,
+    "AERO": 1,
+  };
+
+  const availableBranches = Object.keys(BRANCH_SECTIONS);
 
   const availableSections = useMemo(() => {
-    return Array.from(
-      new Set(
-        formattedStudentRows
-          .filter((s) => selectedBranch === "" || selectedBranch === "all" || s.branch === selectedBranch)
-          .map((s) => s.section)
-      )
-    ).sort();
-  }, [formattedStudentRows, selectedBranch]);
+    if (!selectedBranch || selectedBranch === "all" || !BRANCH_SECTIONS[selectedBranch]) {
+      return [];
+    }
+    const count = BRANCH_SECTIONS[selectedBranch];
+    return Array.from({ length: count }, (_, i) => String.fromCharCode(65 + i));
+  }, [selectedBranch]);
 
   const filteredStudentRows = useMemo(() => {
     return formattedStudentRows.filter((s) => {

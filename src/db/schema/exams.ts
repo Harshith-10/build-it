@@ -96,6 +96,7 @@ export const exams = pgTable("exams", {
     .$type<"exam" | "lab_assessment" | "coding_assessment">()
     .default("exam")
     .notNull(),
+  semester: text("semester"),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),

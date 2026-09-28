@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { getLabReportData } from "@/actions/admin/reports";
 import { LabReportViewer } from "@/components/admin/reports/lab-report-viewer";
+import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,11 +20,10 @@ export default async function LabReportPage({ params }: Props) {
     return (
       <div className="flex flex-col gap-6">
         <div>
-          <Link href="/admin/reports">
-            <Button variant="ghost" size="sm">
-              <ChevronLeft className="h-4 w-4 mr-1" /> Reports
-            </Button>
-          </Link>
+          <PageHeader
+            title="Lab Report"
+            backHref="/admin/reports/labs"
+          />
         </div>
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <p className="text-sm">{res.error}</p>
@@ -38,11 +38,11 @@ export default async function LabReportPage({ params }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/admin/reports">
-          <Button variant="ghost" size="sm" className="-ml-2">
-            <ChevronLeft className="h-4 w-4 mr-1" /> Reports
-          </Button>
-        </Link>
+        <PageHeader
+          title={lab.name}
+          description="View detailed week-wise lab performance for this subject."
+          backHref="/admin/reports/labs"
+        />
         <h1 className="text-2xl font-bold tracking-tight">{lab.name}</h1>
         <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
           {lab.code && <span>{lab.code}</span>}

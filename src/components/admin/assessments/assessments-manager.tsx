@@ -1491,6 +1491,7 @@ function AssessmentFormDialog({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [semester, setSemester] = useState<string>("Sem 1");
   const [selectedLabId, setSelectedLabId] = useState<string>("");
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>(
     [],
@@ -1518,6 +1519,7 @@ function AssessmentFormDialog({
     if (initial) {
       setTitle(initial.title || "");
       setDescription(initial.description || "");
+      setSemester((initial as any).semester || "Sem 1");
       setSelectedLabId(initial.labId || "");
       setSelectedCollectionIds(
         (initial as any).collections?.map((c: any) => c.collectionId) || [],
@@ -1558,6 +1560,7 @@ function AssessmentFormDialog({
     } else {
       setTitle("");
       setDescription("");
+      setSemester("Year I");
       setSelectedCollectionIds([]);
       setDurationMinutes(60);
       setTotalMarks(100);
@@ -1816,6 +1819,22 @@ function AssessmentFormDialog({
                   required
                 />
               </div>
+
+              {!isLab && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs sm:text-sm">Semester *</Label>
+                  <Select value={semester} onValueChange={setSemester}>
+                    <SelectTrigger className="text-xs sm:text-sm">
+                      <SelectValue placeholder="Select Semester" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["Year I", "Year II", "Year III", "Year IV"].map(sem => (
+                        <SelectItem key={sem} value={sem}>{sem}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="desc" className="text-xs sm:text-sm">Description</Label>

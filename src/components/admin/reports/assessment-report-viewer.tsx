@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Download, Search, AlertTriangle } from "lucide-react";
+import { Download, Search, AlertTriangle, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -65,19 +65,27 @@ export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentRep
     });
   }, [studentRows]);
 
-  const availableBranches = useMemo(() => {
-    return Array.from(new Set(formattedStudentRows.map((s) => s.branch || "—"))).sort();
-  }, [formattedStudentRows]);
+  const BRANCH_SECTIONS: Record<string, number> = {
+    "CSE": 7,
+    "IT": 2,
+    "AIML": 4,
+    "DS": 1,
+    "ECE": 2,
+    "EEE": 1,
+    "MECH": 1,
+    "CIVIL": 1,
+    "AERO": 1,
+  };
+
+  const availableBranches = Object.keys(BRANCH_SECTIONS);
 
   const availableSections = useMemo(() => {
-    return Array.from(
-      new Set(
-        formattedStudentRows
-          .filter((s) => selectedBranch === "" || selectedBranch === "all" || s.branch === selectedBranch)
-          .map((s) => s.section)
-      )
-    ).sort();
-  }, [formattedStudentRows, selectedBranch]);
+    if (!selectedBranch || selectedBranch === "all" || !BRANCH_SECTIONS[selectedBranch]) {
+      return [];
+    }
+    const count = BRANCH_SECTIONS[selectedBranch];
+    return Array.from({ length: count }, (_, i) => String.fromCharCode(65 + i));
+  }, [selectedBranch]);
 
   const filteredStudentRows = useMemo(() => {
     return formattedStudentRows.filter((s) => {
@@ -211,9 +219,14 @@ export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentRep
             <div className="flex items-center gap-3">
               <p className="text-sm text-muted-foreground">{filteredStudentRows.length} students found</p>
             </div>
-            <Button size="sm" variant="outline" onClick={downloadCumulative}>
-              <Download className="h-4 w-4 mr-2" /> Download CSV
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={downloadCumulative}>
+                <Download className="h-4 w-4 mr-2" /> Download CSV
+              </Button>
+              <Button size="sm" onClick={() => window.print()}>
+                <Printer className="h-4 w-4 mr-2" /> Download PDF
+              </Button>
+            </div>
           </div>
           <div className="rounded-md border overflow-x-auto">
             <Table>

@@ -35,6 +35,7 @@ export default function AssessmentsCategoryPage() {
       <PageHeader
         title="Assessment Categories"
         description="Select an assessment category to view its reports"
+        backHref="/admin/reports"
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">

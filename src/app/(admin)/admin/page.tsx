@@ -62,15 +62,6 @@ export default async function AdminDashboard() {
       color: "from-rose-500/10 to-rose-500/5 dark:from-rose-500/20 dark:to-rose-500/5",
       iconColor: "text-rose-600 dark:text-rose-400",
     },
-    {
-      title: "Open Requests",
-      value: openRequestCount,
-      icon: MessageSquare,
-      href: "/admin/requests",
-      color:
-        "from-indigo-500/10 to-indigo-500/5 dark:from-indigo-500/20 dark:to-indigo-500/5",
-      iconColor: "text-indigo-600 dark:text-indigo-400",
-    },
   ];
 
   const row2Stats = [
@@ -97,6 +88,15 @@ export default async function AdminDashboard() {
       href: "/admin/reports",
       color: "from-orange-500/10 to-orange-500/5 dark:from-orange-500/20 dark:to-orange-500/5",
       iconColor: "text-orange-600 dark:text-orange-400",
+    },
+    {
+      title: "Open Requests",
+      value: openRequestCount,
+      icon: MessageSquare,
+      href: "/admin/requests",
+      color:
+        "from-indigo-500/10 to-indigo-500/5 dark:from-indigo-500/20 dark:to-indigo-500/5",
+      iconColor: "text-indigo-600 dark:text-indigo-400",
     },
   ];
 
