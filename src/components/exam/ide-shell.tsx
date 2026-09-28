@@ -113,15 +113,42 @@ export function IDEShell({
   };
 
   const handleCopyExtensionsUrl = async () => {
-    try {
-      await navigator.clipboard.writeText("chrome://extensions");
+    const textToCopy = "chrome://extensions";
+    let copied = false;
+
+    // 1. Try modern navigator.clipboard (available on HTTPS and localhost)
+    if (typeof navigator !== "undefined" && navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        copied = true;
+      } catch {}
+    }
+
+    // 2. Universal textarea fallback (works on HTTP, IP addresses, unfocused tabs)
+    if (!copied && typeof document !== "undefined") {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "-9999px";
+        textArea.setAttribute("readonly", "");
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copied = document.execCommand("copy");
+        document.body.removeChild(textArea);
+      } catch {}
+    }
+
+    if (copied) {
       setCopiedExtensionsUrl(true);
       toast.success("Copied 'chrome://extensions' to clipboard!", {
         description:
           "Open a new tab (Ctrl+T / Cmd+T), paste into address bar, and toggle ShieldIt ON.",
       });
       setTimeout(() => setCopiedExtensionsUrl(false), 3000);
-    } catch {
+    } else {
       toast.info("Please open chrome://extensions in a new tab to manage extensions.");
     }
   };

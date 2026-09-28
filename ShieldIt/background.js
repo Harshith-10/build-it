@@ -99,6 +99,28 @@ async function enforceLockdown() {
   }
 }
 
+/**
+ * Checks if ANY tab in the browser is currently running an active exam session.
+ */
+async function isAnyExamSessionOpen() {
+  if (state.examTabId) {
+    try {
+      const tab = await chrome.tabs.get(state.examTabId);
+      if (tab?.url && tab.url.includes("/session") && !tab.url.includes("/results")) {
+        return true;
+      }
+    } catch {}
+  }
+  try {
+    const allTabs = await chrome.tabs.query({});
+    return allTabs.some(
+      (t) => t.url && t.url.includes("/exams/") && t.url.includes("/session") && !t.url.includes("/results")
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Restore state on service worker startup
 let initPromise = null;
 async function initServiceWorker() {
@@ -122,10 +144,17 @@ async function initServiceWorker() {
     // Auto-inject into open tabs so existing sessions detect the extension immediately upon toggle ON
     await injectTabs();
 
-    // If lockdown was active when extension was toggled back ON:
-    // Immediately re-enforce lockdown to pause any extensions enabled while ShieldIt was OFF!
+    // If lockdown was marked active when extension was toggled back ON:
+    // Check if an exam session is genuinely still open in the browser!
     if (state.isLockdownActive) {
-      await enforceLockdown();
+      const isExamStillOpen = await isAnyExamSessionOpen();
+      if (isExamStillOpen) {
+        console.log("[ShieldIt] Active exam session confirmed running. Re-enforcing lockdown.");
+        await enforceLockdown();
+      } else {
+        console.log("[ShieldIt] No active exam session tab found upon startup. Auto-restoring extensions...");
+        await stopLockdown(true);
+      }
     }
   } catch (err) {
     console.error("[ShieldIt] Failed to initialize state:", err);
@@ -291,33 +320,37 @@ async function startLockdown(examId, tabId, options = {}, sessionSecret = null) 
  */
 async function stopLockdown(forceAll = false, providedSecret = null) {
   try {
-    console.log(`[ShieldIt v1.0.2] Stop lockdown request: forceAll=${forceAll}, hasProvidedSecret=${!!providedSecret}, isLockdownActive=${state.isLockdownActive}`);
+    console.log(`[ShieldIt v1.0.3] Stop lockdown request: forceAll=${forceAll}, hasProvidedSecret=${!!providedSecret}, isLockdownActive=${state.isLockdownActive}`);
 
     // Anti-tamper check: If lockdown is active, verify authorization
     if (state.isLockdownActive) {
       if (forceAll) {
-        // Emergency button clicked while exam is active
-        console.warn("[ShieldIt] Blocked emergency restore during active exam.");
-        return {
-          success: false,
-          error: "EXAM_IN_PROGRESS",
-          message: "Cannot restore extensions while an examination is active. Complete and submit the exam first."
-        };
-      }
-
-      // STRICT CHECK: An active exam MUST be unlocked with the matching sessionSecret!
-      if (!providedSecret || !state.sessionSecret || providedSecret !== state.sessionSecret) {
-        console.warn("[ShieldIt VIOLATION] Unauthorized attempt to unlock exam without valid sessionSecret.");
-        sendViolationToExamTab({
-          type: "SECURITY_TAMPERING",
-          severity: "CRITICAL",
-          message: "Unauthorized attempt to terminate lockdown without valid session token."
-        });
-        return {
-          success: false,
-          error: "INVALID_SECRET",
-          message: "Unauthorized unlock attempt. Valid session token required."
-        };
+        // If forceAll is requested, check if an exam tab is actually still open and active
+        const isExamStillOpen = await isAnyExamSessionOpen();
+        if (isExamStillOpen) {
+          console.warn("[ShieldIt] Blocked emergency restore during active exam session.");
+          return {
+            success: false,
+            error: "EXAM_IN_PROGRESS",
+            message: "Cannot restore extensions while an examination is actively open. Complete and submit the exam first."
+          };
+        }
+        console.log("[ShieldIt] No active exam session open. Emergency/startup restore permitted.");
+      } else {
+        // STRICT CHECK: An active exam MUST be unlocked with the matching sessionSecret!
+        if (!providedSecret || !state.sessionSecret || providedSecret !== state.sessionSecret) {
+          console.warn("[ShieldIt VIOLATION] Unauthorized attempt to unlock exam without valid sessionSecret.");
+          sendViolationToExamTab({
+            type: "SECURITY_TAMPERING",
+            severity: "CRITICAL",
+            message: "Unauthorized attempt to terminate lockdown without valid session token."
+          });
+          return {
+            success: false,
+            error: "INVALID_SECRET",
+            message: "Unauthorized unlock attempt. Valid session token required."
+          };
+        }
       }
     } else if (!forceAll) {
       console.log("[ShieldIt] Stop lockdown called but no exam is currently active.");
@@ -609,7 +642,7 @@ async function handleIncomingMessage(message, sender) {
       return {
         success: true,
         name: "ShieldIt",
-        version: "1.0.2",
+        version: "1.0.3",
         buildTime: "13:40:00",
         isLockdownActive: state.isLockdownActive,
         activeExamId: state.activeExamId,
@@ -650,7 +683,7 @@ async function handleIncomingMessage(message, sender) {
           nonce,
           timestamp,
           extensionId: chrome.runtime.id,
-          version: "1.0.2",
+          version: "1.0.3",
           isLockdownActive: state.isLockdownActive
         };
       } catch (err) {
@@ -694,7 +727,13 @@ async function handleIncomingMessage(message, sender) {
         state.examTabId = sender.tab.id;
       }
       if (state.isLockdownActive) {
-        enforceLockdown().catch(() => {});
+        const isExamActive = await isAnyExamSessionOpen();
+        if (isExamActive) {
+          enforceLockdown().catch(() => {});
+        } else {
+          console.log("[ShieldIt] GET_STATUS verified no active exam tab. Auto-releasing lockdown...");
+          await stopLockdown(true);
+        }
       }
       return {
         success: true,
