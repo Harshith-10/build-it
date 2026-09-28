@@ -3,9 +3,9 @@ import { LabsManager } from "@/components/admin/labs/labs-manager";
 
 export default function FacultyLabsPage() {
   return (
-    <div className="flex flex-1 flex-col gap-4 min-h-0 overflow-hidden">
+    <div className="flex flex-1 flex-col gap-4 min-h-0 overflow-y-auto pr-1">
       <PageHeader
-        title="Labs"
+        title="Laboratory"
         description="View assigned labs, student submissions, attendance, and evaluation"
       />
       <LabsManager isAdmin={false} />

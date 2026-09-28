@@ -28,7 +28,7 @@ export default function FacultyExamsPage() {
   return (
     <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden">
       <PageHeader
-        title="Exams"
+        title="Examinations"
         description="Create and manage your private exams"
         actions={
           <Link href="/faculty/exams/new">
