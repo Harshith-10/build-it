@@ -33,7 +33,7 @@ function deriveAssessmentStatus(
 }
 
 export async function getAssessmentsSummary() {
-  await requireFacultyOrAdmin();
+  await requireAdmin();
 
   const allAssessments = await db.query.exams.findMany({
     where: inArray(exams.assessmentType, [
@@ -78,7 +78,7 @@ export async function getAssessments({
   search?: string;
   labId?: string;
 }) {
-  await requireFacultyOrAdmin();
+  await requireAdmin();
 
   const searchClause = search
     ? or(ilike(exams.title, `%${search}%`))
@@ -171,7 +171,7 @@ export async function getAssessments({
 }
 
 export async function getAssessment(id: string) {
-  await requireFacultyOrAdmin();
+  await requireAdmin();
 
   const item = await db.query.exams.findFirst({
     where: eq(exams.id, id),
@@ -245,6 +245,31 @@ export async function upsertAssessment(data: UpsertAssessmentInput) {
   const session = await requireAdmin();
 
   try {
+    if (!data.title || !data.title.trim()) {
+      return { success: false, error: "Assessment title is required" };
+    }
+
+    const rawCollectionIds =
+      data.strategyConfig &&
+      "collectionIds" in data.strategyConfig &&
+      Array.isArray(data.strategyConfig.collectionIds)
+        ? data.strategyConfig.collectionIds.filter(
+            (id): id is string => typeof id === "string" && Boolean(id.trim()),
+          )
+        : [];
+
+    const uniqueCollectionIds = Array.from(new Set(rawCollectionIds));
+
+    if (
+      data.strategyType !== "lab_external" &&
+      uniqueCollectionIds.length === 0
+    ) {
+      return {
+        success: false,
+        error: "At least one question collection must be selected for this assessment",
+      };
+    }
+
     let assessmentId = data.id;
 
     const defaultStartTime = data.startTime

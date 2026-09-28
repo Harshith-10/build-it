@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { AlertCircle } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -6,7 +6,13 @@ import { notFound } from "next/navigation";
 import OnboardingClient from "@/components/exam/onboarding-client";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
-import { examAssignments, examAttendance, exams } from "@/db/schema";
+import {
+  examAssignments,
+  examAttendance,
+  examGroups,
+  exams,
+  userGroupMembers,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { getExamQuestionCount } from "@/lib/exam";
 
@@ -87,10 +93,28 @@ export default async function OnboardingPage({ params }: PageProps) {
     ),
   });
 
-  // Use the exam-level requiresPin flag directly.
-  // upsertExam already sets this to true when any group assignment has a PIN.
-  // If the student already has an active session (resuming), we skip the PIN.
-  const requiresPin = exam.requiresPin && !existingAssignment;
+  // Check section-specific PIN if student belongs to an assigned group
+  let sectionHasPin = false;
+  const userMemberships = await db.query.userGroupMembers.findMany({
+    where: eq(userGroupMembers.userId, userId),
+    columns: { groupId: true },
+  });
+  const userGroupIds = userMemberships.map((m) => m.groupId);
+
+  if (userGroupIds.length > 0) {
+    const studentGroupSlot = await db.query.examGroups.findFirst({
+      where: and(
+        eq(examGroups.examId, examId),
+        inArray(examGroups.groupId, userGroupIds),
+      ),
+      columns: { pin: true },
+    });
+    if (studentGroupSlot?.pin) {
+      sectionHasPin = true;
+    }
+  }
+
+  const requiresPin = (exam.requiresPin || sectionHasPin) && !existingAssignment;
   const questionCount: number = getExamQuestionCount(exam);
 
   return <OnboardingClient exam={{ ...exam, questionCount, requiresPin }} />;

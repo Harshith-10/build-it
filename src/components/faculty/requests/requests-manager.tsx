@@ -13,7 +13,7 @@ import {
   ClockIcon,
   CheckCircle2,
   XCircle,
-  SendHorizonal,
+  SendHorizontal,
   Inbox,
 } from "lucide-react";
 
@@ -242,7 +242,7 @@ function NewTicketForm({ onCreated }: { onCreated: () => void }) {
             {isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <SendHorizonal className="mr-2 h-4 w-4" />
+              <SendHorizontal className="mr-2 h-4 w-4" />
             )}
             Submit Request
           </Button>

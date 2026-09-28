@@ -290,19 +290,36 @@ export async function deleteAssessmentSubmission(assignmentId: string) {
       return { success: false, error: "Submission record not found" };
     }
 
-    // Verify faculty permission on this assessment
+    // Verify faculty permission on this assessment and section
     if (!isAdmin) {
-      const isAssigned = await db.query.examGroupFaculty.findFirst({
+      const assignedSections = await db.query.examGroupFaculty.findMany({
         where: and(
           eq(examGroupFaculty.examId, assignment.examId),
           eq(examGroupFaculty.facultyId, userId),
         ),
+        columns: { groupId: true },
       });
 
-      if (!isAssigned) {
+      const allowedGroupIds = assignedSections.map((s) => s.groupId);
+      if (allowedGroupIds.length === 0) {
         return {
           success: false,
           error: "You are not authorized to delete submissions for this assessment",
+        };
+      }
+
+      // Verify the student belongs to one of the faculty's assigned sections
+      const studentMembership = await db.query.userGroupMembers.findFirst({
+        where: and(
+          eq(userGroupMembers.userId, assignment.userId),
+          inArray(userGroupMembers.groupId, allowedGroupIds),
+        ),
+      });
+
+      if (!studentMembership) {
+        return {
+          success: false,
+          error: "You are not authorized to delete submissions for students outside your assigned section",
         };
       }
     }

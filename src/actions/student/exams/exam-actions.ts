@@ -118,14 +118,15 @@ export async function initializeExamSession(examId: string, pin?: string) {
     }
 
     // PIN Validation
-    if (activeSlot.exam.requiresPin) {
+    const sectionRequiresPin = activeSlot.exam.requiresPin || Boolean(activeSlot.pin);
+    if (sectionRequiresPin) {
       if (!pin) {
         return {
           success: false,
           error: "Exam PIN is required.",
         };
       }
-      if (activeSlot.pin !== pin) {
+      if (activeSlot.pin && activeSlot.pin !== pin) {
         return {
           success: false,
           error: "Invalid Exam PIN. Please check with your proctor.",
