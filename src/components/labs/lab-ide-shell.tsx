@@ -170,7 +170,7 @@ export function LabIDEShell({
             </p>
           </div>
           <Button asChild>
-            <Link href={`/labs/${labId}`}>Back to Labs</Link>
+            <Link href={`/labs/${labId}`}>Back to Laboratory</Link>
           </Button>
         </div>
       </div>

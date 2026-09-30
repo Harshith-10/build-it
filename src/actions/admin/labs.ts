@@ -1145,6 +1145,15 @@ export async function deleteLabSubmission(data: {
       );
 
     await db
+      .delete(vivaSubmissions)
+      .where(
+        and(
+          eq(vivaSubmissions.exerciseId, exerciseId),
+          eq(vivaSubmissions.userId, studentId)
+        )
+      );
+
+    await db
       .delete(exerciseMarks)
       .where(
         and(
@@ -1212,6 +1221,15 @@ export async function deleteSectionLabSubmissions(data: {
         and(
           eq(labSubmissions.exerciseId, exerciseId),
           inArray(labSubmissions.userId, userIds)
+        )
+      );
+
+    await db
+      .delete(vivaSubmissions)
+      .where(
+        and(
+          eq(vivaSubmissions.exerciseId, exerciseId),
+          inArray(vivaSubmissions.userId, userIds)
         )
       );
 

@@ -178,6 +178,22 @@ export async function getProgramsForExercise(exerciseId: string) {
 
   if (!exercise) return { success: false as const, error: "Exercise not found" };
 
+  // Submission check — block if student has already submitted this exercise
+  const existingMark = await db.query.exerciseMarks.findFirst({
+    where: and(
+      eq(exerciseMarks.userId, session.user.id),
+      eq(exerciseMarks.exerciseId, exerciseId)
+    ),
+  });
+
+  if (existingMark) {
+    return {
+      success: false as const,
+      isSubmitted: true,
+      error: "You have already submitted this exercise",
+    };
+  }
+
   // Time window check — block if ended
   const now = new Date();
   const studentGroups = await db.query.userGroupMembers.findMany({
@@ -302,6 +318,17 @@ export async function markProgramSolved(data: {
         success: false,
         error: "You were marked absent for this exercise",
       };
+    }
+
+    // Submission check — block if already submitted
+    const existingMark = await db.query.exerciseMarks.findFirst({
+      where: and(
+        eq(exerciseMarks.userId, session.user.id),
+        eq(exerciseMarks.exerciseId, exerciseId)
+      ),
+    });
+    if (existingMark) {
+      return { success: false, error: "You have already submitted this exercise" };
     }
 
     await db

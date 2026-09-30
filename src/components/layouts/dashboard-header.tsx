@@ -17,11 +17,11 @@ const labelMap: Record<string, string> = {
   dashboard: "Dashboard",
   problems: "Problems",
   playground: "Playground",
-  exams: "Exams",
+  exams: "Examinations",
   settings: "Settings",
   u: "User",
   me: "Profile",
-  labs: "Labs",
+  labs: "Laboratory",
   code365: "Code365",
 };
 
@@ -40,7 +40,8 @@ export function DashboardHeader() {
       }
     }
     const isLast = idx === segments.length - 1;
-    return { href, label, isLast };
+    const isNonClickable = label === "Workspace" && segments[idx + 1] === "results";
+    return { href, label, isLast, isNonClickable };
   });
 
   return (
@@ -54,6 +55,8 @@ export function DashboardHeader() {
               <BreadcrumbItem>
                 {crumb.isLast ? (
                   <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                ) : crumb.isNonClickable ? (
+                  <span className="text-muted-foreground">{crumb.label}</span>
                 ) : (
                   <BreadcrumbLink href={crumb.href}>
                     {crumb.label}

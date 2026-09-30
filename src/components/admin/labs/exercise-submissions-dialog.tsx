@@ -149,6 +149,7 @@ export function ExerciseSubmissionsDialog({
                     ? {
                         ...s,
                         solvedProgramIds: [],
+                        vivaSubmittedCount: 0,
                         marks: null,
                         implementationMarks: null,
                         writeUpMarks: null,
@@ -747,9 +748,6 @@ export function ExerciseSubmissionsDialog({
                               ? implScore + writeUpNum + vivaNum
                               : null;
 
-                          const hasSubmittedContent =
-                            solvedCount > 0 || (student.vivaSubmittedCount ?? 0) > 0;
-
                           return (
                             <TableRow key={student.id}>
                               {/* Roll Number */}
@@ -774,6 +772,31 @@ export function ExerciseSubmissionsDialog({
                                       </TableCell>
                                     );
                                   })}
+
+                                  {/* Viva Answers */}
+                                  <TableCell className="text-center">
+                                    {(student.vivaSubmittedCount ?? 0) > 0 ? (
+                                      <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-200">
+                                        {student.vivaSubmittedCount} Answered
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                  </TableCell>
+
+                                  {/* Lab Report */}
+                                  <TableCell className="text-center">
+                                    <DownloadReportButton
+                                      exerciseId={exerciseId}
+                                      studentId={student.id}
+                                      size="sm"
+                                      variant="outline"
+                                      label="View Record"
+                                      className="h-7 text-xs px-2"
+                                    />
+                                  </TableCell>
+
+                                  {/* Action */}
                                   <TableCell className="text-center pr-4">
                                     <Button
                                       variant="ghost"
@@ -870,18 +893,14 @@ export function ExerciseSubmissionsDialog({
 
                                   {/* Download Student Report PDF */}
                                   <TableCell className="text-center">
-                                    {hasSubmittedContent ? (
-                                      <DownloadReportButton
-                                        exerciseId={exerciseId}
-                                        studentId={student.id}
-                                        size="sm"
-                                        variant="outline"
-                                        label="View Record"
-                                        className="h-7 text-xs px-2 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30"
-                                      />
-                                    ) : (
-                                      <span className="text-xs text-muted-foreground">—</span>
-                                    )}
+                                    <DownloadReportButton
+                                      exerciseId={exerciseId}
+                                      studentId={student.id}
+                                      size="sm"
+                                      variant="outline"
+                                      label="View Record"
+                                      className="h-7 text-xs px-2 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30"
+                                    />
                                   </TableCell>
 
                                   {/* Row Status */}
@@ -985,13 +1004,6 @@ export function ExerciseSubmissionsDialog({
               </span>
             )}
             ?
-            <br />
-            <br />
-            This will permanently delete their solved programs and marks for{" "}
-            <span className="font-semibold text-foreground">
-              Exercise {exerciseNo}: {exerciseTitle}
-            </span>
-            , allowing them to restart the exercise. Their attendance status will remain intact. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -1035,13 +1047,6 @@ export function ExerciseSubmissionsDialog({
               {selectedGroup?.name ?? "this section"}
             </span>
             ?
-            <br />
-            <br />
-            This will permanently delete all solved programs and marks for all students in this section for{" "}
-            <span className="font-semibold text-foreground">
-              Exercise {exerciseNo}: {exerciseTitle}
-            </span>
-            , allowing everyone in the section to restart the exercise. Attendance records will remain intact. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

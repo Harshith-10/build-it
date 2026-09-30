@@ -27,6 +27,10 @@ export default async function ExercisePage({
 
   // Show blocked page with specific reason
   if (!result.success) {
+    if (result.isSubmitted) {
+      redirect(`/labs/${labId}/${exerciseId}/results`);
+    }
+
     const isAttendanceLockout =
       result.error === "You were not marked as present for this exercise" ||
       result.error === "You were marked absent for this exercise";
