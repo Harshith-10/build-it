@@ -804,7 +804,10 @@ export async function getExerciseSubmissions(
           vivaMarks: null,
         });
       }
-      if (sub.programId !== "00000000-0000-0000-0000-000000000000") {
+      if (
+        sub.programId !== "00000000-0000-0000-0000-000000000000" &&
+        !sub.language?.includes(":attempted")
+      ) {
         studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
       }
     }

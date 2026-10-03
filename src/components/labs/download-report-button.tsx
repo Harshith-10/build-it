@@ -54,10 +54,40 @@ export function DownloadReportButton({
           language = localStorage.getItem(langKey) || language;
         }
 
+        let testCases = prog.testCases ?? [];
+        if (typeof window !== "undefined") {
+          try {
+            const rawLocal = localStorage.getItem(`lab_test_results_${exerciseId}_${prog.id}`);
+            if (rawLocal) {
+              const localResults: Array<{
+                id: string;
+                input?: string;
+                expectedOutput?: string;
+                actualOutput?: string;
+                passed?: boolean;
+              }> = JSON.parse(rawLocal);
+              testCases = testCases.map((tc) => {
+                const matched = localResults.find((lr) => lr.id === tc.id);
+                if (matched && matched.actualOutput !== undefined) {
+                  return {
+                    ...tc,
+                    userOutput: matched.actualOutput || (matched.passed ? tc.expectedOutput : tc.userOutput),
+                    passed: matched.passed ?? tc.passed,
+                  };
+                }
+                return tc;
+              });
+            }
+          } catch (e) {
+            console.error("Failed to parse local test results:", e);
+          }
+        }
+
         return {
           ...prog,
           code,
           language,
+          testCases,
         };
       });
 

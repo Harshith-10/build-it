@@ -127,7 +127,10 @@ export function ExerciseSubmissionsDialog({
   const selectedGroup = assignedGroups.find((g) => g.id === selectedGroupId);
   const hasAnySubmissions =
     data?.students.some(
-      (s) => s.solvedProgramIds.length > 0 || s.marks !== null
+      (s) =>
+        s.solvedProgramIds.length > 0 ||
+        (s.vivaSubmittedCount ?? 0) > 0 ||
+        s.marks !== null
     ) ?? false;
 
   const handleDeleteStudent = async () => {
@@ -645,7 +648,8 @@ export function ExerciseSubmissionsDialog({
                             variant="outline"
                             size="sm"
                             onClick={() => setConfirmSectionDeleteOpen(true)}
-                            className="gap-1.5 text-xs h-9 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                            disabled={!hasAnySubmissions}
+                            className="gap-1.5 text-xs h-9 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 disabled:opacity-50"
                             title="Delete all submissions for this section"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -728,7 +732,7 @@ export function ExerciseSubmissionsDialog({
                               <TableHead className="text-center font-semibold text-xs">Viva-Voce (0-4)</TableHead>
                               <TableHead className="text-center font-semibold text-xs">Total (max 20)</TableHead>
                               <TableHead className="text-center font-semibold text-xs">Student Report</TableHead>
-                              <TableHead className="text-center w-24 pr-4 font-semibold">Status</TableHead>
+                              <TableHead className="text-center w-20 pr-4 font-semibold text-xs">Status</TableHead>
                             </>
                           )}
                         </TableRow>
@@ -747,6 +751,11 @@ export function ExerciseSubmissionsDialog({
                             !isNaN(writeUpNum) && !isNaN(vivaNum)
                               ? implScore + writeUpNum + vivaNum
                               : null;
+
+                          const hasSubmittedContent =
+                            solvedCount > 0 ||
+                            (student.vivaSubmittedCount ?? 0) > 0 ||
+                            student.marks !== null;
 
                           return (
                             <TableRow key={student.id}>
@@ -786,27 +795,35 @@ export function ExerciseSubmissionsDialog({
 
                                   {/* Lab Report */}
                                   <TableCell className="text-center">
-                                    <DownloadReportButton
-                                      exerciseId={exerciseId}
-                                      studentId={student.id}
-                                      size="sm"
-                                      variant="outline"
-                                      label="View Record"
-                                      className="h-7 text-xs px-2"
-                                    />
+                                    {hasSubmittedContent ? (
+                                      <DownloadReportButton
+                                        exerciseId={exerciseId}
+                                        studentId={student.id}
+                                        size="sm"
+                                        variant="outline"
+                                        label="View Record"
+                                        className="h-7 text-xs px-2"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
                                   </TableCell>
 
                                   {/* Action */}
                                   <TableCell className="text-center pr-4">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon-sm"
-                                      title={`Delete submission and reset for ${student.name || student.username}`}
-                                      className="text-destructive hover:text-white bg-destructive/10 hover:bg-destructive/80 transition-colors mx-auto h-8 w-8"
-                                      onClick={() => setStudentToDelete(student)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    {hasSubmittedContent ? (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        title={`Delete submission and reset for ${student.name || student.username}`}
+                                        className="text-destructive hover:text-white bg-destructive/10 hover:bg-destructive/80 transition-colors mx-auto h-8 w-8"
+                                        onClick={() => setStudentToDelete(student)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
                                   </TableCell>
                                 </>
                               ) : (
@@ -893,14 +910,18 @@ export function ExerciseSubmissionsDialog({
 
                                   {/* Download Student Report PDF */}
                                   <TableCell className="text-center">
-                                    <DownloadReportButton
-                                      exerciseId={exerciseId}
-                                      studentId={student.id}
-                                      size="sm"
-                                      variant="outline"
-                                      label="View Record"
-                                      className="h-7 text-xs px-2 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30"
-                                    />
+                                    {hasSubmittedContent ? (
+                                      <DownloadReportButton
+                                        exerciseId={exerciseId}
+                                        studentId={student.id}
+                                        size="sm"
+                                        variant="outline"
+                                        label="View Record"
+                                        className="h-7 text-xs px-2 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
                                   </TableCell>
 
                                   {/* Row Status */}

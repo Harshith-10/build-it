@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { getMyExerciseResult } from "@/actions/student/labs/submissions";
 import { DownloadReportButton } from "@/components/labs/download-report-button";
+import { ClearLabStorage } from "@/components/labs/clear-lab-storage";
 
 interface ResultsPageProps {
   params: Promise<{
@@ -73,8 +74,8 @@ export default async function LabExerciseResultsPage({ params }: ResultsPageProp
   const implScore = isGraded
     ? (implementationMarks ?? 0)
     : totalPrograms > 0
-    ? (solvedCount / totalPrograms) * maxImplMarks
-    : 0;
+      ? (solvedCount / totalPrograms) * maxImplMarks
+      : 0;
 
   const writeUpScore = isGraded ? (writeUpMarks ?? 0) : null;
   const vivaScore = isGraded ? (vivaMarks ?? 0) : null;
@@ -83,7 +84,7 @@ export default async function LabExerciseResultsPage({ params }: ResultsPageProp
   // Percentage calculations
   const attemptedPercent =
     totalPrograms > 0 ? Math.round((solvedCount / totalPrograms) * 100) : 0;
-  
+
   const scorePercent =
     totalScore !== null
       ? Math.max(0, Math.min(100, Math.round((totalScore / maxMarks) * 100)))
@@ -96,6 +97,7 @@ export default async function LabExerciseResultsPage({ params }: ResultsPageProp
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center p-4 sm:p-6">
+      <ClearLabStorage exerciseId={exerciseId} />
       <Card className="w-full">
         <CardHeader className="text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">

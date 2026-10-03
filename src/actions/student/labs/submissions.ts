@@ -125,7 +125,9 @@ export async function getMyExercises(labId: string) {
     const isAbsent = attRecord ? !attRecord.present : false;
 
     const totalPrograms = exercise.collection?.questions?.length ?? 0;
-    const solvedCount = isAbsent ? 0 : (exercise.submissions?.length ?? 0);
+    const solvedCount = isAbsent
+      ? 0
+      : (exercise.submissions?.filter((s) => !s.language?.includes(":attempted")).length ?? 0);
     const vivaCount = isAbsent ? 0 : (exercise.vivaSubmissions?.filter((v) => v.answerText && v.answerText.trim().length > 0).length ?? 0);
     const markEntry = isAbsent ? null : (exercise.marks?.[0] ?? null);
     const isSubmitted = markEntry !== null || (totalPrograms === 0 && vivaCount > 0) || (vivaCount > 0);
@@ -230,16 +232,7 @@ export async function getProgramsForExercise(exerciseId: string) {
     };
   }
 
-  // Map collection questions to programs
-  const programs = exercise.collection?.questions.map((cq, idx) => ({
-    id: cq.questionId,
-    programNo: idx + 1,
-    title: cq.question.title,
-    description: cq.question.problemStatement,
-    testCases: cq.question.testCases ?? [],
-  })) ?? [];
-
-  const programIds = programs.map((p) => p.id);
+  const programIds = (exercise.collection?.questions ?? []).map((cq) => cq.questionId);
 
   // Get which ones the student has solved
   const submissions =
@@ -253,7 +246,24 @@ export async function getProgramsForExercise(exerciseId: string) {
       })
       : [];
 
-  const solvedIds = submissions.map((s) => s.programId);
+  // Map collection questions to programs with any saved code/language
+  const programs = exercise.collection?.questions.map((cq, idx) => {
+    const sub = submissions.find((s) => s.programId === cq.questionId);
+    return {
+      id: cq.questionId,
+      programNo: idx + 1,
+      title: cq.question.title,
+      description: cq.question.problemStatement,
+      testCases: cq.question.testCases ?? [],
+      allowedLanguages: (cq.question.allowedLanguages as string[]) ?? ["java"],
+      initialCode: sub?.code ?? null,
+      initialLanguage: sub?.language ? sub.language.split(":")[0] : null,
+    };
+  }) ?? [];
+
+  const solvedIds = submissions
+    .filter((s) => !s.language?.includes(":attempted"))
+    .map((s) => s.programId);
 
   return {
     success: true as const,
@@ -277,9 +287,10 @@ export async function markProgramSolved(data: {
   exerciseId: string;
   code?: string;
   language?: string;
+  isSolved?: boolean;
 }) {
   const session = await requireUser();
-  const { programId, exerciseId, code, language } = data;
+  const { programId, exerciseId, code, language, isSolved = true } = data;
 
   try {
     const now = new Date();
@@ -331,6 +342,9 @@ export async function markProgramSolved(data: {
       return { success: false, error: "You have already submitted this exercise" };
     }
 
+    const cleanLang = (language || "java").split(":")[0];
+    const languageToSave = isSolved ? cleanLang : `${cleanLang}:attempted`;
+
     await db
       .insert(labSubmissions)
       .values({
@@ -338,13 +352,13 @@ export async function markProgramSolved(data: {
         programId,
         exerciseId,
         code: code || "",
-        language: language || "java",
+        language: languageToSave,
       })
       .onConflictDoUpdate({
         target: [labSubmissions.userId, labSubmissions.programId, labSubmissions.exerciseId],
         set: {
           code: code || "",
-          language: language || "java",
+          language: languageToSave,
           solvedAt: new Date(),
         },
       });
@@ -397,7 +411,7 @@ export async function getMyExerciseResult(exerciseId: string) {
   if (!exercise) return { success: false as const, error: "Exercise not found" };
 
   const totalPrograms = exercise.collection?.questions?.length ?? 0;
-  const solvedCount = exercise.submissions?.length ?? 0;
+  const solvedCount = exercise.submissions?.filter((s) => !s.language?.includes(":attempted")).length ?? 0;
   const markEntry = exercise.marks?.[0] ?? null;
 
   return {
@@ -481,7 +495,7 @@ export async function submitExercise(exerciseId: string) {
 
 
     const totalPrograms = exercise.collection?.questions?.length ?? 0;
-    const solvedCount = exercise.submissions?.length ?? 0;
+    const solvedCount = exercise.submissions?.filter((s) => !s.language?.includes(":attempted")).length ?? 0;
     const implementationMarks = totalPrograms > 0 ? (solvedCount / totalPrograms) * 12 : 0;
 
     const existingMark = await db.query.exerciseMarks.findFirst({

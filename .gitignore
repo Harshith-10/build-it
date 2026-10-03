@@ -49,3 +49,5 @@ test-results/
 playwright-report/
 *.test.ts
 *.test.tsx
+*.zip
+generate_reimbursement_letter.py

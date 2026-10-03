@@ -7,6 +7,17 @@ import { userGroupMembers } from "@/db/schema/groups";
 import { user } from "@/db/schema/auth";
 import { requireUser } from "@/lib/auth-access";
 
+import { executeCode, getRuntimes as getJetRuntimes, type JetTestCase } from "@/lib/jet";
+import { getPreferredRuntime } from "@/lib/runtime-utils";
+
+export type ReportTestCase = {
+  id: string;
+  input: string;
+  expectedOutput: string;
+  userOutput?: string;
+  passed?: boolean;
+};
+
 export type ReportProgram = {
   id: string;
   programNo: number;
@@ -14,6 +25,7 @@ export type ReportProgram = {
   problemStatement: string;
   code?: string;
   language?: string;
+  testCases?: ReportTestCase[];
 };
 
 export type ReportVivaQuestion = {
@@ -102,7 +114,11 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
           with: {
             questions: {
               with: {
-                question: true,
+                question: {
+                  with: {
+                    testCases: true,
+                  },
+                },
               },
               orderBy: (cq, { asc }) => [asc(cq.addedAt)],
             },
@@ -226,19 +242,114 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
       maxMarks: sub.vivaQuestion?.maxMarks ?? "4",
     }));
 
-    // 6. Format programs list
-    const programs: ReportProgram[] =
-      exercise.collection?.questions.map((cq, idx) => {
+    // 6. Format programs list with visible test cases and user outputs
+    const programs: ReportProgram[] = await Promise.all(
+      (exercise.collection?.questions ?? []).map(async (cq, idx) => {
         const sub = dbSubmissions.find((s) => s.programId === cq.questionId);
+        const rawLang = sub?.language || "java";
+        const cleanLanguage = rawLang.split(":")[0];
+        const isSolved = !rawLang.includes(":attempted");
+
+        // Visible test cases (or sample test cases)
+        const allTCs = cq.question.testCases ?? [];
+        const visibleTCs = allTCs.filter((tc) => !tc.isHidden);
+        const testCasesToUse = visibleTCs.length > 0 ? visibleTCs : allTCs.slice(0, 2);
+
+        let testCaseResults: ReportTestCase[] = [];
+
+        if (testCasesToUse.length > 0) {
+          if (!sub?.code || !sub.code.trim()) {
+            testCaseResults = testCasesToUse.map((tc) => ({
+              id: tc.id,
+              input: tc.input,
+              expectedOutput: tc.expectedOutput,
+              userOutput: "(No code submitted)",
+              passed: false,
+            }));
+          } else if (isSolved) {
+            // All test cases passed for solved submission
+            testCaseResults = testCasesToUse.map((tc) => ({
+              id: tc.id,
+              input: tc.input,
+              expectedOutput: tc.expectedOutput,
+              userOutput: tc.expectedOutput,
+              passed: true,
+            }));
+          } else {
+            // Attempted submission: run against Jet if available to capture user output
+            let executed = false;
+            try {
+              const runtimes = await getJetRuntimes();
+              if (runtimes && runtimes.length > 0) {
+                const preferred = getPreferredRuntime(runtimes, cleanLanguage);
+                if (preferred?.version) {
+                  const jetTCs: JetTestCase[] = testCasesToUse.map((tc) => ({
+                    id: tc.id,
+                    input: tc.input,
+                    expected_output: tc.expectedOutput,
+                  }));
+                  const execRes = await executeCode(
+                    studentIdToUse,
+                    sub.code,
+                    cleanLanguage,
+                    preferred.version,
+                    jetTCs,
+                  );
+
+                  if (execRes.compile && execRes.compile.status === "COMPILATION_ERROR") {
+                    testCaseResults = testCasesToUse.map((tc) => ({
+                      id: tc.id,
+                      input: tc.input,
+                      expectedOutput: tc.expectedOutput,
+                      userOutput: "Compilation Error",
+                      passed: false,
+                    }));
+                    executed = true;
+                  } else if (execRes.testcases) {
+                    testCaseResults = testCasesToUse.map((tc) => {
+                      const res = execRes.testcases?.find((r) => r.id === tc.id);
+                      return {
+                        id: tc.id,
+                        input: tc.input,
+                        expectedOutput: tc.expectedOutput,
+                        userOutput:
+                          res?.actual_output ||
+                          res?.run_details?.stdout ||
+                          (res?.passed ? tc.expectedOutput : "(No output)"),
+                        passed: res?.passed ?? false,
+                      };
+                    });
+                    executed = true;
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("[getExerciseReportData] execution error for visible testcases:", err);
+            }
+
+            if (!executed) {
+              testCaseResults = testCasesToUse.map((tc) => ({
+                id: tc.id,
+                input: tc.input,
+                expectedOutput: tc.expectedOutput,
+                userOutput: "(Execution failed or timed out)",
+                passed: false,
+              }));
+            }
+          }
+        }
+
         return {
           id: cq.questionId,
           programNo: idx + 1,
           title: cq.question.title,
           problemStatement: cq.question.problemStatement,
           code: sub?.code || "",
-          language: sub?.language || "java",
+          language: cleanLanguage,
+          testCases: testCaseResults,
         };
-      }) ?? [];
+      })
+    );
 
     const rollNumber =
       studentUser.username || studentUser.displayUsername || "—";
