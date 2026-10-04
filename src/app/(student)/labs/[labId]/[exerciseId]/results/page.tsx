@@ -68,18 +68,23 @@ export default async function LabExerciseResultsPage({ params }: ResultsPageProp
   const maxWriteUpMarks = 4;
   const maxVivaMarks = 4;
 
-  const isGraded = marks !== null;
+  const isWriteUpEvaluated = writeUpMarks !== null && writeUpMarks !== undefined;
+  const isVivaEvaluated = vivaMarks !== null && vivaMarks !== undefined;
+  const isGraded = isWriteUpEvaluated && isVivaEvaluated;
 
-  // Implementation marks: db value if graded, else auto-calculate based on solved count
-  const implScore = isGraded
-    ? (implementationMarks ?? 0)
-    : totalPrograms > 0
+  // Implementation marks: db value if present, else auto-calculate based on solved count
+  const implScore =
+    implementationMarks !== null && implementationMarks !== undefined
+      ? implementationMarks
+      : totalPrograms > 0
       ? (solvedCount / totalPrograms) * maxImplMarks
       : 0;
 
-  const writeUpScore = isGraded ? (writeUpMarks ?? 0) : null;
-  const vivaScore = isGraded ? (vivaMarks ?? 0) : null;
-  const totalScore = isGraded ? marks : null;
+  const writeUpScore = isWriteUpEvaluated ? writeUpMarks : null;
+  const vivaScore = isVivaEvaluated ? vivaMarks : null;
+  const totalScore = isGraded
+    ? (marks ?? implScore + (writeUpMarks ?? 0) + (vivaMarks ?? 0))
+    : null;
 
   // Percentage calculations
   const attemptedPercent =
@@ -185,12 +190,20 @@ export default async function LabExerciseResultsPage({ params }: ResultsPageProp
                   <p className="text-xs text-muted-foreground">
                     Write-Up
                   </p>
-                  <p className="mt-1 text-xl font-semibold">
-                    {isGraded ? formatMark(writeUpScore) : "—"} / {maxWriteUpMarks}
-                  </p>
+                  {isWriteUpEvaluated ? (
+                    <p className="mt-1 text-xl font-semibold">
+                      {formatMark(writeUpScore)} / {maxWriteUpMarks}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-base font-semibold text-amber-600 dark:text-amber-400">
+                      Not Evaluated
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center justify-between mt-4">
-                  <span className="text-xs text-muted-foreground">Faculty graded</span>
+                  <span className="text-xs text-muted-foreground">
+                    {isWriteUpEvaluated ? "Faculty graded" : "Pending faculty review"}
+                  </span>
                   <Trophy className="h-4 w-4 text-muted-foreground" />
                 </div>
               </CardContent>
@@ -203,12 +216,20 @@ export default async function LabExerciseResultsPage({ params }: ResultsPageProp
                   <p className="text-xs text-muted-foreground">
                     Viva-Voce
                   </p>
-                  <p className="mt-1 text-xl font-semibold">
-                    {isGraded ? formatMark(vivaScore) : "—"} / {maxVivaMarks}
-                  </p>
+                  {isVivaEvaluated ? (
+                    <p className="mt-1 text-xl font-semibold">
+                      {formatMark(vivaScore)} / {maxVivaMarks}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-base font-semibold text-amber-600 dark:text-amber-400">
+                      Not Evaluated
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center justify-between mt-4">
-                  <span className="text-xs text-muted-foreground">Oral evaluation</span>
+                  <span className="text-xs text-muted-foreground">
+                    {isVivaEvaluated ? "Oral evaluation" : "Pending oral evaluation"}
+                  </span>
                   <Trophy className="h-4 w-4 text-muted-foreground" />
                 </div>
               </CardContent>

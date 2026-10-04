@@ -226,28 +226,156 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
     isFirstPart: boolean;
     showTestCases: boolean;
     isTestCasesOnlyPage?: boolean;
+    testCasesChunk?: VisibleTestCase[];
+    tcPartIndex?: number;
+    totalTcParts?: number;
+    tcStartIndex?: number;
   };
 
   const programPages: ProgramPageItem[] = [];
 
+  // Usable vertical content height (px) inside page border (excluding top header and bottom footer)
+  const USABLE_PAGE_HEIGHT = 790;
+  const MAX_TCS_PER_PAGE = 4;
+
+  const estimatePsHeight = (ps?: string | null): number => {
+    if (!ps || !ps.trim()) return 0;
+    const lines = ps.trim().split("\n");
+    let lineCount = 0;
+    for (const l of lines) {
+      lineCount += Math.max(1, Math.ceil(l.length / 80));
+    }
+    // Container padding/header (36px) + compact line height (16px per line) + margin (12px)
+    return 48 + lineCount * 16;
+  };
+
+  const estimateTcHeight = (testCases?: VisibleTestCase[] | null): number => {
+    if (!testCases || testCases.length === 0) return 0;
+    let h = 45; // Section header + divider + margin
+    for (const tc of testCases) {
+      const inLines = Math.max(1, (tc.input || "").trim().split("\n").filter(Boolean).length);
+      const expLines = Math.max(1, (tc.expectedOutput || "").trim().split("\n").filter(Boolean).length);
+      const outLines = Math.max(1, (tc.userOutput || "").trim().split("\n").filter(Boolean).length);
+      const maxBoxLines = Math.min(5, Math.max(inLines, expLines, outLines));
+      // Card header (24px) + column labels (14px) + pre box (12px + lines * 15px) + card padding (16px) + margin (6px)
+      h += 72 + maxBoxLines * 15;
+    }
+    return h;
+  };
+
+  const estimateCodeHeight = (lineCount: number): number => {
+    if (lineCount === 0) return 60; // "No submitted code solution found" box
+    return 55 + lineCount * 18.5; // Header + container padding + line height + margin
+  };
+
   solutions.forEach((prog, progIdx) => {
-    const hasTCs = Boolean(prog.testCases && prog.testCases.length > 0);
-    const codeLines = prog.code ? prog.code.split("\n") : [];
+    const allTCs = prog.testCases || [];
+    const hasTCs = allTCs.length > 0;
+    const codeLines = prog.code && prog.code.trim() ? prog.code.split("\n") : [];
+    const codeCount = codeLines.length;
 
-    // Estimate problem statement space impact
-    const psLength = prog.problemStatement?.trim().length || 0;
-    const psLinesEst = psLength > 0 ? Math.ceil(psLength / 85) : 0;
-    const psPenalty = psLinesEst > 0 ? Math.min(psLinesEst + 2, 8) : 0;
+    // Chunk test cases into groups of at most MAX_TCS_PER_PAGE (4)
+    const tcChunks: VisibleTestCase[][] = [];
+    if (hasTCs) {
+      for (let i = 0; i < allTCs.length; i += MAX_TCS_PER_PAGE) {
+        tcChunks.push(allTCs.slice(i, i + MAX_TCS_PER_PAGE));
+      }
+    }
 
-    // Estimate test cases space impact (~75px per test case card)
-    const tcCount = prog.testCases?.length || 0;
-    const tcPenalty = tcCount > 0 ? Math.min(2 + tcCount * 5, 12) : 0;
+    const psHeight = estimatePsHeight(prog.problemStatement);
+    const tcHeight = hasTCs ? estimateTcHeight(allTCs) : 0;
+    const fullCodeHeight = estimateCodeHeight(codeCount);
 
-    const firstLimit = Math.max(26, 42 - psPenalty);
-    const subPageLimit = 46;
+    // ─── Case 1: Everything fits on a single page! ───
+    // Only if at most 2 test cases, and total height is strictly within budget
+    if (
+      allTCs.length <= 2 &&
+      psHeight + fullCodeHeight + tcHeight <= USABLE_PAGE_HEIGHT
+    ) {
+      programPages.push({
+        prog,
+        progIndex: progIdx,
+        partIndex: 0,
+        totalParts: 1,
+        codeChunk: prog.code || "",
+        isFirstPart: true,
+        showTestCases: hasTCs,
+        testCasesChunk: allTCs,
+        tcPartIndex: 0,
+        totalTcParts: 1,
+        tcStartIndex: 0,
+      });
+      return;
+    }
+
+    // ─── Case 2: Problem statement + entire code fit on Page 1, but Test Cases need their own page(s) ───
+    if (hasTCs && psHeight + fullCodeHeight <= USABLE_PAGE_HEIGHT) {
+      const totalParts = 1 + tcChunks.length;
+      // Page 1: Code only
+      programPages.push({
+        prog,
+        progIndex: progIdx,
+        partIndex: 0,
+        totalParts,
+        codeChunk: prog.code || "",
+        isFirstPart: true,
+        showTestCases: false,
+      });
+      // Page 2+: Dedicated Test Case page(s)
+      tcChunks.forEach((chunk, chunkIdx) => {
+        programPages.push({
+          prog,
+          progIndex: progIdx,
+          partIndex: 1 + chunkIdx,
+          totalParts,
+          codeChunk: "",
+          isFirstPart: false,
+          showTestCases: true,
+          isTestCasesOnlyPage: true,
+          testCasesChunk: chunk,
+          tcPartIndex: chunkIdx,
+          totalTcParts: tcChunks.length,
+          tcStartIndex: chunkIdx * MAX_TCS_PER_PAGE,
+        });
+      });
+      return;
+    }
+
+    // ─── Case 3: Code is long and needs to be split across pages ───
+    const page1AvailForCode = Math.max(120, USABLE_PAGE_HEIGHT - psHeight - 40);
+    const page1MaxLines = Math.max(10, Math.floor(page1AvailForCode / 18.5));
+    const subPageMaxLines = 38;
+
+    let chunks = chunkCode(prog.code || "", page1MaxLines, subPageMaxLines);
+
+    // Rebalance if the last chunk has fewer than 7 lines to avoid awkward orphan endings
+    if (chunks.length > 1) {
+      const lastLines = chunks[chunks.length - 1].split("\n").length;
+      if (lastLines < 7) {
+        const prevChunkLines = chunks[chunks.length - 2].split("\n");
+        if (prevChunkLines.length > 16) {
+          const moveCount = Math.min(8, prevChunkLines.length - 12);
+          const moved = prevChunkLines.slice(prevChunkLines.length - moveCount);
+          chunks[chunks.length - 2] = prevChunkLines.slice(0, prevChunkLines.length - moveCount).join("\n");
+          chunks[chunks.length - 1] = [...moved, ...chunks[chunks.length - 1].split("\n")].join("\n");
+        }
+      }
+    }
+
+    const lastChunkLinesCount = chunks[chunks.length - 1].split("\n").length;
+    const lastChunkHeight = estimateCodeHeight(lastChunkLinesCount);
+
+    // Test cases can ONLY be placed on the last chunk if:
+    // 1. There are at most 2 test cases (allTCs.length <= 2)
+    // 2. tcChunks.length === 1
+    // 3. Combined height is <= 660px (leaving 130px+ safety cushion)
+    const canFitTestCasesOnLastChunk =
+      hasTCs &&
+      allTCs.length <= 2 &&
+      tcChunks.length === 1 &&
+      lastChunkHeight + tcHeight <= 660;
 
     if (!hasTCs) {
-      const chunks = chunkCode(prog.code, firstLimit, subPageLimit);
       chunks.forEach((chunk, partIdx) => {
         programPages.push({
           prog,
@@ -259,79 +387,64 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
           showTestCases: false,
         });
       });
-      return;
-    }
-
-    // Has visible test cases! Check if everything fits on one single page
-    const maxSinglePageCodeLines = Math.max(16, 42 - psPenalty - tcPenalty);
-    const canFitAllOnOnePage = codeLines.length <= maxSinglePageCodeLines;
-
-    if (canFitAllOnOnePage) {
-      programPages.push({
-        prog,
-        progIndex: progIdx,
-        partIndex: 0,
-        totalParts: 1,
-        codeChunk: prog.code,
-        isFirstPart: true,
-        showTestCases: true,
-      });
-    } else {
-      const chunks = chunkCode(prog.code, firstLimit, subPageLimit);
-      const lastChunkLines = chunks[chunks.length - 1].split("\n").length;
-      const maxLastChunkCodeLines =
-        chunks.length === 1 ? maxSinglePageCodeLines : Math.max(18, subPageLimit - tcPenalty);
-      const canFitOnLastChunk = lastChunkLines <= maxLastChunkCodeLines;
-
-      if (canFitOnLastChunk) {
-        chunks.forEach((chunk, partIdx) => {
-          programPages.push({
-            prog,
-            progIndex: progIdx,
-            partIndex: partIdx,
-            totalParts: chunks.length,
-            codeChunk: chunk,
-            isFirstPart: partIdx === 0,
-            showTestCases: partIdx === chunks.length - 1,
-          });
-        });
-      } else {
-        const totalParts = chunks.length + 1;
-        chunks.forEach((chunk, partIdx) => {
-          programPages.push({
-            prog,
-            progIndex: progIdx,
-            partIndex: partIdx,
-            totalParts,
-            codeChunk: chunk,
-            isFirstPart: partIdx === 0,
-            showTestCases: false,
-          });
-        });
-
+    } else if (canFitTestCasesOnLastChunk) {
+      chunks.forEach((chunk, partIdx) => {
+        const isLast = partIdx === chunks.length - 1;
         programPages.push({
           prog,
           progIndex: progIdx,
-          partIndex: chunks.length,
+          partIndex: partIdx,
+          totalParts: chunks.length,
+          codeChunk: chunk,
+          isFirstPart: partIdx === 0,
+          showTestCases: isLast,
+          testCasesChunk: isLast ? allTCs : undefined,
+          tcPartIndex: 0,
+          totalTcParts: 1,
+          tcStartIndex: 0,
+        });
+      });
+    } else {
+      // Test cases need dedicated Execution Output page(s)
+      const totalParts = chunks.length + tcChunks.length;
+      chunks.forEach((chunk, partIdx) => {
+        programPages.push({
+          prog,
+          progIndex: progIdx,
+          partIndex: partIdx,
+          totalParts,
+          codeChunk: chunk,
+          isFirstPart: partIdx === 0,
+          showTestCases: false,
+        });
+      });
+
+      tcChunks.forEach((chunk, chunkIdx) => {
+        programPages.push({
+          prog,
+          progIndex: progIdx,
+          partIndex: chunks.length + chunkIdx,
           totalParts,
           codeChunk: "",
           isFirstPart: false,
           showTestCases: true,
           isTestCasesOnlyPage: true,
+          testCasesChunk: chunk,
+          tcPartIndex: chunkIdx,
+          totalTcParts: tcChunks.length,
+          tcStartIndex: chunkIdx * MAX_TCS_PER_PAGE,
         });
-      }
+      });
     }
   });
 
-  // Helper to sanitize viva answers: collapse empty lines and multiple spaces
+  // Helper to sanitize viva answers: collapse empty lines
   const cleanVivaAnswer = (text?: string | null): string => {
     if (!text) return "";
     return text
       .replace(/\r\n/g, "\n")
-      // Collapse any sequence of newlines (including blank lines with spaces) into a single newline
+      // Collapse multiple consecutive newlines (including blank lines with spaces) into a single newline
       .replace(/\n\s*\n+/g, "\n")
-      // Collapse multiple horizontal spaces
-      .replace(/[ \t]+/g, " ")
       .trim();
   };
 
@@ -340,41 +453,51 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
   const vivaPages: VivaQuestionItem[][] = [];
 
   if (data.vivaQuestions && data.vivaQuestions.length > 0) {
-    // Inner frame height is 1034px. Minus header (60px) and footer (30px), usable height is ~944px.
-    const MAX_VIVA_PAGE_HEIGHT = 920;
+    // Usable height inside inner border (1034px - 70px header - 35px footer - 40px safety = 889px)
+    const MAX_VIVA_PAGE_HEIGHT = 860;
 
-    const calcCardHeight = (vq: VivaQuestionItem) => {
+    const calcVivaCardHeight = (vq: VivaQuestionItem): number => {
       const cleanAns = cleanVivaAnswer(vq.answerText);
-      const qLines = Math.max(1, Math.ceil((vq.questionText || "").length / 95));
-      const qHeight = 14 + qLines * 15;
+      const qLen = (vq.questionText || "").length;
+      // Question title wrapped to ~80 chars per line (text-xs font-bold)
+      const qLines = Math.max(1, Math.ceil(qLen / 80));
+      const qHeight = qLines * 16;
 
-      let ansHeight = 22;
+      let ansHeight = 24; // fallback for no answer
       if (cleanAns) {
         const lines = cleanAns.split("\n");
+        // Each visual line wraps around 85 characters
         const visualLines = lines.reduce(
-          (acc, l) => acc + Math.max(1, Math.ceil(l.length / 95)),
+          (acc, l) => acc + Math.max(1, Math.ceil(l.length / 85)),
           0
         );
-        ansHeight = 14 + visualLines * 15.5;
+        // "Student Answer:" label (16px) + visual lines * 17px
+        ansHeight = 16 + visualLines * 17;
       }
 
-      // Card padding (p-2.5 = 20px) + border (2px) + gap between title & answer (6px) + space-y gap (10px) = 38px
+      // Card padding (p-2.5 = 20px) + border (2px) + gap between title & answer (6px) + space-y margin (10px) = 38px
       return qHeight + ansHeight + 38;
     };
 
-    const totalEstHeight = data.vivaQuestions.reduce((acc, vq) => acc + calcCardHeight(vq), 0);
+    let currentPage: VivaQuestionItem[] = [];
+    let currentHeight = 0;
 
-    if (totalEstHeight <= MAX_VIVA_PAGE_HEIGHT) {
-      // Everything fits on a single page!
-      vivaPages.push(data.vivaQuestions);
-    } else {
-      // When splitting across pages, distribute questions fairly so no page is left with an awkward single question
-      const numPages = Math.ceil(totalEstHeight / MAX_VIVA_PAGE_HEIGHT);
-      const perPage = Math.ceil(data.vivaQuestions.length / numPages);
+    for (const vq of data.vivaQuestions) {
+      const cardH = calcVivaCardHeight(vq);
 
-      for (let i = 0; i < data.vivaQuestions.length; i += perPage) {
-        vivaPages.push(data.vivaQuestions.slice(i, i + perPage));
+      // If adding this question exceeds the page height AND the page already has at least one question:
+      if (currentPage.length > 0 && currentHeight + cardH > MAX_VIVA_PAGE_HEIGHT) {
+        vivaPages.push(currentPage);
+        currentPage = [vq];
+        currentHeight = cardH;
+      } else {
+        currentPage.push(vq);
+        currentHeight += cardH;
       }
+    }
+
+    if (currentPage.length > 0) {
+      vivaPages.push(currentPage);
     }
   }
 
@@ -651,7 +774,19 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
         </div>
       ) : (
         programPages.map((pageItem, pageIdx) => {
-          const { prog, partIndex, totalParts, codeChunk, isFirstPart, showTestCases, isTestCasesOnlyPage } = pageItem;
+          const {
+            prog,
+            partIndex,
+            totalParts,
+            codeChunk,
+            isFirstPart,
+            showTestCases,
+            isTestCasesOnlyPage,
+            testCasesChunk,
+            tcPartIndex,
+            totalTcParts,
+            tcStartIndex,
+          } = pageItem;
           const pageNo = pageIdx + 2;
 
           return (
@@ -689,7 +824,12 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between border-b border-gray-300 pb-2">
                       <h5 className="font-bold text-xs text-gray-900">
-                        Program {prog.programNo}: {prog.title} {isTestCasesOnlyPage ? "(Execution Output)" : totalParts > 1 && partIndex > 0 ? `(Contd. Part ${partIndex + 1})` : ""}
+                        Program {prog.programNo}: {prog.title}{" "}
+                        {isTestCasesOnlyPage
+                          ? `(Execution Output${totalTcParts && totalTcParts > 1 ? ` Part ${tcPartIndex! + 1}/${totalTcParts}` : ""})`
+                          : totalParts > 1 && partIndex > 0
+                          ? `(Contd. Part ${partIndex + 1})`
+                          : ""}
                       </h5>
                       <div className="flex items-center gap-2">
                         {(() => {
@@ -722,7 +862,7 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                         <span className="font-bold text-gray-900 block mb-1">
                           Problem Statement:
                         </span>
-                        <div className="prose prose-xs max-w-none text-gray-800 leading-relaxed font-sans">
+                        <div className="prose prose-xs max-w-none text-gray-800 leading-snug font-sans prose-p:my-0.5 prose-pre:my-1 prose-headings:my-1 prose-ul:my-0.5 prose-li:my-0">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {prog.problemStatement}
                           </ReactMarkdown>
@@ -749,18 +889,21 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                     )}
 
                     {/* Visible Test Cases and Program Execution Output */}
-                    {showTestCases && prog.testCases && prog.testCases.length > 0 && (() => {
+                    {showTestCases && (testCasesChunk || prog.testCases) && (testCasesChunk || prog.testCases)!.length > 0 && (() => {
+                      const casesToRender = testCasesChunk || prog.testCases || [];
+                      const tcStartIdx = tcStartIndex ?? 0;
                       const isNotAttempted = !prog.code || !prog.code.trim();
-                      const passedCount = prog.testCases.filter((t) => t.passed).length;
+                      const passedCount = (prog.testCases || []).filter((t) => t.passed).length;
+                      const totalCasesCount = (prog.testCases || []).length;
                       return (
-                        <div className="space-y-2 mt-2 pt-2 border-t border-gray-300">
+                        <div className={`space-y-1.5 ${isTestCasesOnlyPage ? "mt-3" : "mt-2 pt-2 border-t border-gray-300"}`}>
                           <div className="flex items-center justify-between">
                             <span className="font-bold text-xs text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
                               <span
                                 className={`h-2 w-2 rounded-full inline-block ${
                                   isNotAttempted
                                     ? "bg-gray-400"
-                                    : passedCount === prog.testCases.length
+                                    : passedCount === totalCasesCount
                                     ? "bg-green-600"
                                     : passedCount > 0
                                     ? "bg-amber-500"
@@ -772,21 +915,22 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                             <span className="text-[10px] text-gray-600 font-mono font-semibold">
                               {isNotAttempted
                                 ? "Not Attempted"
-                                : `${passedCount}/${prog.testCases.length} Passed`}
+                                : `${passedCount}/${totalCasesCount} Passed`}
                             </span>
                           </div>
 
-                          <div className="space-y-2">
-                            {prog.testCases.map((tc, tcIdx) => {
+                          <div className="space-y-1.5">
+                            {casesToRender.map((tc, tcIdx) => {
+                              const globalTcIndex = tcStartIdx + tcIdx;
                               const tcPassed = Boolean(tc.passed);
                               return (
                                 <div
-                                  key={tc.id || tcIdx}
+                                  key={tc.id || globalTcIndex}
                                   className="rounded border border-gray-300 bg-gray-50/70 p-2 text-[10px] font-mono leading-snug"
                                 >
                                   <div className="flex items-center justify-between mb-1 pb-1 border-b border-gray-200">
-                                    <span className="font-bold text-gray-800 text-[11px]">
-                                      Test Case #{tcIdx + 1}
+                                    <span className="font-bold text-gray-800 text-[10.5px]">
+                                      Test Case #{globalTcIndex + 1}
                                     </span>
                                     <span
                                       className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
@@ -803,29 +947,29 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
 
                                   <div className="grid grid-cols-3 gap-2">
                                     <div>
-                                      <span className="text-[9px] font-bold text-gray-600 uppercase block mb-0.5">
+                                      <span className="text-[8.5px] font-bold text-gray-600 uppercase block mb-0.5">
                                         Input:
                                       </span>
-                                      <pre className="bg-white border border-gray-200 rounded p-1.5 whitespace-pre-wrap break-all text-[9.5px] text-gray-800 min-h-[26px]">
+                                      <pre className="bg-white border border-gray-200 rounded p-1 whitespace-pre-wrap break-all text-[9px] text-gray-800 min-h-[22px] max-h-[70px] overflow-hidden">
                                         {tc.input && tc.input.trim() ? tc.input.trim() : "(no input)"}
                                       </pre>
                                     </div>
 
                                     <div>
-                                      <span className="text-[9px] font-bold text-gray-600 uppercase block mb-0.5">
+                                      <span className="text-[8.5px] font-bold text-gray-600 uppercase block mb-0.5">
                                         Expected Output:
                                       </span>
-                                      <pre className="bg-white border border-gray-200 rounded p-1.5 whitespace-pre-wrap break-all text-[9.5px] text-gray-800 min-h-[26px]">
+                                      <pre className="bg-white border border-gray-200 rounded p-1 whitespace-pre-wrap break-all text-[9px] text-gray-800 min-h-[22px] max-h-[70px] overflow-hidden">
                                         {tc.expectedOutput && tc.expectedOutput.trim() ? tc.expectedOutput.trim() : "(empty)"}
                                       </pre>
                                     </div>
 
                                     <div>
-                                      <span className="text-[9px] font-bold text-gray-600 uppercase block mb-0.5">
+                                      <span className="text-[8.5px] font-bold text-gray-600 uppercase block mb-0.5">
                                         User Output:
                                       </span>
                                       <pre
-                                        className={`bg-white border rounded p-1.5 whitespace-pre-wrap break-all text-[9.5px] min-h-[26px] ${
+                                        className={`bg-white border rounded p-1 whitespace-pre-wrap break-all text-[9px] min-h-[22px] max-h-[70px] overflow-hidden ${
                                           isNotAttempted
                                             ? "border-gray-200 text-gray-500 italic bg-gray-50"
                                             : tcPassed
@@ -893,13 +1037,13 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                   </div>
 
                   {/* Questions & Answers */}
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {pageQuestions.map((vq) => {
                       const cleanAns = cleanVivaAnswer(vq.answerText);
                       return (
                         <div
                           key={vq.questionNo}
-                          className="border border-gray-300 rounded p-2.5 bg-gray-50/60 space-y-1.5"
+                          className="border border-gray-300 rounded p-2.5 bg-gray-50/60 space-y-1"
                         >
                           <div className="flex justify-between items-start">
                             <span className="font-bold text-xs text-blue-950">
@@ -907,11 +1051,11 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                             </span>
                           </div>
                           <div className="pl-3 border-l-2 border-purple-600">
-                            <span className="text-[9.5px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">
+                            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">
                               Student Answer:
                             </span>
                             {cleanAns ? (
-                              <p className="text-xs text-gray-900 leading-normal whitespace-pre-line font-sans">
+                              <p className="text-xs text-gray-900 leading-normal whitespace-pre-wrap font-sans">
                                 {cleanAns}
                               </p>
                             ) : (
