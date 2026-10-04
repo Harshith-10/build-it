@@ -116,7 +116,7 @@ function highlightCode(code: string): React.ReactNode {
           commentPart = line.slice(commentIdx);
         }
 
-        const tokenRegex = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b\d+(?:\.\d+)?\b|\b[A-Za-z_][A-Za-z0-9_]*\b|[^\sA-Za-z0-9_]+|\s+)/g;
+        const tokenRegex = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b\d[A-Za-z0-9_.]*|[A-Za-z_][A-Za-z0-9_]*|\s+|[^"'\sA-Za-z0-9_]+|.)/g;
         const tokens = codePart.match(tokenRegex) || [codePart];
 
         return (
@@ -129,7 +129,7 @@ function highlightCode(code: string): React.ReactNode {
                   </span>
                 );
               }
-              if (/^\d+(\.\d+)?$/.test(token)) {
+              if (/^\d[A-Za-z0-9_.]*$/.test(token)) {
                 return (
                   <span key={tokIdx} className="text-amber-700 font-semibold">
                     {token}
