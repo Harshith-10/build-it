@@ -288,9 +288,11 @@ export async function markProgramSolved(data: {
   code?: string;
   language?: string;
   isSolved?: boolean;
+  passedCount?: number;
+  totalCount?: number;
 }) {
   const session = await requireUser();
-  const { programId, exerciseId, code, language, isSolved = true } = data;
+  const { programId, exerciseId, code, language, isSolved = true, passedCount, totalCount } = data;
 
   try {
     const now = new Date();
@@ -342,8 +344,61 @@ export async function markProgramSolved(data: {
       return { success: false, error: "You have already submitted this exercise" };
     }
 
+    // Check existing submission for this program to compare marks/scores
+    const existingSub = await db.query.labSubmissions.findFirst({
+      where: and(
+        eq(labSubmissions.userId, session.user.id),
+        eq(labSubmissions.programId, programId),
+        eq(labSubmissions.exerciseId, exerciseId)
+      ),
+    });
+
+    // Determine previous submission score (0.0 to 1.0)
+    let existingScore = -1;
+    if (existingSub) {
+      const prevLang = existingSub.language || "";
+      const isAttempted = prevLang.includes(":attempted");
+      if (!isAttempted) {
+        // Fully solved = 100% full marks (1.0)
+        existingScore = 1.0;
+      } else {
+        const match = prevLang.match(/:attempted:(\d+)\/(\d+)/);
+        if (match) {
+          const p = parseInt(match[1], 10);
+          const t = parseInt(match[2], 10);
+          existingScore = t > 0 ? p / t : 0;
+        } else {
+          existingScore = 0;
+        }
+      }
+    }
+
+    // Determine new submission score (0.0 to 1.0)
+    let newScore = 0;
+    if (isSolved) {
+      newScore = 1.0;
+    } else if (totalCount && totalCount > 0) {
+      newScore = (passedCount ?? 0) / totalCount;
+    } else {
+      newScore = 0;
+    }
+
+    // Only update DB if new submission marks is higher or equal to the last submitted code
+    if (existingSub && newScore < existingScore) {
+      return {
+        success: true,
+        updated: false,
+        preservedPrevious: true,
+        isSolved: existingScore >= 1.0,
+      };
+    }
+
     const cleanLang = (language || "java").split(":")[0];
-    const languageToSave = isSolved ? cleanLang : `${cleanLang}:attempted`;
+    const languageToSave = isSolved
+      ? cleanLang
+      : totalCount && totalCount > 0
+      ? `${cleanLang}:attempted:${passedCount ?? 0}/${totalCount}`
+      : `${cleanLang}:attempted`;
 
     await db
       .insert(labSubmissions)
@@ -364,7 +419,7 @@ export async function markProgramSolved(data: {
       });
 
     revalidatePath("/labs");
-    return { success: true };
+    return { success: true, updated: true, isSolved };
   } catch (error) {
     console.error("Failed to mark program as solved:", error);
     return { success: false, error: "Failed to submit" };
@@ -496,7 +551,7 @@ export async function submitExercise(exerciseId: string) {
 
     const totalPrograms = exercise.collection?.questions?.length ?? 0;
     const solvedCount = exercise.submissions?.filter((s) => !s.language?.includes(":attempted")).length ?? 0;
-    const implementationMarks = totalPrograms > 0 ? (solvedCount / totalPrograms) * 12 : 0;
+    const calculatedImplMarks = totalPrograms > 0 ? (solvedCount / totalPrograms) * 12 : 0;
 
     const existingMark = await db.query.exerciseMarks.findFirst({
       where: and(
@@ -505,9 +560,13 @@ export async function submitExercise(exerciseId: string) {
       ),
     });
 
+    const previousImpl = existingMark?.implementationMarks ? parseFloat(existingMark.implementationMarks) : 0;
+    // Only update implementation marks if new is higher or equal to previous
+    const finalImplMarks = Math.max(calculatedImplMarks, previousImpl);
+
     const writeUp = existingMark?.writeUpMarks ? parseFloat(existingMark.writeUpMarks) : 0;
     const viva = existingMark?.vivaMarks ? parseFloat(existingMark.vivaMarks) : 0;
-    const totalMarks = implementationMarks + writeUp + viva;
+    const totalMarks = finalImplMarks + writeUp + viva;
 
     await db
       .insert(exerciseMarks)
@@ -515,12 +574,12 @@ export async function submitExercise(exerciseId: string) {
         userId: session.user.id,
         exerciseId,
         marks: String(totalMarks),
-        implementationMarks: String(implementationMarks),
+        implementationMarks: String(finalImplMarks),
       })
       .onConflictDoUpdate({
         target: [exerciseMarks.userId, exerciseMarks.exerciseId],
         set: {
-          implementationMarks: String(implementationMarks),
+          implementationMarks: String(finalImplMarks),
           marks: String(totalMarks),
           updatedAt: new Date(),
         },

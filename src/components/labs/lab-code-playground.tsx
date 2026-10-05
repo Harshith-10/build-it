@@ -238,42 +238,56 @@ export function LabCodePlayground({
       });
 
       if (result.compilationError) {
-        // Save submission as attempted (0 test cases passed)
-        await markProgramSolved({
+        const totalCount = program.testCases.length;
+        const saveRes = await markProgramSolved({
           programId: program.id,
           exerciseId: exercise.id,
           code,
           language: selectedLanguage,
           isSolved: false,
+          passedCount: 0,
+          totalCount,
         });
-        onUnsolved?.();
+
+        if (saveRes?.updated === false) {
+          toast.info("Compilation failed. Your previous higher-scoring code and marks have been preserved in the database.");
+        } else {
+          onUnsolved?.();
+          toast.error("Code saved, but failed to compile. 0 marks awarded until test cases pass.");
+        }
 
         setActiveTab("custom");
         setConsoleOutput({
           stdout: "",
           stderr: `Compilation Error:\n${result.compilationError}`,
         });
-        toast.error("Code saved, but failed to compile. 0 marks awarded until test cases pass.");
         return;
       }
 
       if (!result.success) {
-        // Save submission as attempted
-        await markProgramSolved({
+        const totalCount = program.testCases.length;
+        const saveRes = await markProgramSolved({
           programId: program.id,
           exerciseId: exercise.id,
           code,
           language: selectedLanguage,
           isSolved: false,
+          passedCount: 0,
+          totalCount,
         });
-        onUnsolved?.();
+
+        if (saveRes?.updated === false) {
+          toast.info("Execution failed. Your previous higher-scoring code and marks have been preserved in the database.");
+        } else {
+          onUnsolved?.();
+          toast.error(result.error || "Execution failed. Code saved as attempt.");
+        }
 
         setActiveTab("custom");
         setConsoleOutput({
           stdout: "",
           stderr: result.error || "Execution failed",
         });
-        toast.error(result.error || "Execution failed. Code saved as attempt.");
         return;
       }
 
@@ -296,20 +310,25 @@ export function LabCodePlayground({
         const passedCount = result.results.filter((r) => r.passed).length;
         const totalCount = program.testCases.length;
 
-        // Save code into DB with accurate isSolved flag
+        // Save code into DB with accurate isSolved flag and score metrics
         const saveRes = await markProgramSolved({
           programId: program.id,
           exerciseId: exercise.id,
           code,
           language: selectedLanguage,
           isSolved: allPassed,
+          passedCount,
+          totalCount,
         });
 
         if (!saveRes.success) {
           console.error("Failed to save submission:", saveRes.error);
-        }
-
-        if (allPassed) {
+          toast.error(saveRes.error || "Failed to submit code");
+        } else if (saveRes.updated === false) {
+          toast.info(
+            `Evaluation complete (${passedCount}/${totalCount} test cases passed). Your previous higher-scoring code and marks have been preserved in the database.`
+          );
+        } else if (allPassed) {
           onSolved();
           toast.success("Question submitted successfully! All test cases passed.");
         } else {
