@@ -1125,16 +1125,18 @@ export async function deleteLabSubmission(data: {
         ),
       });
       const assignedGroupIds = assigned.map((a) => a.groupId);
-      if (assignedGroupIds.length > 0) {
-        const studentMember = await db.query.userGroupMembers.findFirst({
-          where: and(
-            eq(userGroupMembers.userId, studentId),
-            inArray(userGroupMembers.groupId, assignedGroupIds)
-          ),
-        });
-        if (!studentMember) {
-          return { success: false, error: "Student is not in your assigned section for this lab" };
-        }
+      if (assignedGroupIds.length === 0) {
+        return { success: false, error: "You are not assigned to any section for this lab" };
+      }
+
+      const studentMember = await db.query.userGroupMembers.findFirst({
+        where: and(
+          eq(userGroupMembers.userId, studentId),
+          inArray(userGroupMembers.groupId, assignedGroupIds)
+        ),
+      });
+      if (!studentMember) {
+        return { success: false, error: "Student is not in your assigned section for this lab" };
       }
     }
 

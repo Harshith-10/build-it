@@ -137,6 +137,35 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
     });
     const groupIds = studentGroups.map((g) => g.groupId);
 
+    // Section Isolation Check: If a faculty member requests another student's report, verify section assignment
+    if (
+      session.user.role === "faculty" &&
+      targetStudentId &&
+      targetStudentId !== session.user.id
+    ) {
+      if (groupIds.length === 0) {
+        return {
+          success: false as const,
+          error: "Unauthorized: Student is not in your assigned section for this lab",
+        };
+      }
+
+      const isAssigned = await db.query.labGroupFaculty.findFirst({
+        where: and(
+          eq(labGroupFaculty.labId, exercise.labId),
+          eq(labGroupFaculty.facultyId, session.user.id),
+          inArray(labGroupFaculty.groupId, groupIds)
+        ),
+      });
+
+      if (!isAssigned) {
+        return {
+          success: false as const,
+          error: "Unauthorized: Student is not in your assigned section for this lab",
+        };
+      }
+    }
+
     let facultyInfo: { name: string; facultyId: string } | null = null;
 
     if (groupIds.length > 0) {

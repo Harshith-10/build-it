@@ -130,7 +130,7 @@ export async function getMyExercises(labId: string) {
       : (exercise.submissions?.filter((s) => !s.language?.includes(":attempted")).length ?? 0);
     const vivaCount = isAbsent ? 0 : (exercise.vivaSubmissions?.filter((v) => v.answerText && v.answerText.trim().length > 0).length ?? 0);
     const markEntry = isAbsent ? null : (exercise.marks?.[0] ?? null);
-    const isSubmitted = markEntry !== null || (totalPrograms === 0 && vivaCount > 0) || (vivaCount > 0);
+    const isSubmitted = markEntry !== null || (totalPrograms === 0 && vivaCount > 0);
 
     return {
       ...exercise,

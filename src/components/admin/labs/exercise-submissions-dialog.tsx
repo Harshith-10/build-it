@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { CheckCircle2, Circle, Download, Loader2, Users, Award, Search, ClipboardList, Trash2, Check, RotateCcw, Save } from "lucide-react";
 import { getExerciseSubmissions, getExerciseAttendance, getAvailableSectionsForExercise } from "@/app/(faculty)/faculty/labs/labs";
 import { awardBatchMarks, deleteLabSubmission, deleteSectionLabSubmissions, resetSectionMarks } from "@/actions/admin/labs";
@@ -123,6 +123,7 @@ export function ExerciseSubmissionsDialog({
   const [isDeletingStudent, setIsDeletingStudent] = useState(false);
   const [confirmSectionDeleteOpen, setConfirmSectionDeleteOpen] = useState(false);
   const [isDeletingSection, setIsDeletingSection] = useState(false);
+  const fetchSeqRef = useRef(0);
 
   const selectedGroup = assignedGroups.find((g) => g.id === selectedGroupId);
   const hasAnySubmissions =
@@ -204,16 +205,22 @@ export function ExerciseSubmissionsDialog({
 
   const fetchData = (groupIdFilter?: string) => {
     const filter = groupIdFilter !== undefined ? groupIdFilter : selectedGroupId;
+    const currentSeq = ++fetchSeqRef.current;
     setLoading(true);
 
     if (!filter) {
       getAvailableSectionsForExercise(exerciseId)
         .then((sectionGroups) => {
+          if (currentSeq !== fetchSeqRef.current) return;
           setAssignedGroups(sectionGroups);
           setData(null);
           setAttendanceData(null);
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (currentSeq === fetchSeqRef.current) {
+            setLoading(false);
+          }
+        });
       return;
     }
 
@@ -223,6 +230,7 @@ export function ExerciseSubmissionsDialog({
       getAvailableSectionsForExercise(exerciseId),
     ])
       .then(([res, attRes, sectionGroups]) => {
+        if (currentSeq !== fetchSeqRef.current) return;
         if (res.success && res.data) {
           const students = res.data.students as Student[];
           setData({ programs: res.data.exercise.programs, students });
@@ -279,11 +287,18 @@ export function ExerciseSubmissionsDialog({
           setAssignedGroups(sectionGroups);
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (currentSeq === fetchSeqRef.current) {
+          setLoading(false);
+        }
+      });
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      fetchSeqRef.current++;
+      return;
+    }
     setSelectedGroupId("");
     setData(null);
     setAttendanceData(null);
@@ -497,8 +512,12 @@ export function ExerciseSubmissionsDialog({
   };
 
   const filteredStudents = data?.students.filter((student) => {
-    const rollNo = student.username ?? "";
-    return rollNo.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    const rollNo = (student.username ?? "").toLowerCase();
+    const name = (student.name ?? "").toLowerCase();
+    const email = (student.email ?? "").toLowerCase();
+    return rollNo.includes(q) || name.includes(q) || email.includes(q);
   }) ?? [];
 
   return (
@@ -599,7 +618,7 @@ export function ExerciseSubmissionsDialog({
                     <div className="relative w-full sm:w-72">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search Roll No..."
+                        placeholder="Search by Roll No, Name, or Email..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-8 text-xs h-9 w-full"

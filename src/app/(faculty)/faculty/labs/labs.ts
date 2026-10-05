@@ -529,7 +529,7 @@ export async function getExerciseAttendance(
 
     if (!exercise) return { success: false, error: "Exercise not found" };
 
-    let labGroupIds: string[] = [];
+    let groupIds: string[] = [];
     if (session.user.role === "faculty") {
       const assigned = await db.query.labGroupFaculty.findMany({
         where: and(
@@ -537,19 +537,19 @@ export async function getExerciseAttendance(
           eq(labGroupFaculty.facultyId, session.user.id),
         ),
       });
-      labGroupIds = assigned.map((a) => a.groupId);
+      const assignedGroupIds = assigned.map((a) => a.groupId);
+      const exerciseGroupIds = exercise.groups.map((g) => g.groupId);
+      groupIds = exerciseGroupIds.length > 0
+        ? assignedGroupIds.filter((id) => exerciseGroupIds.includes(id))
+        : assignedGroupIds;
     } else {
       const assigned = await db.query.labGroupFaculty.findMany({
         where: eq(labGroupFaculty.labId, exercise.labId),
       });
-      labGroupIds = assigned.map((a) => a.groupId);
+      groupIds = Array.from(
+        new Set([...assigned.map((a) => a.groupId), ...exercise.groups.map((g) => g.groupId)])
+      );
     }
-
-    const allKnownGroupIds = Array.from(
-      new Set([...labGroupIds, ...exercise.groups.map((g) => g.groupId)])
-    );
-
-    let groupIds = allKnownGroupIds;
 
     if (filterGroupId && filterGroupId !== "all") {
       groupIds = groupIds.filter((id) => id === filterGroupId);
@@ -644,7 +644,7 @@ export async function saveAttendance({
     });
     if (!exercise) return { success: false, error: "Exercise not found" };
 
-    let labGroupIds: string[] = [];
+    let groupIds: string[] = [];
     if (session.user.role === "faculty") {
       const assigned = await db.query.labGroupFaculty.findMany({
         where: and(
@@ -652,19 +652,19 @@ export async function saveAttendance({
           eq(labGroupFaculty.facultyId, session.user.id),
         ),
       });
-      labGroupIds = assigned.map((a) => a.groupId);
+      const assignedGroupIds = assigned.map((a) => a.groupId);
+      const exerciseGroupIds = exercise.groups.map((g) => g.groupId);
+      groupIds = exerciseGroupIds.length > 0
+        ? assignedGroupIds.filter((id) => exerciseGroupIds.includes(id))
+        : assignedGroupIds;
     } else {
       const assigned = await db.query.labGroupFaculty.findMany({
         where: eq(labGroupFaculty.labId, exercise.labId),
       });
-      labGroupIds = assigned.map((a) => a.groupId);
+      groupIds = Array.from(
+        new Set([...assigned.map((a) => a.groupId), ...exercise.groups.map((g) => g.groupId)])
+      );
     }
-
-    const allKnownGroupIds = Array.from(
-      new Set([...labGroupIds, ...exercise.groups.map((g) => g.groupId)])
-    );
-
-    let groupIds = allKnownGroupIds;
 
     if (filterGroupId && filterGroupId !== "all") {
       groupIds = groupIds.filter((id) => id === filterGroupId);
