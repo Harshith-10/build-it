@@ -93,7 +93,7 @@ export default async function OnboardingPage({ params }: PageProps) {
     ),
   });
 
-  // Check section-specific PIN if student belongs to an assigned group
+  // Check section-specific PIN for the active group slot if student belongs to assigned group(s)
   let sectionHasPin = false;
   const userMemberships = await db.query.userGroupMembers.findMany({
     where: eq(userGroupMembers.userId, userId),
@@ -102,19 +102,26 @@ export default async function OnboardingPage({ params }: PageProps) {
   const userGroupIds = userMemberships.map((m) => m.groupId);
 
   if (userGroupIds.length > 0) {
-    const studentGroupSlot = await db.query.examGroups.findFirst({
+    const studentGroupSlots = await db.query.examGroups.findMany({
       where: and(
         eq(examGroups.examId, examId),
         inArray(examGroups.groupId, userGroupIds),
       ),
-      columns: { pin: true },
     });
-    if (studentGroupSlot?.pin) {
+    const now = new Date();
+    const activeSlot =
+      studentGroupSlots.find((slot) => {
+        const startTime = slot.startTime ?? exam.startTime;
+        const endTime = slot.endTime ?? exam.endTime;
+        return startTime && endTime && now >= startTime && now <= endTime;
+      }) ?? studentGroupSlots[0];
+
+    if (activeSlot?.pin) {
       sectionHasPin = true;
     }
   }
 
-  const requiresPin = (exam.requiresPin || sectionHasPin) && !existingAssignment;
+  const requiresPin = sectionHasPin && !existingAssignment;
   const questionCount: number = getExamQuestionCount(exam);
 
   return <OnboardingClient exam={{ ...exam, questionCount, requiresPin }} />;

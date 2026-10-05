@@ -118,15 +118,14 @@ export async function initializeExamSession(examId: string, pin?: string) {
     }
 
     // PIN Validation
-    const sectionRequiresPin = activeSlot.exam.requiresPin || Boolean(activeSlot.pin);
-    if (sectionRequiresPin) {
+    if (activeSlot.pin) {
       if (!pin) {
         return {
           success: false,
           error: "Exam PIN is required.",
         };
       }
-      if (activeSlot.pin && activeSlot.pin !== pin) {
+      if (activeSlot.pin !== pin.trim()) {
         return {
           success: false,
           error: "Invalid Exam PIN. Please check with your proctor.",
@@ -145,7 +144,7 @@ export async function initializeExamSession(examId: string, pin?: string) {
       strategyConfig,
     );
 
-    if (questionIds.length < 3) {
+    if (questionIds.length === 0) {
       throw new Error(
         "System Error: Not enough questions in the bank to generate an exam.",
       );

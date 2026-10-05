@@ -948,7 +948,7 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
             <FlaskConical className="h-3.5 w-3.5 text-violet-500" />
             Lab Assessments
             <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 font-normal">
-              {availableLabs.length}
+              {loadingSummary ? "-" : summary?.labAssessments.total ?? 0}
             </span>
           </button>
 
