@@ -80,7 +80,11 @@ export type ExerciseReportData = {
   vivaQuestions?: ReportVivaQuestion[];
 };
 
-export async function getExerciseReportData(exerciseId: string, targetStudentId?: string) {
+export async function getExerciseReportData(
+  exerciseId: string,
+  targetStudentId?: string,
+  clientDraftCodes?: Record<string, { code: string; language?: string }>
+) {
   try {
     const session = await requireUser();
     const studentIdToUse =
@@ -274,10 +278,43 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
     // 6. Format programs list with visible test cases and user outputs
     const programs: ReportProgram[] = await Promise.all(
       (exercise.collection?.questions ?? []).map(async (cq, idx) => {
-        const sub = dbSubmissions.find((s) => s.programId === cq.questionId);
-        const rawLang = sub?.language || "java";
+        let sub = dbSubmissions.find((s) => s.programId === cq.questionId);
+        const draft = clientDraftCodes?.[cq.questionId];
+
+        // If no submission exists in DB, but client provided draft code from editor
+        if ((!sub || !sub.code || !sub.code.trim()) && draft && draft.code && draft.code.trim().length > 0) {
+          const cleanDraftLang = (draft.language || "java").split(":")[0];
+          if (studentIdToUse === session.user.id) {
+            try {
+              await db
+                .insert(labSubmissions)
+                .values({
+                  userId: session.user.id,
+                  programId: cq.questionId,
+                  exerciseId,
+                  code: draft.code,
+                  language: `${cleanDraftLang}:attempted`,
+                })
+                .onConflictDoNothing();
+            } catch (e) {
+              console.error("Failed to auto-persist draft submission:", e);
+            }
+          }
+
+          sub = {
+            id: `draft-${cq.questionId}`,
+            userId: studentIdToUse,
+            programId: cq.questionId,
+            exerciseId,
+            code: draft.code,
+            language: `${cleanDraftLang}:attempted`,
+            solvedAt: new Date(),
+          } as any;
+        }
+
+        const rawLang = sub?.language || draft?.language || "java";
         const cleanLanguage = rawLang.split(":")[0];
-        const isSolved = !rawLang.includes(":attempted");
+        const isSolved = Boolean(sub && !rawLang.includes(":attempted"));
 
         // Visible test cases (or sample test cases)
         const allTCs = cq.question.testCases ?? [];

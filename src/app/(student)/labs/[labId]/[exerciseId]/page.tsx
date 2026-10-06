@@ -64,7 +64,7 @@ export default async function ExercisePage({
     );
   }
 
-  const { exercise, programs, solvedIds } = result.data!;
+  const { exercise, programs, solvedIds, hasExistingSubmissions } = result.data!;
 
   // ✅ Go directly into the IDE editor page
   return (
@@ -73,6 +73,7 @@ export default async function ExercisePage({
       exercise={exercise}
       labId={labId}
       solvedIds={solvedIds}
+      hasExistingSubmissions={hasExistingSubmissions}
       user={{
         name: session.user.name ?? "Student",
         image: session.user.image ?? undefined,

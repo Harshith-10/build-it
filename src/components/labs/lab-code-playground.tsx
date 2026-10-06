@@ -57,6 +57,7 @@ interface LabCodePlaygroundProps {
   onUnsolved?: () => void;
   // ✅ notify parent when test cases all pass
   onCanMarkSolvedChange?: (canMark: boolean) => void;
+  hasExistingSubmissions?: boolean;
 }
 
 function getLanguageExtension(lang: string) {
@@ -87,6 +88,7 @@ export function LabCodePlayground({
   onSolved,
   onUnsolved,
   onCanMarkSolvedChange,
+  hasExistingSubmissions,
 }: LabCodePlaygroundProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -139,17 +141,36 @@ export function LabCodePlayground({
   // Load code & language from localStorage or initial submission when program or exercise changes
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedCode = localStorage.getItem(storageKey);
-    if (savedCode !== null && savedCode !== "") {
-      setCode(savedCode);
-    } else if (program.initialCode) {
-      setCode(program.initialCode);
-      localStorage.setItem(storageKey, program.initialCode);
+
+    const sessionKey = `active_lab_session_${exercise.id}`;
+    const isCurrentSessionActive = sessionStorage.getItem(sessionKey);
+
+    // If there are no existing submissions in DB and this is not an active in-progress tab session,
+    // do not load stale localStorage drafts.
+    const isStaleSession = !hasExistingSubmissions && !isCurrentSessionActive;
+
+    if (isStaleSession) {
+      try {
+        localStorage.removeItem(storageKey);
+        localStorage.removeItem(langKey);
+        localStorage.removeItem(`lab_test_results_${exercise.id}_${program.id}`);
+      } catch (e) {
+        console.error("Failed to clear stale code draft:", e);
+      }
+      setCode(program.initialCode || "");
     } else {
-      setCode("");
+      const savedCode = localStorage.getItem(storageKey);
+      if (savedCode !== null && savedCode !== "") {
+        setCode(savedCode);
+      } else if (program.initialCode) {
+        setCode(program.initialCode);
+        localStorage.setItem(storageKey, program.initialCode);
+      } else {
+        setCode("");
+      }
     }
 
-    const savedLang = localStorage.getItem(langKey);
+    const savedLang = isStaleSession ? null : localStorage.getItem(langKey);
     const initialCleanLang = program.initialLanguage?.split(":")[0];
     if (savedLang && allowed.includes(savedLang)) {
       setSelectedLanguage(savedLang);
@@ -158,7 +179,7 @@ export function LabCodePlayground({
     } else if (availableLanguages.length > 0 && !allowed.includes(selectedLanguage)) {
       setSelectedLanguage(availableLanguages[0]);
     }
-  }, [exercise.id, program.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [exercise.id, program.id, hasExistingSubmissions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cache latest test results in localStorage for the lab report
   useEffect(() => {

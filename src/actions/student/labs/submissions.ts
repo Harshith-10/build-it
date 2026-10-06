@@ -276,6 +276,7 @@ export async function getProgramsForExercise(exerciseId: string) {
       },
       programs,
       solvedIds,
+      hasExistingSubmissions: submissions.length > 0,
     },
   };
 }

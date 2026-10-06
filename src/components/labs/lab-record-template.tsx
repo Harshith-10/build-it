@@ -977,7 +977,11 @@ export function LabRecordTemplate({ data, solutions }: LabRecordTemplateProps) {
                                             : "border-red-300 text-red-900"
                                         }`}
                                       >
-                                        {isNotAttempted ? "(No code submitted)" : formatUserOutput(tc.userOutput)}
+                                        {isNotAttempted
+                                          ? "(No code submitted)"
+                                          : tc.userOutput === "(No code submitted)"
+                                          ? "(Code not executed)"
+                                          : formatUserOutput(tc.userOutput)}
                                       </pre>
                                     </div>
                                   </div>

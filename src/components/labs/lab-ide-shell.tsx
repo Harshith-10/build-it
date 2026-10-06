@@ -58,6 +58,7 @@ interface LabIDEShellProps {
   exercise: LabExercise;
   labId: string;
   solvedIds: string[];
+  hasExistingSubmissions?: boolean;
   user: {
     name: string;
     image?: string;
@@ -69,6 +70,7 @@ export function LabIDEShell({
   exercise,
   labId,
   solvedIds,
+  hasExistingSubmissions,
   user,
 }: LabIDEShellProps) {
   const router = useRouter();
@@ -87,6 +89,36 @@ export function LabIDEShell({
   const [activeVivaIndex, setActiveVivaIndex] = useState<number | null>(null);
 
   useEffect(() => setMounted(true), []);
+
+  // Session-aware cache cleanup: if the database has 0 submissions (fresh start or faculty reset)
+  // and this is a new browser session (not an active tab refresh), purge stale localStorage drafts.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sessionKey = `active_lab_session_${exercise.id}`;
+    const isCurrentSessionActive = sessionStorage.getItem(sessionKey);
+
+    if (!hasExistingSubmissions && !isCurrentSessionActive) {
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (
+            key &&
+            (key.startsWith(`lab_code_${exercise.id}_`) ||
+              key.startsWith(`lab_lang_${exercise.id}_`) ||
+              key.startsWith(`lab_test_results_${exercise.id}_`))
+          ) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+      } catch (e) {
+        console.error("Failed to purge stale lab cache:", e);
+      }
+    }
+
+    sessionStorage.setItem(sessionKey, "active");
+  }, [exercise.id, hasExistingSubmissions]);
 
   // Fetch assigned Viva questions for student
   useEffect(() => {
@@ -265,6 +297,7 @@ export function LabIDEShell({
                       program={activeProgram}
                       exercise={exercise}
                       labId={labId}
+                      hasExistingSubmissions={hasExistingSubmissions}
                       isSolved={solvedSet.has(activeProgram.id)}
                       onSolved={() => handleSolved(activeProgram.id)}
                       onUnsolved={() => handleUnsolved(activeProgram.id)}
@@ -292,6 +325,27 @@ export function LabIDEShell({
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               onClick={async () => {
+                // Save any pending/unsubmitted program code drafts to guarantee submission & report inclusion
+                if (typeof window !== "undefined") {
+                  for (const p of programs) {
+                    if (!solvedSet.has(p.id)) {
+                      const draftCode = localStorage.getItem(`lab_code_${exercise.id}_${p.id}`);
+                      const draftLang = localStorage.getItem(`lab_lang_${exercise.id}_${p.id}`) || "java";
+                      if (draftCode && draftCode.trim().length > 0) {
+                        await markProgramSolved({
+                          programId: p.id,
+                          exerciseId: exercise.id,
+                          code: draftCode,
+                          language: draftLang,
+                          isSolved: false,
+                          passedCount: 0,
+                          totalCount: p.testCases.length,
+                        }).catch(() => {});
+                      }
+                    }
+                  }
+                }
+
                 // Save any pending/unsubmitted Viva answers to guarantee report inclusion
                 for (const vq of vivaQuestions) {
                   if (vq.answerText && vq.answerText.trim().length > 0) {
@@ -304,7 +358,7 @@ export function LabIDEShell({
                 }
                 const res = await submitExercise(exercise.id);
                 if (res.success) {
-                  // Clear cached code & language in localStorage after submission
+                  // Clear cached code, language & test results in localStorage after submission
                   if (typeof window !== "undefined") {
                     try {
                       const keysToRemove: string[] = [];
@@ -313,12 +367,14 @@ export function LabIDEShell({
                         if (
                           key &&
                           (key.startsWith(`lab_code_${exercise.id}_`) ||
-                            key.startsWith(`lab_lang_${exercise.id}_`))
+                            key.startsWith(`lab_lang_${exercise.id}_`) ||
+                            key.startsWith(`lab_test_results_${exercise.id}_`))
                         ) {
                           keysToRemove.push(key);
                         }
                       }
                       keysToRemove.forEach((k) => localStorage.removeItem(k));
+                      sessionStorage.removeItem(`active_lab_session_${exercise.id}`);
                     } catch (e) {
                       console.error("Failed to clear lab localStorage cache:", e);
                     }
