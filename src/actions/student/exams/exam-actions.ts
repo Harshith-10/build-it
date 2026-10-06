@@ -25,6 +25,13 @@ export async function initializeExamSession(examId: string, pin?: string) {
     redirect("/auth/sign-in");
   }
 
+  if (session.user.role !== "student") {
+    return {
+      success: false,
+      error: "Only students are authorized to attempt assessments.",
+    };
+  }
+
   const userId = session.user.id;
 
   try {

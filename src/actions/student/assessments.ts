@@ -21,6 +21,10 @@ export async function getStudentAssessments() {
     redirect("/auth/sign-in");
   }
 
+  if (session.user.role !== "student") {
+    redirect("/redirect");
+  }
+
   const userId = session.user.id;
 
   const memberships = await db.query.userGroupMembers.findMany({

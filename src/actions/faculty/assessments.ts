@@ -101,6 +101,7 @@ export async function getFacultyAssessments() {
 
     return {
       ...item,
+      groups: myGroups,
       totalMarks,
       assignedGroups: myGroups.map((g) => {
         const start = g.startTime;
