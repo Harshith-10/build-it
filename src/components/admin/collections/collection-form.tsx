@@ -74,7 +74,7 @@ export function CollectionForm({
 
   // Initialize selected problems from pre-loaded data
   useEffect(() => {
-    getProblems({ limit: 50 }).then((res) =>
+    getProblems({ limit: 1000 }).then((res) =>
       setAvailableProblems(res.problems),
     );
     if (initialData?.questions?.length) {
@@ -90,7 +90,7 @@ export function CollectionForm({
       setIsSearching(true);
       try {
         const res = await getProblems({
-          limit: 50,
+          limit: 1000,
           search: query,
         });
         setAvailableProblems(res.problems);

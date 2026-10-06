@@ -64,7 +64,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
 
   if (gradingStrategy === "linear") {
     const config = gradingConfig as GradingConfigMap["linear"];
-    totalPossibleScore = totalQuestions * (config?.totalMarks || 0);
+    totalPossibleScore = config?.totalMarks || 100;
   } else if (gradingStrategy === "difficulty_based") {
     const config = gradingConfig as GradingConfigMap["difficulty_based"];
     const assignedQuestionIds = assignment.assignedQuestionIds as string[];

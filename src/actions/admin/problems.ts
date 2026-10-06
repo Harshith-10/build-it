@@ -214,12 +214,14 @@ export async function upsertProblem(data: UpsertProblemInput) {
       await db
         .update(questions)
         .set({
+          ownerId: access.session.user.id,
           title: data.title,
           problemStatement: data.problemStatement,
           difficulty: data.difficulty,
           driverCode: data.driverCode,
           allowedLanguages: data.allowedLanguages || ["java"], // Default
           isPrivate: access.isAdmin ? (data.isPrivate ?? true) : true,
+          updatedAt: new Date(),
         })
         .where(eq(questions.id, problemId));
 

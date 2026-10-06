@@ -455,18 +455,24 @@ export async function submitExercise(exerciseId: string) {
 
     const totalPrograms = exercise.collection?.questions?.length ?? 0;
     const solvedCount = exercise.submissions?.length ?? 0;
-    const implementationMarks = totalPrograms > 0 ? (solvedCount / totalPrograms) * 12 : 0;
+    const rawImpl =
+      totalPrograms > 0 ? (solvedCount / totalPrograms) * 12 : 0;
+    const implementationMarks = Math.round(rawImpl);
 
     const existingMark = await db.query.exerciseMarks.findFirst({
       where: and(
         eq(exerciseMarks.userId, session.user.id),
-        eq(exerciseMarks.exerciseId, exerciseId)
+        eq(exerciseMarks.exerciseId, exerciseId),
       ),
     });
 
-    const writeUp = existingMark?.writeUpMarks ? parseFloat(existingMark.writeUpMarks) : 0;
-    const viva = existingMark?.vivaMarks ? parseFloat(existingMark.vivaMarks) : 0;
-    const totalMarks = implementationMarks + writeUp + viva;
+    const writeUp = existingMark?.writeUpMarks
+      ? Math.round(parseFloat(existingMark.writeUpMarks))
+      : 0;
+    const viva = existingMark?.vivaMarks
+      ? Math.round(parseFloat(existingMark.vivaMarks))
+      : 0;
+    const totalMarks = Math.round(implementationMarks + writeUp + viva);
 
     await db
       .insert(exerciseMarks)

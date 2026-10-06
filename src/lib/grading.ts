@@ -7,6 +7,7 @@ export interface GradingInput {
   passedQuestionIds: string[];
   questionDifficulties?: Record<string, Difficulty>;
   questionScores?: Record<string, number>; // questionId -> percentage passed (0.0 to 1.0)
+  totalAssignedQuestions?: number;
 }
 
 export function calculateGradingScore(input: GradingInput): number {
@@ -16,6 +17,7 @@ export function calculateGradingScore(input: GradingInput): number {
     passedQuestionIds,
     questionDifficulties,
     questionScores,
+    totalAssignedQuestions,
   } = input;
   let score = 0;
 
@@ -30,8 +32,18 @@ export function calculateGradingScore(input: GradingInput): number {
 
   if (strategy === "linear") {
     // Linear: Score = (Number of passed questions) * (Marks per question)
-    // Partial: Score = Sum(percentage * Marks per question)
-    const marksPerQuestion = config?.totalMarks || 0;
+    // Total marks configured for the whole exam (e.g. 100) divided by total questions
+    const totalExamMarks =
+      typeof config?.totalMarks === "number" ? config.totalMarks : 100;
+    const totalQuestions =
+      totalAssignedQuestions && totalAssignedQuestions > 0
+        ? totalAssignedQuestions
+        : Math.max(
+            passedQuestionIds.length,
+            Object.keys(questionScores || {}).length,
+            1,
+          );
+    const marksPerQuestion = totalExamMarks / totalQuestions;
 
     if (allowPartial && questionScores) {
       // Iterate over all questions we have a score for
@@ -41,6 +53,7 @@ export function calculateGradingScore(input: GradingInput): number {
     } else {
       score = passedQuestionIds.length * marksPerQuestion;
     }
+    score = Math.min(score, totalExamMarks);
   } else if (strategy === "difficulty_based") {
     // Difficulty Based: Sum of marks of passed questions based on their difficulty
     const difficultyMarks = {

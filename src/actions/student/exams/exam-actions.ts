@@ -253,7 +253,7 @@ export async function generateExamQuestions(
   } else {
     // "random_n" or default fallback
     const config = strategyConfig as StrategyConfigMap["random_n"] | null;
-    const count = config?.count ?? 3;
+    const count = config?.count && config.count > 0 ? config.count : 1;
     const conditions: any[] = [];
     if (allowedQuestionIds.length > 0) {
       conditions.push(inArray(questions.id, allowedQuestionIds));

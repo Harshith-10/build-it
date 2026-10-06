@@ -78,7 +78,7 @@ export const createColumns = (
   },
   {
     accessorKey: "createdByName",
-    header: "Created By",
+    header: "Updated By",
     cell: ({ row }) => (
       <span className="text-muted-foreground">
         {row.getValue("createdByName") || "—"}

@@ -163,6 +163,7 @@ export async function upsertCollection(data: {
       await db
         .update(questionCollections)
         .set({
+          ownerId: access.session.user.id,
           title: data.title,
           description: data.description,
           isPrivate: access.isAdmin ? (data.isPrivate ?? true) : true,

@@ -456,26 +456,41 @@ export async function awardMarks({
       };
     }
 
-    const hasDetailed = implementationMarks !== undefined && writeUpMarks !== undefined && vivaMarks !== undefined;
-    const total = hasDetailed ? (implementationMarks! + writeUpMarks! + vivaMarks!) : (marks ?? 0);
+    const hasDetailed =
+      implementationMarks !== undefined &&
+      writeUpMarks !== undefined &&
+      vivaMarks !== undefined;
+    const roundedImpl =
+      implementationMarks !== undefined
+        ? Math.round(implementationMarks)
+        : null;
+    const roundedWriteUp =
+      writeUpMarks !== undefined ? Math.round(writeUpMarks) : null;
+    const roundedViva =
+      vivaMarks !== undefined ? Math.round(vivaMarks) : null;
+    const total = hasDetailed
+      ? Math.round((roundedImpl || 0) + (roundedWriteUp || 0) + (roundedViva || 0))
+      : Math.round(marks ?? 0);
 
     await db
       .insert(exerciseMarks)
       .values({
         userId: studentId,
         exerciseId,
-        implementationMarks: hasDetailed ? String(implementationMarks) : null,
-        writeUpMarks: hasDetailed ? String(writeUpMarks) : null,
-        vivaMarks: hasDetailed ? String(vivaMarks) : null,
+        implementationMarks:
+          roundedImpl !== null ? String(roundedImpl) : null,
+        writeUpMarks: roundedWriteUp !== null ? String(roundedWriteUp) : null,
+        vivaMarks: roundedViva !== null ? String(roundedViva) : null,
         marks: String(total),
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [exerciseMarks.userId, exerciseMarks.exerciseId],
         set: {
-          implementationMarks: hasDetailed ? String(implementationMarks) : null,
-          writeUpMarks: hasDetailed ? String(writeUpMarks) : null,
-          vivaMarks: hasDetailed ? String(vivaMarks) : null,
+          implementationMarks:
+            roundedImpl !== null ? String(roundedImpl) : null,
+          writeUpMarks: roundedWriteUp !== null ? String(roundedWriteUp) : null,
+          vivaMarks: roundedViva !== null ? String(roundedViva) : null,
           marks: String(total),
           updatedAt: new Date(),
         },

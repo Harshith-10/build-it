@@ -92,8 +92,18 @@ export function StrategyConfig() {
                   <FormControl>
                     <Input
                       type="number"
+                      min={1}
+                      placeholder="1"
                       value={typeof field.value === "number" ? field.value : ""}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onKeyDown={(e) => {
+                        if (e.key === "-" || e.key === "e" || e.key === "+") {
+                          e.preventDefault();
+                        }
+                      }}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? undefined : Number(e.target.value);
+                        field.onChange(val !== undefined && val > 0 ? val : undefined);
+                      }}
                     />
                   </FormControl>
                 </FormItem>
@@ -131,10 +141,20 @@ export function StrategyConfig() {
                     <FormControl>
                       <Input
                         type="number"
+                        min={0}
+                        placeholder="0"
                         value={
                           typeof field.value === "number" ? field.value : ""
                         }
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === "-" || e.key === "e" || e.key === "+") {
+                            e.preventDefault();
+                          }
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? undefined : Number(e.target.value);
+                          field.onChange(val !== undefined && val >= 0 ? val : undefined);
+                        }}
                       />
                     </FormControl>
                   </FormItem>
@@ -149,10 +169,20 @@ export function StrategyConfig() {
                     <FormControl>
                       <Input
                         type="number"
+                        min={0}
+                        placeholder="0"
                         value={
                           typeof field.value === "number" ? field.value : ""
                         }
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === "-" || e.key === "e" || e.key === "+") {
+                            e.preventDefault();
+                          }
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? undefined : Number(e.target.value);
+                          field.onChange(val !== undefined && val >= 0 ? val : undefined);
+                        }}
                       />
                     </FormControl>
                   </FormItem>
@@ -167,10 +197,20 @@ export function StrategyConfig() {
                     <FormControl>
                       <Input
                         type="number"
+                        min={0}
+                        placeholder="0"
                         value={
                           typeof field.value === "number" ? field.value : ""
                         }
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === "-" || e.key === "e" || e.key === "+") {
+                            e.preventDefault();
+                          }
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? undefined : Number(e.target.value);
+                          field.onChange(val !== undefined && val >= 0 ? val : undefined);
+                        }}
                       />
                     </FormControl>
                   </FormItem>

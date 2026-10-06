@@ -1758,7 +1758,7 @@ function AssessmentFormDialog({
         requiresPin: false,
         strategyType: "random_n",
         strategyConfig: {
-          count: Number(questionCount) || (isLab ? 2 : 3),
+          count: Number(questionCount) || 1,
           collectionIds: finalCollectionIds,
           ...(isLab && selectedExerciseIds.length > 0
             ? { exerciseIds: selectedExerciseIds }

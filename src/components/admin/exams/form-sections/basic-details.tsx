@@ -98,10 +98,18 @@ export function BasicDetails({ form }: BasicDetailsProps) {
                 <FormControl>
                   <Input
                     type="number"
+                    min={1}
+                    placeholder="60"
                     value={typeof field.value === "number" ? field.value : ""}
-                    onChange={(event) =>
-                      field.onChange(Number(event.target.value))
-                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "-" || event.key === "e" || event.key === "+") {
+                        event.preventDefault();
+                      }
+                    }}
+                    onChange={(event) => {
+                      const val = event.target.value === "" ? undefined : Number(event.target.value);
+                      field.onChange(val !== undefined && val > 0 ? val : undefined);
+                    }}
                   />
                 </FormControl>
                 <FormMessage />

@@ -22,30 +22,30 @@ import {
 import { StrategyConfig } from "./form-sections/strategy-config";
 
 const examStrategyConfigSchema = z.object({
-  count: z.number().optional(),
+  count: z.number().min(1, "Question count must be at least 1").optional(),
   collectionIds: z.array(z.string()).default([]),
   questionIds: z.array(z.string()).default([]),
-  easy: z.number().optional(),
-  medium: z.number().optional(),
-  hard: z.number().optional(),
+  easy: z.number().min(0, "Count cannot be negative").optional(),
+  medium: z.number().min(0, "Count cannot be negative").optional(),
+  hard: z.number().min(0, "Count cannot be negative").optional(),
 });
 
 const examGradingConfigSchema = z.object({
-  totalMarks: z.number().optional(),
-  easyWeight: z.number().optional(),
-  mediumWeight: z.number().optional(),
-  hardWeight: z.number().optional(),
+  totalMarks: z.number().min(1, "Total marks must be at least 1").optional(),
+  easyWeight: z.number().min(0, "Weight cannot be negative").optional(),
+  mediumWeight: z.number().min(0, "Weight cannot be negative").optional(),
+  hardWeight: z.number().min(0, "Weight cannot be negative").optional(),
   thresholds: z
     .array(
       z.object({
-        count: z.number(),
-        marks: z.number(),
+        count: z.number().min(1, "Threshold count must be at least 1"),
+        marks: z.number().min(0, "Marks cannot be negative"),
       }),
     )
     .default([]),
-  easyMarks: z.number().optional(),
-  mediumMarks: z.number().optional(),
-  hardMarks: z.number().optional(),
+  easyMarks: z.number().min(0, "Marks cannot be negative").optional(),
+  mediumMarks: z.number().min(0, "Marks cannot be negative").optional(),
+  hardMarks: z.number().min(0, "Marks cannot be negative").optional(),
 });
 
 const examSchema = z.object({

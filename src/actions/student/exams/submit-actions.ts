@@ -272,6 +272,7 @@ export async function submitQuestion(
       passedQuestionIds: Array.from(passedQuestionIds),
       questionDifficulties,
       questionScores,
+      totalAssignedQuestions: assignedQuestionIds.length,
     });
 
     // Score is monotonically increasing - only update if new score is higher

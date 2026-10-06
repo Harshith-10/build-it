@@ -172,11 +172,24 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
       const mEntry = allStudentLabMarks.find((m) => m.exerciseId === ex.id);
       let mData: RubricMarks | null = null;
       if (mEntry) {
-        const impl = mEntry.implementationMarks ? parseFloat(mEntry.implementationMarks) : null;
-        const writeUp = mEntry.writeUpMarks ? parseFloat(mEntry.writeUpMarks) : null;
-        const viva = mEntry.vivaMarks ? parseFloat(mEntry.vivaMarks) : null;
-        const total = mEntry.marks ? parseFloat(mEntry.marks) : null;
-        const implPart = impl !== null ? Number((impl / 3).toFixed(1)) : null;
+        const impl =
+          mEntry.implementationMarks !== null &&
+          mEntry.implementationMarks !== undefined
+            ? Math.round(parseFloat(mEntry.implementationMarks))
+            : null;
+        const writeUp =
+          mEntry.writeUpMarks !== null && mEntry.writeUpMarks !== undefined
+            ? Math.round(parseFloat(mEntry.writeUpMarks))
+            : null;
+        const viva =
+          mEntry.vivaMarks !== null && mEntry.vivaMarks !== undefined
+            ? Math.round(parseFloat(mEntry.vivaMarks))
+            : null;
+        const total =
+          mEntry.marks !== null && mEntry.marks !== undefined
+            ? Math.round(parseFloat(mEntry.marks))
+            : null;
+        const implPart = impl !== null ? Math.round(impl / 3) : null;
 
         mData = {
           aim: writeUp,
