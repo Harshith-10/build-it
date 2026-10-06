@@ -11,7 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { userGroups } from "./groups";
-import { questionCollections } from "./question-collections"; // ✅ added
+import { questionCollections } from "./question-collections";
 
 // ─── Labs ────────────────────────────────────────────────────────────────────
 
