@@ -125,10 +125,12 @@ export async function getMyExercises(labId: string) {
     const isAbsent = attRecord ? !attRecord.present : false;
 
     const totalPrograms = exercise.collection?.questions?.length ?? 0;
-    const solvedCount = isAbsent ? 0 : (exercise.submissions?.length ?? 0);
+    const solvedCount = isAbsent
+      ? 0
+      : (exercise.submissions?.filter((s) => !s.language?.includes(":attempted")).length ?? 0);
     const vivaCount = isAbsent ? 0 : (exercise.vivaSubmissions?.filter((v) => v.answerText && v.answerText.trim().length > 0).length ?? 0);
     const markEntry = isAbsent ? null : (exercise.marks?.[0] ?? null);
-    const isSubmitted = markEntry !== null || (totalPrograms === 0 && vivaCount > 0) || (vivaCount > 0);
+    const isSubmitted = markEntry !== null || (totalPrograms === 0 && vivaCount > 0);
 
     return {
       ...exercise,
@@ -178,6 +180,22 @@ export async function getProgramsForExercise(exerciseId: string) {
 
   if (!exercise) return { success: false as const, error: "Exercise not found" };
 
+  // Submission check — block if student has already submitted this exercise
+  const existingMark = await db.query.exerciseMarks.findFirst({
+    where: and(
+      eq(exerciseMarks.userId, session.user.id),
+      eq(exerciseMarks.exerciseId, exerciseId)
+    ),
+  });
+
+  if (existingMark) {
+    return {
+      success: false as const,
+      isSubmitted: true,
+      error: "You have already submitted this exercise",
+    };
+  }
+
   // Time window check — block if ended
   const now = new Date();
   const studentGroups = await db.query.userGroupMembers.findMany({
@@ -214,16 +232,7 @@ export async function getProgramsForExercise(exerciseId: string) {
     };
   }
 
-  // Map collection questions to programs
-  const programs = exercise.collection?.questions.map((cq, idx) => ({
-    id: cq.questionId,
-    programNo: idx + 1,
-    title: cq.question.title,
-    description: cq.question.problemStatement,
-    testCases: cq.question.testCases ?? [],
-  })) ?? [];
-
-  const programIds = programs.map((p) => p.id);
+  const programIds = (exercise.collection?.questions ?? []).map((cq) => cq.questionId);
 
   // Get which ones the student has solved
   const submissions =
@@ -237,7 +246,24 @@ export async function getProgramsForExercise(exerciseId: string) {
       })
       : [];
 
-  const solvedIds = submissions.map((s) => s.programId);
+  // Map collection questions to programs with any saved code/language
+  const programs = exercise.collection?.questions.map((cq, idx) => {
+    const sub = submissions.find((s) => s.programId === cq.questionId);
+    return {
+      id: cq.questionId,
+      programNo: idx + 1,
+      title: cq.question.title,
+      description: cq.question.problemStatement,
+      testCases: cq.question.testCases ?? [],
+      allowedLanguages: (cq.question.allowedLanguages as string[]) ?? ["java"],
+      initialCode: sub?.code ?? null,
+      initialLanguage: sub?.language ? sub.language.split(":")[0] : null,
+    };
+  }) ?? [];
+
+  const solvedIds = submissions
+    .filter((s) => !s.language?.includes(":attempted"))
+    .map((s) => s.programId);
 
   return {
     success: true as const,
@@ -250,6 +276,7 @@ export async function getProgramsForExercise(exerciseId: string) {
       },
       programs,
       solvedIds,
+      hasExistingSubmissions: submissions.length > 0,
     },
   };
 }
@@ -261,9 +288,12 @@ export async function markProgramSolved(data: {
   exerciseId: string;
   code?: string;
   language?: string;
+  isSolved?: boolean;
+  passedCount?: number;
+  totalCount?: number;
 }) {
   const session = await requireUser();
-  const { programId, exerciseId, code, language } = data;
+  const { programId, exerciseId, code, language, isSolved = true, passedCount, totalCount } = data;
 
   try {
     const now = new Date();
@@ -304,6 +334,73 @@ export async function markProgramSolved(data: {
       };
     }
 
+    // Submission check — block if already submitted
+    const existingMark = await db.query.exerciseMarks.findFirst({
+      where: and(
+        eq(exerciseMarks.userId, session.user.id),
+        eq(exerciseMarks.exerciseId, exerciseId)
+      ),
+    });
+    if (existingMark) {
+      return { success: false, error: "You have already submitted this exercise" };
+    }
+
+    // Check existing submission for this program to compare marks/scores
+    const existingSub = await db.query.labSubmissions.findFirst({
+      where: and(
+        eq(labSubmissions.userId, session.user.id),
+        eq(labSubmissions.programId, programId),
+        eq(labSubmissions.exerciseId, exerciseId)
+      ),
+    });
+
+    // Determine previous submission score (0.0 to 1.0)
+    let existingScore = -1;
+    if (existingSub) {
+      const prevLang = existingSub.language || "";
+      const isAttempted = prevLang.includes(":attempted");
+      if (!isAttempted) {
+        // Fully solved = 100% full marks (1.0)
+        existingScore = 1.0;
+      } else {
+        const match = prevLang.match(/:attempted:(\d+)\/(\d+)/);
+        if (match) {
+          const p = parseInt(match[1], 10);
+          const t = parseInt(match[2], 10);
+          existingScore = t > 0 ? p / t : 0;
+        } else {
+          existingScore = 0;
+        }
+      }
+    }
+
+    // Determine new submission score (0.0 to 1.0)
+    let newScore = 0;
+    if (isSolved) {
+      newScore = 1.0;
+    } else if (totalCount && totalCount > 0) {
+      newScore = (passedCount ?? 0) / totalCount;
+    } else {
+      newScore = 0;
+    }
+
+    // Only update DB if new submission marks is higher or equal to the last submitted code
+    if (existingSub && newScore < existingScore) {
+      return {
+        success: true,
+        updated: false,
+        preservedPrevious: true,
+        isSolved: existingScore >= 1.0,
+      };
+    }
+
+    const cleanLang = (language || "java").split(":")[0];
+    const languageToSave = isSolved
+      ? cleanLang
+      : totalCount && totalCount > 0
+      ? `${cleanLang}:attempted:${passedCount ?? 0}/${totalCount}`
+      : `${cleanLang}:attempted`;
+
     await db
       .insert(labSubmissions)
       .values({
@@ -311,19 +408,19 @@ export async function markProgramSolved(data: {
         programId,
         exerciseId,
         code: code || "",
-        language: language || "java",
+        language: languageToSave,
       })
       .onConflictDoUpdate({
         target: [labSubmissions.userId, labSubmissions.programId, labSubmissions.exerciseId],
         set: {
           code: code || "",
-          language: language || "java",
+          language: languageToSave,
           solvedAt: new Date(),
         },
       });
 
     revalidatePath("/labs");
-    return { success: true };
+    return { success: true, updated: true, isSolved };
   } catch (error) {
     console.error("Failed to mark program as solved:", error);
     return { success: false, error: "Failed to submit" };
@@ -370,7 +467,7 @@ export async function getMyExerciseResult(exerciseId: string) {
   if (!exercise) return { success: false as const, error: "Exercise not found" };
 
   const totalPrograms = exercise.collection?.questions?.length ?? 0;
-  const solvedCount = exercise.submissions?.length ?? 0;
+  const solvedCount = exercise.submissions?.filter((s) => !s.language?.includes(":attempted")).length ?? 0;
   const markEntry = exercise.marks?.[0] ?? null;
 
   return {
@@ -454,8 +551,8 @@ export async function submitExercise(exerciseId: string) {
 
 
     const totalPrograms = exercise.collection?.questions?.length ?? 0;
-    const solvedCount = exercise.submissions?.length ?? 0;
-    const implementationMarks = totalPrograms > 0 ? (solvedCount / totalPrograms) * 12 : 0;
+    const solvedCount = exercise.submissions?.filter((s) => !s.language?.includes(":attempted")).length ?? 0;
+    const calculatedImplMarks = totalPrograms > 0 ? (solvedCount / totalPrograms) * 12 : 0;
 
     const existingMark = await db.query.exerciseMarks.findFirst({
       where: and(
@@ -464,9 +561,13 @@ export async function submitExercise(exerciseId: string) {
       ),
     });
 
+    const previousImpl = existingMark?.implementationMarks ? parseFloat(existingMark.implementationMarks) : 0;
+    // Only update implementation marks if new is higher or equal to previous
+    const finalImplMarks = Math.max(calculatedImplMarks, previousImpl);
+
     const writeUp = existingMark?.writeUpMarks ? parseFloat(existingMark.writeUpMarks) : 0;
     const viva = existingMark?.vivaMarks ? parseFloat(existingMark.vivaMarks) : 0;
-    const totalMarks = implementationMarks + writeUp + viva;
+    const totalMarks = finalImplMarks + writeUp + viva;
 
     await db
       .insert(exerciseMarks)
@@ -474,12 +575,12 @@ export async function submitExercise(exerciseId: string) {
         userId: session.user.id,
         exerciseId,
         marks: String(totalMarks),
-        implementationMarks: String(implementationMarks),
+        implementationMarks: String(finalImplMarks),
       })
       .onConflictDoUpdate({
         target: [exerciseMarks.userId, exerciseMarks.exerciseId],
         set: {
-          implementationMarks: String(implementationMarks),
+          implementationMarks: String(finalImplMarks),
           marks: String(totalMarks),
           updatedAt: new Date(),
         },

@@ -61,7 +61,7 @@ export default async function FacultyExerciseSubmissionsPage({
         <div>
           <p className="text-sm text-muted-foreground mb-1">
             <Link href="/faculty/labs" className="hover:underline">
-              Labs
+              Laboratory
             </Link>{" "}
             /{" "}
             <Link href={`/faculty/labs/${labId}`} className="hover:underline">

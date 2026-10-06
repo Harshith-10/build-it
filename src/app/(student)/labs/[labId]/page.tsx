@@ -56,7 +56,7 @@ export default async function ExercisesPage({
       <div>
         <p className="text-sm text-muted-foreground mb-1">
           <Link href="/labs" className="hover:underline">
-            Labs
+            Laboratory
           </Link>{" "}
           / {result.data.lab.name}
         </p>

@@ -332,7 +332,10 @@ export async function getExerciseSubmissions(
           vivaMarks: null,
         });
       }
-      if (sub.programId !== "00000000-0000-0000-0000-000000000000") {
+      if (
+        sub.programId !== "00000000-0000-0000-0000-000000000000" &&
+        !sub.language?.includes(":attempted")
+      ) {
         studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
       }
     }
@@ -526,8 +529,7 @@ export async function getExerciseAttendance(
 
     if (!exercise) return { success: false, error: "Exercise not found" };
 
-    let groupIds = exercise.groups.map((g) => g.groupId);
-
+    let groupIds: string[] = [];
     if (session.user.role === "faculty") {
       const assigned = await db.query.labGroupFaculty.findMany({
         where: and(
@@ -536,7 +538,17 @@ export async function getExerciseAttendance(
         ),
       });
       const assignedGroupIds = assigned.map((a) => a.groupId);
-      groupIds = groupIds.filter((id) => assignedGroupIds.includes(id));
+      const exerciseGroupIds = exercise.groups.map((g) => g.groupId);
+      groupIds = exerciseGroupIds.length > 0
+        ? assignedGroupIds.filter((id) => exerciseGroupIds.includes(id))
+        : assignedGroupIds;
+    } else {
+      const assigned = await db.query.labGroupFaculty.findMany({
+        where: eq(labGroupFaculty.labId, exercise.labId),
+      });
+      groupIds = Array.from(
+        new Set([...assigned.map((a) => a.groupId), ...exercise.groups.map((g) => g.groupId)])
+      );
     }
 
     if (filterGroupId && filterGroupId !== "all") {
@@ -632,8 +644,7 @@ export async function saveAttendance({
     });
     if (!exercise) return { success: false, error: "Exercise not found" };
 
-    let groupIds = exercise.groups.map((g) => g.groupId);
-
+    let groupIds: string[] = [];
     if (session.user.role === "faculty") {
       const assigned = await db.query.labGroupFaculty.findMany({
         where: and(
@@ -642,7 +653,17 @@ export async function saveAttendance({
         ),
       });
       const assignedGroupIds = assigned.map((a) => a.groupId);
-      groupIds = groupIds.filter((id) => assignedGroupIds.includes(id));
+      const exerciseGroupIds = exercise.groups.map((g) => g.groupId);
+      groupIds = exerciseGroupIds.length > 0
+        ? assignedGroupIds.filter((id) => exerciseGroupIds.includes(id))
+        : assignedGroupIds;
+    } else {
+      const assigned = await db.query.labGroupFaculty.findMany({
+        where: eq(labGroupFaculty.labId, exercise.labId),
+      });
+      groupIds = Array.from(
+        new Set([...assigned.map((a) => a.groupId), ...exercise.groups.map((g) => g.groupId)])
+      );
     }
 
     if (filterGroupId && filterGroupId !== "all") {
@@ -752,48 +773,55 @@ export async function getAvailableSectionsForExercise(
 
     if (!ex) return [];
 
-    let availableGroupIds: string[] = ex.groups.map((g) => g.groupId);
+    const isFaculty = session.user.role === "faculty";
+    const labAssignments = await db.query.labGroupFaculty.findMany({
+      where: isFaculty
+        ? and(
+            eq(labGroupFaculty.labId, ex.labId),
+            eq(labGroupFaculty.facultyId, session.user.id)
+          )
+        : eq(labGroupFaculty.labId, ex.labId),
+      with: {
+        group: { columns: { id: true, name: true } },
+      },
+    });
 
-    if (session.user.role === "faculty") {
-      const assigned = await db.query.labGroupFaculty.findMany({
-        where: and(
-          eq(labGroupFaculty.labId, ex.labId),
-          eq(labGroupFaculty.facultyId, session.user.id)
-        ),
-      });
-      const assignedGroupIds = assigned.map((a) => a.groupId);
-      availableGroupIds = availableGroupIds.filter((id) =>
-        assignedGroupIds.includes(id)
-      );
+    const groupMap = new Map<string, string>();
+    for (const a of labAssignments) {
+      if (a.group && !groupMap.has(a.groupId)) {
+        const lower = a.group.name.trim().toLowerCase();
+        if (lower !== "all" && lower !== "all users" && lower !== "all user") {
+          groupMap.set(a.groupId, a.group.name);
+        }
+      }
     }
 
-    if (availableGroupIds.length === 0) {
-      // Fallback: fetch all section groups for admin or unassigned exercise
-      const allGroups = await db.query.userGroups.findMany({ limit: 100 });
-      return allGroups
-        .filter((g) => {
-          const lower = g.name.trim().toLowerCase();
-          return lower !== "all" && lower !== "all users" && lower !== "all user";
-        })
-        .map((g) => ({ id: g.id, name: g.name }));
+    // Also include any groups scheduled on this exercise
+    if (ex.groups) {
+      for (const eg of ex.groups) {
+        if (eg.group && !groupMap.has(eg.groupId)) {
+          if (!isFaculty) {
+            const lower = eg.group.name.trim().toLowerCase();
+            if (lower !== "all" && lower !== "all users" && lower !== "all user") {
+              groupMap.set(eg.groupId, eg.group.name);
+            }
+          }
+        }
+      }
     }
 
-    const matchedGroups = ex.groups
-      .filter((g) => availableGroupIds.includes(g.groupId))
-      .map((g) => ({ id: g.group.id, name: g.group.name }))
+    if (groupMap.size > 0) {
+      return Array.from(groupMap.entries()).map(([id, name]) => ({ id, name }));
+    }
+
+    // Fallback: fetch all section groups for admin or unassigned exercise
+    const allGroups = await db.query.userGroups.findMany({ limit: 100 });
+    return allGroups
       .filter((g) => {
         const lower = g.name.trim().toLowerCase();
         return lower !== "all" && lower !== "all users" && lower !== "all user";
-      });
-
-    return matchedGroups.length > 0
-      ? matchedGroups
-      : (await db.query.userGroups.findMany({ limit: 100 }))
-          .filter((g) => {
-            const lower = g.name.trim().toLowerCase();
-            return lower !== "all" && lower !== "all users" && lower !== "all user";
-          })
-          .map((g) => ({ id: g.id, name: g.name }));
+      })
+      .map((g) => ({ id: g.id, name: g.name }));
   } catch (err) {
     console.error("[getAvailableSectionsForExercise]", err);
     return [];
