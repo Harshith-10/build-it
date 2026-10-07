@@ -16,13 +16,14 @@ import JetIndicator from "../jet-indicator";
 const labelMap: Record<string, string> = {
   admin: "Admin",
   problems: "Problems",
-  exams: "Exams",
+  exams: "Examinations",
   edit: "Edit",
   submissions: "Submissions",
   groups: "Groups",
   collections: "Collections",
   users: "Users",
   new: "Create",
+  labs: "Laboratory",
 };
 
 export function AdminHeader() {

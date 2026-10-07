@@ -47,7 +47,7 @@ export default async function FacultyLabExercisesPage({
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
           <Link href="/faculty/labs" className="hover:underline">
-            Labs
+            Laboratory
           </Link>
           <span>/</span>
           <span>{lab.name}</span>

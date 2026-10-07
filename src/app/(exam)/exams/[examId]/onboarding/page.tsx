@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { AlertCircle } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -6,7 +6,13 @@ import { notFound, redirect } from "next/navigation";
 import OnboardingClient from "@/components/exam/onboarding-client";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
-import { examAssignments, examAttendance, exams } from "@/db/schema";
+import {
+  examAssignments,
+  examAttendance,
+  examGroups,
+  exams,
+  userGroupMembers,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { getExamQuestionCount } from "@/lib/exam";
 
@@ -87,10 +93,35 @@ export default async function OnboardingPage({ params }: PageProps) {
     ),
   });
 
-  // Use the exam-level requiresPin flag directly.
-  // upsertExam already sets this to true when any group assignment has a PIN.
-  // If the student already has an active session (resuming), we skip the PIN.
-  const requiresPin = exam.requiresPin && !existingAssignment;
+  // Check section-specific PIN for the active group slot if student belongs to assigned group(s)
+  let sectionHasPin = false;
+  const userMemberships = await db.query.userGroupMembers.findMany({
+    where: eq(userGroupMembers.userId, userId),
+    columns: { groupId: true },
+  });
+  const userGroupIds = userMemberships.map((m) => m.groupId);
+
+  if (userGroupIds.length > 0) {
+    const studentGroupSlots = await db.query.examGroups.findMany({
+      where: and(
+        eq(examGroups.examId, examId),
+        inArray(examGroups.groupId, userGroupIds),
+      ),
+    });
+    const now = new Date();
+    const activeSlot =
+      studentGroupSlots.find((slot) => {
+        const startTime = slot.startTime ?? exam.startTime;
+        const endTime = slot.endTime ?? exam.endTime;
+        return startTime && endTime && now >= startTime && now <= endTime;
+      }) ?? studentGroupSlots[0];
+
+    if (activeSlot?.pin) {
+      sectionHasPin = true;
+    }
+  }
+
+  const requiresPin = sectionHasPin && !existingAssignment;
   const questionCount: number = getExamQuestionCount(exam);
 
   return <OnboardingClient exam={{ ...exam, questionCount, requiresPin }} />;

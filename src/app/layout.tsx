@@ -4,6 +4,7 @@ import "./globals.css";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Toaster } from "@/components/ui/sonner";
 import { chakraPetch, geistMono, googleSans } from "@/lib/fonts";
+import { VisitTracker } from "@/components/analytics/visit-tracker";
 
 export const metadata: Metadata = {
   title: "BuildIT - Online Exams",
@@ -36,6 +37,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <VisitTracker />
           <NuqsAdapter>{children}</NuqsAdapter>
           <Toaster richColors />
         </ThemeProvider>

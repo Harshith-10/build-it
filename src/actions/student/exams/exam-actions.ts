@@ -54,6 +54,13 @@ export async function initializeExamSession(
     redirect("/auth/sign-in");
   }
 
+  if (session.user.role !== "student") {
+    return {
+      success: false,
+      error: "Only students are authorized to attempt assessments.",
+    };
+  }
+
   const userId = session.user.id;
 
   // 0. Optional / Configurable ShieldIt HMAC Handshake Verification
@@ -171,14 +178,14 @@ export async function initializeExamSession(
     }
 
     // PIN Validation
-    if (activeSlot.exam.requiresPin) {
+    if (activeSlot.pin) {
       if (!pin) {
         return {
           success: false,
           error: "Exam PIN is required.",
         };
       }
-      if (activeSlot.pin !== pin) {
+      if (activeSlot.pin !== pin.trim()) {
         return {
           success: false,
           error: "Invalid Exam PIN. Please check with your proctor.",
@@ -197,7 +204,7 @@ export async function initializeExamSession(
       strategyConfig,
     );
 
-    if (questionIds.length < 3) {
+    if (questionIds.length === 0) {
       throw new Error(
         "System Error: Not enough questions in the bank to generate an exam.",
       );
