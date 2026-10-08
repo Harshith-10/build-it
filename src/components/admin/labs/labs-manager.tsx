@@ -243,7 +243,7 @@ function LabFormDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{initial ? "Edit Lab" : "Add Lab"}</DialogTitle>
+          <DialogTitle>{initial ? "Edit Laboratory" : "Add Laboratory"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -698,7 +698,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
               : "hover:text-foreground transition-colors"
           }
         >
-          Labs
+          Laboratory
         </button>
         {selectedLab && (
           <>
@@ -715,7 +715,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {labs.length} lab{labs.length !== 1 ? "s" : ""} configured
+              {labs.length} laborator{labs.length !== 1 ? "ies" : "y"} configured
             </p>
             {isAdmin && (
               <Button
@@ -723,7 +723,7 @@ export function LabsManager({ isAdmin = true }: LabsManagerProps) {
                 onClick={() => openLabModal(undefined)}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Lab
+                Add Laboratory
               </Button>
             )}
           </div>

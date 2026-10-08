@@ -14,6 +14,10 @@ export default async function StudentAssessmentsPage() {
     redirect("/auth/sign-in");
   }
 
+  if (session.user.role !== "student") {
+    redirect("/redirect");
+  }
+
   const assessments = await getStudentAssessments();
   const serverNowMs = Date.now();
 

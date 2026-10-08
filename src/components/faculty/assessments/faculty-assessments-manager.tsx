@@ -1001,7 +1001,8 @@ export function FacultyAssessmentsManager() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {labFolders.length} lab subject{labFolders.length !== 1 ? "s" : ""}
+              {labFolders.length} lab subject{labFolders.length !== 1 ? "s" : ""} &bull;{" "}
+              {labAssessments.length} assessment{labAssessments.length !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -1020,8 +1021,16 @@ export function FacultyAssessmentsManager() {
               {labFolders.map((lab) => (
                 <div
                   key={lab.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedLabId(lab.id)}
-                  className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 transition-colors cursor-pointer min-w-0 bg-card"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedLabId(lab.id);
+                    }
+                  }}
+                  className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer min-w-0 bg-card"
                 >
                   <div className="flex items-start justify-between gap-2 min-w-0">
                     <div className="flex items-start gap-2 min-w-0 flex-1">

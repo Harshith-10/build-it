@@ -27,6 +27,10 @@ export default async function ExercisePage({
 
   // Show blocked page with specific reason
   if (!result.success) {
+    if (result.isSubmitted) {
+      redirect(`/labs/${labId}/${exerciseId}/results`);
+    }
+
     const isAttendanceLockout =
       result.error === "You were not marked as present for this exercise" ||
       result.error === "You were marked absent for this exercise";
@@ -60,7 +64,7 @@ export default async function ExercisePage({
     );
   }
 
-  const { exercise, programs, solvedIds } = result.data!;
+  const { exercise, programs, solvedIds, hasExistingSubmissions } = result.data!;
 
   // ✅ Go directly into the IDE editor page
   return (
@@ -69,6 +73,7 @@ export default async function ExercisePage({
       exercise={exercise}
       labId={labId}
       solvedIds={solvedIds}
+      hasExistingSubmissions={hasExistingSubmissions}
       user={{
         name: session.user.name ?? "Student",
         image: session.user.image ?? undefined,

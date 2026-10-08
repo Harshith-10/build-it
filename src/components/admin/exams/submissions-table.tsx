@@ -144,7 +144,11 @@ export function SubmissionsTableContent({ examId }: SubmissionsTableProps) {
         total: result.total,
       };
     },
-    deleteFn: deleteExamSubmission,
+    deleteFn: async (id: string) => {
+      const res = await deleteExamSubmission(id);
+      fetchStats();
+      return res;
+    },
   };
 
   const [isExporting, setIsExporting] = useState(false);

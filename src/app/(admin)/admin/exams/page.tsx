@@ -18,8 +18,8 @@ export default function ExamsPage() {
     return (
       <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden">
         <PageHeader
-          title="Exams"
-          description="Schedule and manage exams"
+          title="Examinations"
+          description="Schedule and manage examinations"
         />
       </div>
     );
@@ -28,8 +28,8 @@ export default function ExamsPage() {
   return (
     <div className="flex flex-1 flex-col gap-6 min-h-0 overflow-hidden">
       <PageHeader
-        title="Exams"
-        description="Schedule and manage exams"
+        title="Examinations"
+        description="Schedule and manage examinations"
         actions={
           <Link href="/admin/exams/new">
             <Button>

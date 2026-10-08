@@ -7,6 +7,17 @@ import { userGroupMembers } from "@/db/schema/groups";
 import { user } from "@/db/schema/auth";
 import { requireUser } from "@/lib/auth-access";
 
+import { executeCode, getRuntimes as getJetRuntimes, type JetTestCase } from "@/lib/jet";
+import { getPreferredRuntime } from "@/lib/runtime-utils";
+
+export type ReportTestCase = {
+  id: string;
+  input: string;
+  expectedOutput: string;
+  userOutput?: string;
+  passed?: boolean;
+};
+
 export type ReportProgram = {
   id: string;
   programNo: number;
@@ -14,6 +25,7 @@ export type ReportProgram = {
   problemStatement: string;
   code?: string;
   language?: string;
+  testCases?: ReportTestCase[];
 };
 
 export type ReportVivaQuestion = {
@@ -68,7 +80,11 @@ export type ExerciseReportData = {
   vivaQuestions?: ReportVivaQuestion[];
 };
 
-export async function getExerciseReportData(exerciseId: string, targetStudentId?: string) {
+export async function getExerciseReportData(
+  exerciseId: string,
+  targetStudentId?: string,
+  clientDraftCodes?: Record<string, { code: string; language?: string }>
+) {
   try {
     const session = await requireUser();
     const studentIdToUse =
@@ -102,7 +118,11 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
           with: {
             questions: {
               with: {
-                question: true,
+                question: {
+                  with: {
+                    testCases: true,
+                  },
+                },
               },
               orderBy: (cq, { asc }) => [asc(cq.addedAt)],
             },
@@ -120,6 +140,35 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
       where: eq(userGroupMembers.userId, studentIdToUse),
     });
     const groupIds = studentGroups.map((g) => g.groupId);
+
+    // Section Isolation Check: If a faculty member requests another student's report, verify section assignment
+    if (
+      session.user.role === "faculty" &&
+      targetStudentId &&
+      targetStudentId !== session.user.id
+    ) {
+      if (groupIds.length === 0) {
+        return {
+          success: false as const,
+          error: "Unauthorized: Student is not in your assigned section for this lab",
+        };
+      }
+
+      const isAssigned = await db.query.labGroupFaculty.findFirst({
+        where: and(
+          eq(labGroupFaculty.labId, exercise.labId),
+          eq(labGroupFaculty.facultyId, session.user.id),
+          inArray(labGroupFaculty.groupId, groupIds)
+        ),
+      });
+
+      if (!isAssigned) {
+        return {
+          success: false as const,
+          error: "Unauthorized: Student is not in your assigned section for this lab",
+        };
+      }
+    }
 
     let facultyInfo: { name: string; facultyId: string } | null = null;
 
@@ -226,19 +275,147 @@ export async function getExerciseReportData(exerciseId: string, targetStudentId?
       maxMarks: sub.vivaQuestion?.maxMarks ?? "4",
     }));
 
-    // 6. Format programs list
-    const programs: ReportProgram[] =
-      exercise.collection?.questions.map((cq, idx) => {
-        const sub = dbSubmissions.find((s) => s.programId === cq.questionId);
+    // 6. Format programs list with visible test cases and user outputs
+    const programs: ReportProgram[] = await Promise.all(
+      (exercise.collection?.questions ?? []).map(async (cq, idx) => {
+        let sub = dbSubmissions.find((s) => s.programId === cq.questionId);
+        const draft = clientDraftCodes?.[cq.questionId];
+
+        // If no submission exists in DB, but client provided draft code from editor
+        if ((!sub || !sub.code || !sub.code.trim()) && draft && draft.code && draft.code.trim().length > 0) {
+          const cleanDraftLang = (draft.language || "java").split(":")[0];
+          if (studentIdToUse === session.user.id) {
+            try {
+              await db
+                .insert(labSubmissions)
+                .values({
+                  userId: session.user.id,
+                  programId: cq.questionId,
+                  exerciseId,
+                  code: draft.code,
+                  language: `${cleanDraftLang}:attempted`,
+                })
+                .onConflictDoNothing();
+            } catch (e) {
+              console.error("Failed to auto-persist draft submission:", e);
+            }
+          }
+
+          sub = {
+            id: `draft-${cq.questionId}`,
+            userId: studentIdToUse,
+            programId: cq.questionId,
+            exerciseId,
+            code: draft.code,
+            language: `${cleanDraftLang}:attempted`,
+            solvedAt: new Date(),
+          } as any;
+        }
+
+        const rawLang = sub?.language || draft?.language || "java";
+        const cleanLanguage = rawLang.split(":")[0];
+        const isSolved = Boolean(sub && !rawLang.includes(":attempted"));
+
+        // Visible test cases (or sample test cases)
+        const allTCs = cq.question.testCases ?? [];
+        const visibleTCs = allTCs.filter((tc) => !tc.isHidden);
+        const testCasesToUse = visibleTCs.length > 0 ? visibleTCs : allTCs.slice(0, 2);
+
+        let testCaseResults: ReportTestCase[] = [];
+
+        if (testCasesToUse.length > 0) {
+          if (!sub?.code || !sub.code.trim()) {
+            testCaseResults = testCasesToUse.map((tc) => ({
+              id: tc.id,
+              input: tc.input,
+              expectedOutput: tc.expectedOutput,
+              userOutput: "(No code submitted)",
+              passed: false,
+            }));
+          } else if (isSolved) {
+            // All test cases passed for solved submission
+            testCaseResults = testCasesToUse.map((tc) => ({
+              id: tc.id,
+              input: tc.input,
+              expectedOutput: tc.expectedOutput,
+              userOutput: tc.expectedOutput,
+              passed: true,
+            }));
+          } else {
+            // Attempted submission: run against Jet if available to capture user output
+            let executed = false;
+            try {
+              const runtimes = await getJetRuntimes();
+              if (runtimes && runtimes.length > 0) {
+                const preferred = getPreferredRuntime(runtimes, cleanLanguage);
+                if (preferred?.version) {
+                  const jetTCs: JetTestCase[] = testCasesToUse.map((tc) => ({
+                    id: tc.id,
+                    input: tc.input,
+                    expected_output: tc.expectedOutput,
+                  }));
+                  const execRes = await executeCode(
+                    studentIdToUse,
+                    sub.code,
+                    cleanLanguage,
+                    preferred.version,
+                    jetTCs,
+                  );
+
+                  if (execRes.compile && execRes.compile.status === "COMPILATION_ERROR") {
+                    testCaseResults = testCasesToUse.map((tc) => ({
+                      id: tc.id,
+                      input: tc.input,
+                      expectedOutput: tc.expectedOutput,
+                      userOutput: "Compilation Error",
+                      passed: false,
+                    }));
+                    executed = true;
+                  } else if (execRes.testcases) {
+                    testCaseResults = testCasesToUse.map((tc) => {
+                      const res = execRes.testcases?.find((r) => r.id === tc.id);
+                      return {
+                        id: tc.id,
+                        input: tc.input,
+                        expectedOutput: tc.expectedOutput,
+                        userOutput:
+                          res?.actual_output ||
+                          res?.run_details?.stdout ||
+                          (res?.passed ? tc.expectedOutput : "(No output)"),
+                        passed: res?.passed ?? false,
+                      };
+                    });
+                    executed = true;
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("[getExerciseReportData] execution error for visible testcases:", err);
+            }
+
+            if (!executed) {
+              testCaseResults = testCasesToUse.map((tc) => ({
+                id: tc.id,
+                input: tc.input,
+                expectedOutput: tc.expectedOutput,
+                userOutput: "(Execution failed or timed out)",
+                passed: false,
+              }));
+            }
+          }
+        }
+
         return {
           id: cq.questionId,
           programNo: idx + 1,
           title: cq.question.title,
           problemStatement: cq.question.problemStatement,
           code: sub?.code || "",
-          language: sub?.language || "java",
+          language: cleanLanguage,
+          testCases: testCaseResults,
         };
-      }) ?? [];
+      })
+    );
 
     const rollNumber =
       studentUser.username || studentUser.displayUsername || "—";

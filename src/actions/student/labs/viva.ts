@@ -2,7 +2,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { exercises, vivaQuestionPool, vivaSubmissions } from "@/db/schema";
+import { exercises, exerciseMarks, vivaQuestionPool, vivaSubmissions } from "@/db/schema";
 import { requireUser } from "@/lib/auth-access";
 
 export type AssignedVivaQuestion = {
@@ -131,6 +131,17 @@ export async function saveVivaAnswerAction(input: {
 
     if (!input?.exerciseId || !input?.vivaQuestionId) {
       return { success: false as const, error: "Missing required question parameters" };
+    }
+
+    // Submission check — block if already submitted
+    const existingMark = await db.query.exerciseMarks.findFirst({
+      where: and(
+        eq(exerciseMarks.userId, userId),
+        eq(exerciseMarks.exerciseId, input.exerciseId)
+      ),
+    });
+    if (existingMark) {
+      return { success: false as const, error: "You have already submitted this exercise" };
     }
 
     await db

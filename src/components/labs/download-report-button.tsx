@@ -33,7 +33,28 @@ export function DownloadReportButton({
   const handleDownload = async () => {
     try {
       setLoading(true);
-      const res = await getExerciseReportData(exerciseId, studentId);
+
+      // Collect any draft codes in localStorage for this exercise (only when student is downloading their own report)
+      const draftCodes: Record<string, { code: string; language?: string }> = {};
+      if (typeof window !== "undefined" && !studentId) {
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`lab_code_${exerciseId}_`)) {
+              const progId = key.replace(`lab_code_${exerciseId}_`, "");
+              const codeVal = localStorage.getItem(key);
+              const langVal = localStorage.getItem(`lab_lang_${exerciseId}_${progId}`) || "java";
+              if (codeVal && codeVal.trim()) {
+                draftCodes[progId] = { code: codeVal, language: langVal };
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Error reading drafts from localStorage:", e);
+        }
+      }
+
+      const res = await getExerciseReportData(exerciseId, studentId, draftCodes);
 
       if (!res.success || !res.data) {
         toast.error(res.error || "Failed to load report data");
@@ -54,10 +75,40 @@ export function DownloadReportButton({
           language = localStorage.getItem(langKey) || language;
         }
 
+        let testCases = prog.testCases ?? [];
+        if (typeof window !== "undefined") {
+          try {
+            const rawLocal = localStorage.getItem(`lab_test_results_${exerciseId}_${prog.id}`);
+            if (rawLocal) {
+              const localResults: Array<{
+                id: string;
+                input?: string;
+                expectedOutput?: string;
+                actualOutput?: string;
+                passed?: boolean;
+              }> = JSON.parse(rawLocal);
+              testCases = testCases.map((tc) => {
+                const matched = localResults.find((lr) => lr.id === tc.id);
+                if (matched && matched.actualOutput !== undefined) {
+                  return {
+                    ...tc,
+                    userOutput: matched.actualOutput || (matched.passed ? tc.expectedOutput : tc.userOutput),
+                    passed: matched.passed ?? tc.passed,
+                  };
+                }
+                return tc;
+              });
+            }
+          } catch (e) {
+            console.error("Failed to parse local test results:", e);
+          }
+        }
+
         return {
           ...prog,
           code,
           language,
+          testCases,
         };
       });
 
