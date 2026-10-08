@@ -48,7 +48,7 @@ export async function getLabReportData(labId: string) {
     .select({
       userId: exerciseMarks.userId,
       exerciseId: exerciseMarks.exerciseId,
-      marks: exerciseMarks.marks,
+      marks: exerciseMarks.marks, implementationMarks: exerciseMarks.implementationMarks, writeUpMarks: exerciseMarks.writeUpMarks, vivaMarks: exerciseMarks.vivaMarks,
     })
     .from(exerciseMarks)
     .where(inArray(exerciseMarks.exerciseId, exerciseIds));
@@ -111,12 +111,12 @@ export async function getLabReportData(labId: string) {
   const studentRows = studentIds.map((uid) => {
     const s = studentMap.get(uid);
     const weekMarks = marksMap.get(uid) ?? new Map();
-    const weekScores: Record<number, number> = {};
+    const weekScores: Record<number, { total: number, impl: number, writeUp: number, viva: number }> = {};
     let total = 0;
     for (const wk of weekNos) {
-      const score = weekMarks.get(wk) ?? 0;
+      const score = weekMarks.get(wk) ?? { total: 0, impl: 0, writeUp: 0, viva: 0 };
       weekScores[wk] = score;
-      total += score;
+      total += score.total;
     }
     return {
       userId: uid,
@@ -141,3 +141,6 @@ export async function getLabReportData(labId: string) {
     },
   };
 }
+
+
+

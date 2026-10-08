@@ -28,7 +28,7 @@ export default function ReportsPage() {
       title: "AAT",
       description: "Alternative Assessment Tool reports",
       icon: Target,
-      href: "#", // Placeholder
+      href: "/admin/reports/assessments/aat",
       color: "text-emerald-600",
       bgColor: "bg-emerald-500/10",
       hoverBorder: "hover:border-emerald-400/50"
@@ -49,7 +49,7 @@ export default function ReportsPage() {
       <PageHeader
         title="Reports Dashboard"
         description="Select a category to view detailed reports"
-        backHref="/admin/dashboard"
+        backHref="/admin"
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -75,3 +75,4 @@ export default function ReportsPage() {
     </div>
   );
 }
+

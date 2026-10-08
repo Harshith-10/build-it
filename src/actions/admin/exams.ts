@@ -2524,6 +2524,7 @@ export async function getExamResultsReportData(examId: string): Promise<{
       rollNumber: string;
       batch: string;
       grade: string;
+      score: number;
     }[];
   };
 }> {
@@ -2669,6 +2670,7 @@ export async function getExamResultsReportData(examId: string): Promise<{
       rollNumber: s.rollNumber,
       batch: "SkillNext 1",
       grade: s.grade,
+      score: s.score,
     }));
 
     return {

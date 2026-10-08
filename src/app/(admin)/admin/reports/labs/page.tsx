@@ -12,10 +12,11 @@ export default async function ReportsPage() {
       <PageHeader
         title="Lab Reports"
         description="View and download lab performance reports"
-        backHref="/admin/reports/assessments"
+        backHref="/admin/reports"
       />
 
       <LabReportsList labs={labs} />
     </div>
   );
 }
+

@@ -38,6 +38,9 @@ type StudentRow = {
 interface AssessmentReportViewerProps {
   examTitle: string;
   studentRows: StudentRow[];
+  preselectedBranch?: string;
+  preselectedSection?: string;
+  hideBranchSectionFilters?: boolean;
 }
 
 function downloadCsv(filename: string, headers: string[], rows: string[][]) {
@@ -51,9 +54,15 @@ function downloadCsv(filename: string, headers: string[], rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentReportViewerProps) {
-  const [selectedBranch, setSelectedBranch] = useState<string>("");
-  const [selectedSection, setSelectedSection] = useState<string>("");
+export function AssessmentReportViewer({ 
+  examTitle, 
+  studentRows,
+  preselectedBranch = "all",
+  preselectedSection = "all",
+  hideBranchSectionFilters = false
+}: AssessmentReportViewerProps) {
+  const [selectedBranch, setSelectedBranch] = useState<string>(preselectedBranch);
+  const [selectedSection, setSelectedSection] = useState<string>(preselectedSection);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Format section to only show the letter (e.g. "CSE-A" -> "A")
@@ -108,10 +117,8 @@ export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentRep
       "S.No", 
       "Roll No", 
       "Name", 
-      "Branch", 
-      "Section", 
-      "Status",
-      "Score",
+      ...(hideBranchSectionFilters ? [] : ["Branch", "Section"]),
+            "Score",
       "Time Taken (mins)",
       "Malpractice Count",
       "Terminated"
@@ -120,10 +127,8 @@ export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentRep
       String(i + 1),
       s.roll,
       s.name,
-      s.branch,
-      s.section,
-      s.status,
-      String(s.score),
+      ...(hideBranchSectionFilters ? [] : [s.branch, s.section]),
+            String(s.score),
       String(s.timeTakenMinutes),
       String(s.malpracticeCount),
       s.isTerminated ? "Yes" : "No"
@@ -146,47 +151,66 @@ export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentRep
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Main Filter Bar ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-muted/30 p-4 rounded-lg border">
-        <div className="flex flex-col gap-1.5 w-full">
-          <label className="text-xs font-medium text-muted-foreground">Branch</label>
-          <Select
-            value={selectedBranch}
-            onValueChange={(val) => {
-              setSelectedBranch(val);
-              setSelectedSection(""); // Reset section when branch changes
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select Branch" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableBranches.map((b) => (
-                <SelectItem key={b} value={b}>
-                  {b}
-                </SelectItem>
-              ))}
-              <SelectItem value="all">All Branches</SelectItem>
-            </SelectContent>
-          </Select>
+      {/* Header Stats */}
+      {hideBranchSectionFilters && (
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground border-b pb-4">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-foreground bg-muted px-2 py-1 rounded-md text-xs uppercase">
+              {preselectedBranch === "all" ? "All Branches" : preselectedBranch}
+            </span>
+          </div>
+          <div>•</div>
+          <div>{preselectedSection === "all" ? "All Sections" : `Section ${preselectedSection}`}</div>
+          <div>•</div>
+          <div>{filteredStudentRows.length} students</div>
         </div>
+      )}
 
-        <div className="flex flex-col gap-1.5 w-full">
-          <label className="text-xs font-medium text-muted-foreground">Section</label>
-          <Select value={selectedSection} onValueChange={setSelectedSection}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select Section" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableSections.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-              <SelectItem value="all">All Sections</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Main Filter Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-muted/30 p-4 rounded-lg border">
+        {!hideBranchSectionFilters && (
+          <>
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-medium text-muted-foreground">Branch</label>
+              <Select
+                value={selectedBranch}
+                onValueChange={(val) => {
+                  setSelectedBranch(val);
+                  setSelectedSection(""); // Reset section when branch changes
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableBranches.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="all">All Branches</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+    
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-medium text-muted-foreground">Section</label>
+              <Select value={selectedSection} onValueChange={setSelectedSection}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSections.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="all">All Sections</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
 
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-xs font-medium text-muted-foreground">Search Student</label>
@@ -235,9 +259,8 @@ export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentRep
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Roll No</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Section</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
+                  {!hideBranchSectionFilters && <TableHead>Branch</TableHead>}
+                  {!hideBranchSectionFilters && <TableHead>Section</TableHead>}
                   <TableHead className="text-center">Score</TableHead>
                   <TableHead className="text-center">Time Taken (mins)</TableHead>
                   <TableHead className="text-center">Warnings</TableHead>
@@ -256,11 +279,8 @@ export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentRep
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       <TableCell className="font-mono text-xs font-medium">{s.roll}</TableCell>
                       <TableCell>{s.name}</TableCell>
-                      <TableCell>{s.branch}</TableCell>
-                      <TableCell>{s.section}</TableCell>
-                      <TableCell className="text-center">
-                        {getStatusBadge(s.status)}
-                      </TableCell>
+                      {!hideBranchSectionFilters && <TableCell>{s.branch}</TableCell>}
+                      {!hideBranchSectionFilters && <TableCell>{s.section}</TableCell>}
                       <TableCell className="text-center font-bold text-cyan-600 dark:text-cyan-400">
                         {s.score}
                       </TableCell>
@@ -299,3 +319,8 @@ export function AssessmentReportViewer({ examTitle, studentRows }: AssessmentRep
     </div>
   );
 }
+
+
+
+
+

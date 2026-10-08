@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { eq, inArray, desc } from "drizzle-orm";
 import { db } from "@/db";
@@ -13,7 +13,13 @@ export async function getAssessmentsForReports() {
   return db.query.exams.findMany({
     orderBy: (e, { desc }) => [desc(e.createdAt)],
     with: { 
-      department: true 
+      department: true,
+      lab: true,
+      groups: {
+        with: {
+          group: true
+        }
+      }
     },
   });
 }
@@ -199,6 +205,117 @@ export async function getAggregatedCDCReport(semester: string) {
       section: userGroupMap.get(userId) ?? "-",
       totalScore,
       scores,
+    };
+  });
+
+  studentRows.sort((a, b) => a.roll.localeCompare(b.roll));
+
+  return {
+    success: true as const,
+    data: {
+      exams: semesterExams.map(e => ({
+        ...e,
+        totalMarks: (e.gradingConfig as any)?.totalMarks || 100,
+      })),
+      studentRows,
+    },
+  };
+}
+export async function getAggregatedAATReport(semester: string) {
+  await requireAdmin();
+
+  // 1. Get all AAT exams for this semester
+  const semesterExams = await db.query.exams.findMany({
+    where: (e, { eq, and }) =>
+      and(
+        eq(e.assessmentType, "aat"),
+        eq(e.semester, semester)
+      ),
+    orderBy: (e, { asc }) => [asc(e.startTime)],
+  });
+
+  if (semesterExams.length === 0) {
+    return { success: false as const, error: "No AAT exams found for this semester", data: { exams: [], studentRows: [] } };
+  }
+
+  const examIds = semesterExams.map(e => e.id);
+
+  // 2. Get all assignments for these exams
+  const allAssignments = await db.query.examAssignments.findMany({
+    where: (a, { inArray }) => inArray(a.examId, examIds),
+  });
+
+  const studentIds = Array.from(new Set(allAssignments.map(a => a.userId)));
+  if (studentIds.length === 0) {
+    return { success: true as const, data: { exams: semesterExams, studentRows: [] } };
+  }
+
+  // 3. Get student details
+  const students = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      branch: user.branch,
+    })
+    .from(user)
+    .where(inArray(user.id, studentIds));
+
+  // 4. Get section details
+  const groupMembers = await db
+    .select({ userId: userGroupMembers.userId, groupId: userGroupMembers.groupId })
+    .from(userGroupMembers)
+    .where(inArray(userGroupMembers.userId, studentIds));
+
+  const groupIds = Array.from(new Set(groupMembers.map(m => m.groupId)));
+  const groups = groupIds.length > 0
+    ? await db
+        .select({ id: userGroups.id, name: userGroups.name })
+        .from(userGroups)
+        .where(inArray(userGroups.id, groupIds))
+    : [];
+
+  const studentMap = new Map(students.map(s => [s.id, s]));
+  const groupMap = new Map(groups.map(g => [g.id, g.name]));
+  const userGroupMap = new Map<string, string>();
+  for (const gm of groupMembers) {
+    if (!userGroupMap.has(gm.userId)) {
+      userGroupMap.set(gm.userId, groupMap.get(gm.groupId) ?? "");
+    }
+  }
+
+  // 5. Get marks
+  const allMarks = await db.query.examSubmissions.findMany({
+    where: (s, { inArray }) => inArray(s.examId, examIds),
+  });
+
+  const marksMap = new Map<string, Map<string, number>>();
+  for (const m of allMarks) {
+    if (!marksMap.has(m.userId)) marksMap.set(m.userId, new Map());
+    marksMap.get(m.userId)!.set(m.examId, parseFloat(m.totalMarks?.toString() ?? "0"));
+  }
+
+  // 6. Build rows
+  const studentRows = studentIds.map(uid => {
+    const s = studentMap.get(uid);
+    const mMap = marksMap.get(uid) ?? new Map();
+    let totalScore = 0;
+    const scores: Record<string, number> = {};
+    
+    for (const ex of semesterExams) {
+      const mark = mMap.get(ex.id) ?? 0;
+      scores[ex.id] = mark;
+      totalScore += mark;
+    }
+
+    return {
+      userId: uid,
+      roll: s?.username?.toUpperCase() ?? "N/A",
+      name: s?.name ?? "Unknown",
+      branch: s?.branch ?? "",
+      section: userGroupMap.get(uid) ?? "",
+      scores,
+      totalScore: Math.round(totalScore * 100) / 100,
     };
   });
 

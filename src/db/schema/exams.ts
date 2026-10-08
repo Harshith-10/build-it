@@ -93,7 +93,7 @@ export const exams = pgTable("exams", {
     onDelete: "set null",
   }),
   assessmentType: text("assessment_type")
-    .$type<"exam" | "lab_assessment" | "coding_assessment">()
+    .$type<"exam" | "lab_assessment" | "coding_assessment" | "aat">()
     .default("exam")
     .notNull(),
   semester: text("semester"),
@@ -257,3 +257,4 @@ export const examAttendanceRelations = relations(examAttendance, ({ one }) => ({
     references: [user.id],
   }),
 }));
+

@@ -30,23 +30,14 @@ export default async function CDCAssessmentsList({
         backHref="/admin/reports/assessments"
       />
 
-      <div className="mt-6">
-        <CDCAssessmentTabs />
-      </div>
+      
 
       <div className="mt-6">
-        {result.success ? (
-          <CDCReportViewer semester={activeSem} exams={exams} studentRows={studentRows} />
-        ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/10 border-dashed">
-            <Briefcase className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-medium">No Data Available</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mt-1">
-              {result.error || `No CDC examinations have been conducted yet for ${activeSem}.`}
-            </p>
-          </div>
-        )}
+        <CDCReportViewer semester={activeSem} exams={exams} studentRows={studentRows} />
       </div>
     </div>
   );
 }
+
+
+

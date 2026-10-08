@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ type StudentRow = {
   name: string;
   branch: string;
   section: string;
-  weekScores: Record<number, number>;
+  weekScores: Record<number, { total: number, impl: number, writeUp: number, viva: number }>;
   total: number;
 };
 
@@ -98,11 +98,31 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
     });
   }, [formattedStudentRows, selectedBranch, selectedSection, searchQuery]);
 
-  const isSelectionMade = (selectedBranch !== "" && selectedSection !== "") || searchQuery.trim() !== "";
+  const availableWeeks = useMemo(() => {
+    if (!selectedBranch || selectedBranch === "all") {
+      return weekNos;
+    }
+    const weeksSet = new Set<number>();
+    filteredStudentRows.forEach((s) => {
+      Object.keys(s.weekScores).forEach((w) => weeksSet.add(parseInt(w)));
+    });
+    return Array.from(weeksSet).sort((a, b) => a - b);
+  }, [filteredStudentRows, weekNos, selectedBranch]);
+
+  useEffect(() => {
+    if (selectedWeek !== "all" && selectedWeek !== "") {
+      const w = parseInt(selectedWeek);
+      if (!availableWeeks.includes(w)) {
+        setSelectedWeek("all");
+      }
+    }
+  }, [availableWeeks, selectedWeek]);
+
+  const isSelectionMade = (selectedBranch !== "" && selectedSection !== "" && (weekNos.length === 0 || selectedWeek !== "")) || searchQuery.trim() !== "";
   const effectiveWeek = selectedWeek === "" || selectedWeek === "all" ? String(weekNos[0] ?? 1) : selectedWeek;
   
   // Determine which weeks to show based on the top-level Week filter
-  const visibleWeeks = (selectedWeek && selectedWeek !== "all") ? [parseInt(selectedWeek)] : weekNos;
+  const visibleWeeks = selectedWeek === "all" ? weekNos : selectedWeek ? [parseInt(selectedWeek)] : [];
 
   // ── Student Cumulative ─────────────────────────────────────────────────────
   const downloadCumulative = () => {
@@ -111,20 +131,32 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
       "S.No", 
       "Roll No", 
       "Name", 
-      "Branch", 
-      "Section", 
-      ...visibleWeeks.map((w) => `Week ${w}`), 
-      ...(isSingleWeek ? [] : ["Overall Total", "Percentage"])
+      ...(isSingleWeek 
+        ? ["Coding", "Write-up", "Viva", "Total"]
+        : [...visibleWeeks.map((w) => `Week ${w}`), "Overall Total", "Percentage"]
+      )
     ];
-    const rows = filteredStudentRows.map((s, i) => [
-      String(i + 1),
-      s.roll,
-      s.name,
-      s.branch,
-      s.section,
-      ...visibleWeeks.map((w) => String(s.weekScores[w] ?? 0)),
-      ...(isSingleWeek ? [] : [String(s.total), `${((s.total / (weekNos.length * 20)) * 100).toFixed(1)}%`]),
-    ]);
+    const rows = filteredStudentRows.map((s, i) => {
+      const singleScore = isSingleWeek ? s.weekScores[parseInt(selectedWeek)] : null;
+      return [
+        String(i + 1),
+        s.roll,
+        s.name,
+        ...(isSingleWeek
+          ? [
+              singleScore ? String(singleScore.impl) : "-",
+              singleScore ? String(singleScore.writeUp) : "-",
+              singleScore ? String(singleScore.viva) : "-",
+              singleScore ? String(singleScore.total) : "-"
+            ]
+          : [
+              ...visibleWeeks.map((w) => String(s.weekScores[w] ? s.weekScores[w].total : 0)),
+              String(s.total),
+              `${((s.total / (weekNos.length * 20)) * 100).toFixed(1)}%`
+            ]
+        )
+      ];
+    });
     downloadCsv(`${labName}_Cumulative.csv`, headers, rows);
   };
 
@@ -157,7 +189,11 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
 
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-xs font-medium text-muted-foreground">Section</label>
-          <Select value={selectedSection} onValueChange={setSelectedSection}>
+          <Select
+            value={selectedSection}
+            onValueChange={setSelectedSection}
+            disabled={!selectedBranch || selectedBranch === "all" || availableSections.length === 0}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select Section" />
             </SelectTrigger>
@@ -167,7 +203,9 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
                   {s}
                 </SelectItem>
               ))}
-              <SelectItem value="all">All Sections</SelectItem>
+              {availableSections.length > 0 && (
+                <SelectItem value="all">All Sections</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -179,7 +217,7 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
               <SelectValue placeholder="Select Week" />
             </SelectTrigger>
             <SelectContent>
-              {weekNos.map((w) => (
+              {availableWeeks.map((w) => (
                 <SelectItem key={w} value={String(w)}>
                   Week {w}
                 </SelectItem>
@@ -211,14 +249,19 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
           </div>
           <h3 className="text-lg font-medium">No data to display</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Please select a Branch and Section, or search for a specific Roll No above.
+            Please select a Branch, Section, and Week, or search for a specific Roll No above.
           </p>
         </div>
       ) : (
         <div className="w-full">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <p className="text-sm text-muted-foreground">{filteredStudentRows.length} students found</p>
+              <p className="text-sm text-muted-foreground">
+                {filteredStudentRows.length} students found
+                {selectedBranch && selectedBranch !== "all" && selectedSection && selectedSection !== "all" ? (
+                  <> <span className="mx-1">&middot;</span> {availableWeeks.length} weeks completed</>
+                ) : null}
+              </p>
               <span className="text-xs font-medium px-2 py-1 bg-muted text-muted-foreground rounded-md border">
                 Max: 20 marks per week
               </span>
@@ -231,16 +274,23 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="w-12">S.No</TableHead>
                   <TableHead>Roll No</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Section</TableHead>
-                  {visibleWeeks.map((w) => (
-                    <TableHead key={w} className="text-center whitespace-nowrap">
-                      Week {w}
-                    </TableHead>
-                  ))}
+                  {selectedWeek !== "all" && selectedWeek !== "" ? (
+                    <>
+                      <TableHead className="text-center whitespace-nowrap">Coding</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Write-up</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Viva</TableHead>
+                      <TableHead className="text-center whitespace-nowrap font-bold">Total</TableHead>
+                    </>
+                  ) : (
+                    visibleWeeks.map((w) => (
+                      <TableHead key={w} className="text-center whitespace-nowrap">
+                        Week {w}
+                      </TableHead>
+                    ))
+                  )}
                   {selectedWeek === "all" || selectedWeek === "" ? (
                     <>
                       <TableHead className="text-center font-bold">Overall Total</TableHead>
@@ -252,35 +302,57 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
               <TableBody>
                 {filteredStudentRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8 + visibleWeeks.length} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No students found matching the selected filters.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStudentRows.map((s, i) => (
-                    <TableRow key={s.userId}>
-                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                      <TableCell className="font-mono text-xs font-medium">{s.roll}</TableCell>
-                      <TableCell>{s.name}</TableCell>
-                      <TableCell>{s.branch}</TableCell>
-                      <TableCell>{s.section}</TableCell>
-                      {visibleWeeks.map((w) => (
-                        <TableCell key={w} className="text-center">
-                          {s.weekScores[w] ?? <span className="text-muted-foreground">—</span>}
-                        </TableCell>
-                      ))}
-                      {selectedWeek === "all" || selectedWeek === "" ? (
-                        <>
-                          <TableCell className="text-center font-bold text-cyan-600 dark:text-cyan-400">
-                            {s.total}
-                          </TableCell>
-                          <TableCell className="text-center font-bold">
-                            {((s.total / (weekNos.length * 20)) * 100).toFixed(1)}%
-                          </TableCell>
-                        </>
-                      ) : null}
-                    </TableRow>
-                  ))
+                  filteredStudentRows.map((s, i) => {
+                    const isSingleWeek = selectedWeek !== "all" && selectedWeek !== "";
+                    const singleScore = isSingleWeek ? s.weekScores[parseInt(selectedWeek)] : null;
+                    return (
+                      <TableRow key={s.userId}>
+                        <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                        <TableCell className="font-mono text-xs font-medium">{s.roll}</TableCell>
+                        <TableCell>{s.name}</TableCell>
+                        
+                        {isSingleWeek ? (
+                          singleScore ? (
+                            <>
+                              <TableCell className="text-center">{singleScore.impl}</TableCell>
+                              <TableCell className="text-center">{singleScore.writeUp}</TableCell>
+                              <TableCell className="text-center">{singleScore.viva}</TableCell>
+                              <TableCell className="text-center font-bold text-cyan-600 dark:text-cyan-400">{singleScore.total}</TableCell>
+                            </>
+                          ) : (
+                            <>
+                              <TableCell className="text-center text-muted-foreground">-</TableCell>
+                              <TableCell className="text-center text-muted-foreground">-</TableCell>
+                              <TableCell className="text-center text-muted-foreground">-</TableCell>
+                              <TableCell className="text-center font-bold text-muted-foreground">-</TableCell>
+                            </>
+                          )
+                        ) : (
+                          visibleWeeks.map((w) => (
+                            <TableCell key={w} className="text-center">
+                              {s.weekScores[w] ? s.weekScores[w].total : <span className="text-muted-foreground">-</span>}
+                            </TableCell>
+                          ))
+                        )}
+                        
+                        {!isSingleWeek ? (
+                          <>
+                            <TableCell className="text-center font-bold text-cyan-600 dark:text-cyan-400">
+                              {s.total}
+                            </TableCell>
+                            <TableCell className="text-center font-bold">
+                              {((s.total / (weekNos.length * 20)) * 100).toFixed(1)}%
+                            </TableCell>
+                          </>
+                        ) : null}
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -290,3 +362,20 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

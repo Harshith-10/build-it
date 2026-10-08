@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Search, AlertTriangle, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,103 +55,110 @@ interface CDCReportViewerProps {
   studentRows: StudentRow[];
 }
 
-export function CDCReportViewer({ semester, exams, studentRows }: CDCReportViewerProps) {
-  const [selectedBranch, setSelectedBranch] = useState<string>("");
-  const [selectedSection, setSelectedSection] = useState<string>("");
-  const [selectedExamId, setSelectedExamId] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+type BatchMapping = Record<string, string[]>;
+const YEAR_BATCH_MAPPINGS: Record<string, BatchMapping> = {
+  "Year II": {
+    "SU1 (SkillUp 1)": ["CSE"],
+    "SU2 (SkillUp 2)": ["CSE", "CSE (AI&ML)", "CSE (DS)", "ECE"],
+    "SU3 (SkillUp 3)": ["AERO", "CSE", "CSE (AI&ML)", "IT", "MECH"],
+  },
+  "Year III": {
+    "SU1 (SkillUp 1)": ["CSE", "CSE (AI&ML)", "CSE (DS)", "ECE", "IT"],
+    "SN1": ["CSE", "CSE (AI&ML)", "CSE (DS)", "ECE"],
+    "SN2": ["CSE (DS)", "ECE", "IT"],
+    "SB1": ["CSE"],
+    "SB2": ["CSE"],
+    "SB3": ["CSE", "EEE"],
+    "SB4": ["CSE (AI&ML)"],
+    "SB5": ["CSE (AI&ML)", "CSE (DS)"],
+    "SB6": ["CSE (AI&ML)", "CSE (DS)", "ECE", "IT"],
+  }
+};
 
+export function CDCReportViewer({
+  semester,
+  exams,
+  studentRows,
+}: CDCReportViewerProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Format section to only show the letter (e.g. "CSE-A" -> "A")
-  const formattedStudentRows = useMemo(() => {
-    return studentRows.map((s) => {
-      const parts = (s.section || "").split("-");
-      const cleanSection = parts.length > 1 ? parts.pop()! : s.section;
-      return { ...s, section: cleanSection || "—" };
-    });
-  }, [studentRows]);
+  const validSemester = YEAR_BATCH_MAPPINGS[semester] ? semester : "Year III";
+  
+  const [localYear, setLocalYear] = useState<string>(validSemester);
+  const [selectedBatch, setSelectedBatch] = useState<string>("");
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  const BRANCH_SECTIONS: Record<string, number> = {
-    "CSE": 7,
-    "IT": 2,
-    "AIML": 4,
-    "DS": 1,
-    "ECE": 2,
-    "EEE": 1,
-    "MECH": 1,
-    "CIVIL": 1,
-    "AERO": 1,
-  };
-
-  const availableBranches = Object.keys(BRANCH_SECTIONS);
-
-  const availableSections = useMemo(() => {
-    if (!selectedBranch || selectedBranch === "all" || !BRANCH_SECTIONS[selectedBranch]) {
-      return [];
+  useEffect(() => {
+    if (YEAR_BATCH_MAPPINGS[semester] && localYear !== semester) {
+      setLocalYear(semester);
+      setSelectedBatch("");
+      setSelectedBranch("");
     }
-    const count = BRANCH_SECTIONS[selectedBranch];
-    return Array.from({ length: count }, (_, i) => String.fromCharCode(65 + i));
-  }, [selectedBranch]);
+  }, [semester]);
 
-  const filteredStudentRows = useMemo(() => {
-    return formattedStudentRows.filter((s) => {
-      const matchBranch =
-        selectedBranch === "" ||
-        selectedBranch === "all" ||
-        s.branch === selectedBranch;
-      const matchSection =
-        selectedSection === "" ||
-        selectedSection === "all" ||
-        s.section === selectedSection;
-
-      const query = searchQuery.trim().toLowerCase();
-      const matchSearch =
-        query === "" ||
-        s.roll.toLowerCase().includes(query) ||
-        s.name.toLowerCase().includes(query);
-
-      return matchBranch && matchSection && matchSearch;
-    });
-  }, [formattedStudentRows, selectedBranch, selectedSection, searchQuery]);
-
-  const handleExportCSV = () => {
-    if (!selectedExamId) return;
-    
-    let headers: string[];
-    let rows: (string | number)[][];
-
-    const exam = exams.find(e => e.id === selectedExamId);
-    headers = ["Roll No", "Name", "Branch", "Section", exam?.title || "Score"];
-    rows = filteredStudentRows.map((s) => [
-      s.roll,
-      s.name,
-      s.branch,
-      s.section,
-      s.scores[selectedExamId] ?? "—"
-    ]);
-
-    downloadCsv(`CDC_Report_${semester.replace(/\s+/g, "_")}.csv`, headers, rows);
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
+  const currentMapping = YEAR_BATCH_MAPPINGS[localYear] || {};
+  const availableBatches = Object.keys(currentMapping);
+  
+  const availableBranches = useMemo(() => {
+    if (selectedBatch === "all") {
+      const allB = new Set<string>();
+      Object.values(currentMapping).forEach(branches => branches.forEach(b => allB.add(b)));
+      return Array.from(allB).sort();
+    }
+    return currentMapping[selectedBatch] || [];
+  }, [selectedBatch, currentMapping]);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Main Filter Bar ── */}
+      {/* ?? Main Filter Bar ?? */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-muted/30 p-4 rounded-lg border print:hidden">
+        <div className="flex flex-col gap-1.5 w-full">
+          <label className="text-xs font-medium text-muted-foreground">Year</label>
+          <Select 
+            value={localYear} 
+            onValueChange={(val) => {
+              setSelectedBatch("");
+              setSelectedBranch("");
+              setLocalYear(val);
+              router.push("/admin/reports/assessments/cdc?sem=" + encodeURIComponent(val));
+            }}
+          >
+            <SelectTrigger><SelectValue placeholder="Select Year" /></SelectTrigger>
+            <SelectContent>
+              {Object.keys(YEAR_BATCH_MAPPINGS).map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1.5 w-full">
+          <label className="text-xs font-medium text-muted-foreground">Batch</label>
+          <Select value={selectedBatch} onValueChange={(val) => {
+            setSelectedBatch(val);
+            setSelectedBranch(""); 
+          }}>
+            <SelectTrigger><SelectValue placeholder="Select Batch" /></SelectTrigger>
+            <SelectContent>
+              {availableBatches.length > 0 ? availableBatches.map((b) => (
+                <SelectItem key={b} value={b}>{b}</SelectItem>
+              )) : <SelectItem value="none" disabled>No batches for this year</SelectItem>}
+              {availableBatches.length > 0 && <SelectItem value="all">All Batches</SelectItem>}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-xs font-medium text-muted-foreground">
             Branch
           </label>
           <Select
             value={selectedBranch}
-            onValueChange={(val) => {
-              setSelectedBranch(val);
-              setSelectedSection(""); // Reset section when branch changes
-            }}
+            onValueChange={setSelectedBranch}
+            disabled={!selectedBatch}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select Branch" />
@@ -161,57 +169,20 @@ export function CDCReportViewer({ semester, exams, studentRows }: CDCReportViewe
                   {b}
                 </SelectItem>
               ))}
-              <SelectItem value="all">All Branches</SelectItem>
+              {availableBranches.length > 0 && <SelectItem value="all">All Branches</SelectItem>}
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-xs font-medium text-muted-foreground">
-            Section
-          </label>
-          <Select value={selectedSection} onValueChange={setSelectedSection}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select Section" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableSections.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-              <SelectItem value="all">All Sections</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-1.5 w-full">
-          <label className="text-xs font-medium text-muted-foreground">
-            Exam
-          </label>
-          <Select value={selectedExamId} onValueChange={setSelectedExamId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select Exam" className="line-clamp-1" />
-            </SelectTrigger>
-            <SelectContent>
-              {exams.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-1.5 w-full">
-          <label className="text-xs font-medium text-muted-foreground">
-            Search Student
+            Search Exam
           </label>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Roll No or Name..."
-              className="pl-8"
+              placeholder="Exam name..."
+              className="pl-8 bg-background"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -219,103 +190,35 @@ export function CDCReportViewer({ semester, exams, studentRows }: CDCReportViewe
         </div>
       </div>
 
-      {/* ── Data Table Area ── */}
-      <div className="flex flex-col gap-3" ref={printRef}>
-        <div className="flex justify-between items-center print:hidden">
-          <h3 className="font-semibold tracking-tight">
-            Showing {filteredStudentRows.length} student
-            {filteredStudentRows.length !== 1 && "s"}
-          </h3>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              disabled={!selectedExamId || filteredStudentRows.length === 0}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              disabled={!selectedExamId || filteredStudentRows.length === 0}
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Download PDF
-            </Button>
+      {/* ?? Exams List Area ?? */}
+      <div className="mt-4">
+        {(!selectedBatch || selectedBatch === "" || selectedBatch === "none") ? (
+          <div className="py-20 text-center border rounded-lg bg-muted/10 flex flex-col items-center">
+            <h3 className="text-lg font-medium">Select a Batch</h3>
+            <p className="text-sm text-muted-foreground mt-1">Please select a batch to view the exams conducted.</p>
           </div>
-        </div>
-
-        {/* Print-only Header */}
-        <div className="hidden print:block mb-4">
-          <h2 className="text-xl font-bold text-center">
-            {semester} CDC Assessment Report
-          </h2>
-          <div className="flex justify-between mt-2 text-sm">
-            <span>
-              <strong>Branch:</strong> {selectedBranch || "All"}
-            </span>
-            <span>
-              <strong>Section:</strong> {selectedSection || "All"}
-            </span>
+        ) : exams.length === 0 ? (
+          <div className="py-20 text-center border rounded-lg bg-muted/10 flex flex-col items-center">
+            <h3 className="text-lg font-medium">No Exams Found</h3>
+            <p className="text-sm text-muted-foreground mt-1">No exams have been conducted for this batch yet.</p>
           </div>
-        </div>
-
-        <div className="border rounded-md">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="w-[120px] font-semibold text-foreground">
-                  Roll No
-                </TableHead>
-                <TableHead className="min-w-[180px] font-semibold text-foreground">
-                  Student Name
-                </TableHead>
-                <TableHead className="w-[80px] font-semibold text-foreground text-center">
-                  Branch
-                </TableHead>
-                <TableHead className="w-[80px] font-semibold text-foreground text-center">
-                  Sec
-                </TableHead>
-                <TableHead className="w-[120px] text-center font-semibold text-foreground">
-                  Score
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!selectedExamId ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    Please select an exam to view reports.
-                  </TableCell>
-                </TableRow>
-              ) : filteredStudentRows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    No results found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredStudentRows.map((row) => (
-                  <TableRow key={row.userId} className="hover:bg-muted/30">
-                    <TableCell className="font-medium">{row.roll}</TableCell>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell className="text-center">{row.branch}</TableCell>
-                    <TableCell className="text-center">
-                      {row.section}
-                    </TableCell>
-                    <TableCell className="text-center font-bold text-primary">
-                      {row.scores[selectedExamId] !== undefined ? row.scores[selectedExamId] : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {exams.map((exam) => (
+              <div key={exam.id} onClick={() => router.push(`/admin/reports/assessments/cdc/${exam.id}`)} className="p-5 rounded-lg border bg-card hover:border-primary/50 cursor-pointer transition-colors shadow-sm flex flex-col gap-2 group">
+                <div className="flex justify-between items-start">
+                  <h4 className="font-semibold text-base group-hover:text-primary transition-colors">{exam.title}</h4>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span className="text-xs font-medium px-2 py-1 bg-muted rounded-md text-muted-foreground">Batch: {selectedBatch === 'all' ? 'Multiple' : selectedBatch}</span>
+                  {selectedBranch && selectedBranch !== 'all' && <span className="text-xs font-medium px-2 py-1 bg-muted rounded-md text-muted-foreground">Branch: {selectedBranch}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

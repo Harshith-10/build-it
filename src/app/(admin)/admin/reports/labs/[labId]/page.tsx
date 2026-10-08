@@ -43,16 +43,20 @@ export default async function LabReportPage({ params }: Props) {
           description="View detailed week-wise lab performance for this subject."
           backHref="/admin/reports/labs"
         />
-        <h1 className="text-2xl font-bold tracking-tight">{lab.name}</h1>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
-          {lab.code && <span>{lab.code}</span>}
-          <Badge variant="outline">Sem {lab.semester}</Badge>
-          <span>{weekNos.length} week{weekNos.length !== 1 ? "s" : ""}</span>
-          <span>·</span>
-          <span>{studentRows.length} students</span>
+        <div className="flex items-center gap-2 mt-2">
+          {lab.code && <span className="text-sm font-medium text-muted-foreground">{lab.code}</span>}
+          <Badge variant="outline" className="bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800">
+            Sem {lab.semester}
+          </Badge>
         </div>
+        
+        
       </div>
       <LabReportViewer labName={lab.name} weekNos={weekNos} studentRows={studentRows} />
     </div>
   );
 }
+
+
+
+

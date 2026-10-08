@@ -5,9 +5,19 @@ import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, Printer, FileSpreadsheet, Loader2, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { exportExamRankingsToExcel, type ExamResultsReportStudent } from "@/actions/admin/exams";
+import { exportExamRankingsToExcel } from "@/actions/admin/exams";
 import { Button } from "@/components/ui/button";
-import { IARE_HEADER_DATA_URL } from "@/lib/iare-header";
+
+export interface ExamResultsReportStudent {
+  sNo: number;
+  name: string;
+  rollNumber: string;
+  batch: string;
+  grade: string;
+  score: number;
+}
+
+const IARE_HEADER_DATA_URL = "/iare-logo.png"; // Fallback if logo not found
 
 interface ExamResultsReportViewerProps {
   examId: string;

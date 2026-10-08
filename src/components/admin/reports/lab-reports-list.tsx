@@ -44,7 +44,7 @@ export function LabReportsList({ labs }: LabReportsListProps) {
         </CardHeader>
         <CardContent className="pt-0 mt-auto">
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-4">
-            <span>{lab.exercises?.length || 0} week{(lab.exercises?.length || 0) !== 1 ? "s" : ""}</span>
+            <span></span>
             <span className="text-cyan-600 font-medium group-hover:underline">View Report →</span>
           </div>
         </CardContent>
@@ -121,3 +121,4 @@ export function LabReportsList({ labs }: LabReportsListProps) {
     </div>
   );
 }
+
