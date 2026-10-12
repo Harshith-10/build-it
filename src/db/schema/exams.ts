@@ -97,6 +97,7 @@ export const exams = pgTable("exams", {
     .default("exam")
     .notNull(),
   semester: text("semester"),
+  weekNo: integer("week_no"),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),

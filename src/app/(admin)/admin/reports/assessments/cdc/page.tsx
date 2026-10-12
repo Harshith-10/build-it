@@ -16,7 +16,7 @@ export default async function CDCAssessmentsList({
 }: {
   searchParams: { sem?: string };
 }) {
-  const activeSem = searchParams.sem || "Year I";
+  const activeSem = searchParams.sem || "Year III";
   const result = await getAggregatedCDCReport(activeSem);
   
   const exams = result.success ? result.data.exams : [];
@@ -38,6 +38,7 @@ export default async function CDCAssessmentsList({
     </div>
   );
 }
+
 
 
 

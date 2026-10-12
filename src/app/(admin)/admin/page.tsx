@@ -158,13 +158,13 @@ export default async function AdminDashboard() {
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card
-              className={g-linear-to-br  border transition-all hover:shadow-md hover:scale-[1.01] cursor-pointer}
+              className={`bg-linear-to-br ${stat.color} border transition-all hover:shadow-md hover:scale-[1.01] cursor-pointer`}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3.5 pb-1">
                 <CardTitle className="text-xs font-medium text-muted-foreground">
                   {stat.title}
                 </CardTitle>
-                <stat.icon className={h-3.5 w-3.5 } />
+                <stat.icon className={`h-3.5 w-3.5 ${stat.iconColor}`} />
               </CardHeader>
               <CardContent className="p-3.5 pt-0">
                 <div className="text-2xl font-bold">{stat.value}</div>

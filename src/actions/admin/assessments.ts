@@ -218,6 +218,7 @@ export type UpsertAssessmentInput = {
   assessmentType: "lab_assessment" | "coding_assessment";
   semester?: string | null;
   labId?: string | null;
+  weekNo?: number | null;
   durationMinutes?: number;
   startTime?: string | Date | null;
   endTime?: string | Date | null;
@@ -289,6 +290,7 @@ export async function upsertAssessment(data: UpsertAssessmentInput) {
       assessmentType: data.assessmentType,
       semester: data.semester || null,
       labId: data.assessmentType === "lab_assessment" ? data.labId || null : null,
+      weekNo: data.assessmentType === "lab_assessment" && data.weekNo ? Number(data.weekNo) : null,
       durationMinutes: Number(data.durationMinutes) || 60,
       requiresPin: Boolean(data.requiresPin),
       strategyType: data.strategyType || "random_n",

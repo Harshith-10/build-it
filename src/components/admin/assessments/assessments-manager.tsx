@@ -1500,8 +1500,9 @@ function AssessmentFormDialog({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [semester, setSemester] = useState<string>("Sem 1");
+  const [semester, setSemester] = useState<string>("Year III");
   const [selectedLabId, setSelectedLabId] = useState<string>("");
+  const [weekNo, setWeekNo] = useState<string>("");
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>(
     [],
   );
@@ -1528,8 +1529,9 @@ function AssessmentFormDialog({
     if (initial) {
       setTitle(initial.title || "");
       setDescription(initial.description || "");
-      setSemester((initial as any).semester || "Sem 1");
+      setSemester((initial as any).semester || "Year III");
       setSelectedLabId(initial.labId || "");
+      setWeekNo((initial as any).weekNo != null ? String((initial as any).weekNo) : "");
       setSelectedCollectionIds(
         (initial as any).collections?.map((c: any) => c.collectionId) || [],
       );
@@ -1570,6 +1572,7 @@ function AssessmentFormDialog({
       setTitle("");
       setDescription("");
       setSemester("Year I");
+      setWeekNo("");
       setSelectedCollectionIds([]);
       setDurationMinutes(60);
       setTotalMarks(100);
@@ -1753,7 +1756,9 @@ function AssessmentFormDialog({
         title: title.trim(),
         description: description.trim() || null,
         assessmentType: category,
+        semester: !isLab ? semester : null,
         labId: isLab ? selectedLabId : null,
+        weekNo: isLab && weekNo ? Number(weekNo) : null,
         durationMinutes: Number(durationMinutes) || 60,
         totalMarks: Number(totalMarks) || 100,
         startTime: startTimeInput ? new Date(startTimeInput) : null,
@@ -1915,6 +1920,24 @@ function AssessmentFormDialog({
                     </SelectContent>
                   </Select>
                 )}
+
+                <div className="space-y-1.5 pt-2">
+                  <Label htmlFor="weekNo" className="text-xs sm:text-sm">Week Number *</Label>
+                  <Input
+                    id="weekNo"
+                    type="number"
+                    min={1}
+                    max={30}
+                    placeholder="e.g. 1, 2, 3..."
+                    value={weekNo}
+                    onChange={(e) => setWeekNo(e.target.value)}
+                    className="text-xs sm:text-sm"
+                    required
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Links this assessment directly to the corresponding week in reports.
+                  </p>
+                </div>
               </div>
             )}
 

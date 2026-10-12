@@ -48,46 +48,53 @@ export async function getOverallLabAssessmentReportData(labId: string, branch: s
     members.forEach((m: any) => userGroupMap.set(m.userId, m.group.name));
   }
 
-    // 4. Get all exams for this Lab, chronologically sorted
+  // 4. Get all exams for this Lab, sorted by weekNo and createdAt
   const allLabExams = await db.query.exams.findMany({
     where: and(
       eq(exams.labId, labId),
       eq(exams.assessmentType, "lab_assessment")
     ),
-    orderBy: [asc(exams.createdAt)],
+    orderBy: [asc(exams.weekNo), asc(exams.createdAt)],
     with: { groups: true }
   });
+
+  // Filter exams that are actually assigned to the selected groups, sorted by weekNo
+  const relevantExams = allLabExams
+    .filter(exam => {
+      if (branch === "all") return true; // Show all exams if "all branches" is selected
+      // Check if exam is assigned to any of our target groups
+      return exam.groups.some((g: any) => targetGroupIds.includes(g.groupId));
+    })
+    .sort((a, b) => {
+      if (a.weekNo && b.weekNo) return a.weekNo - b.weekNo;
+      if (a.weekNo) return -1;
+      if (b.weekNo) return 1;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
 
   if (studentIds.length === 0) {
     return { 
       success: true, 
       data: { 
         lab, 
-        exams: relevantExams.map(e => ({ id: e.id, title: e.title, totalMarks: (e.gradingConfig as any)?.totalMarks || 100 })), 
+        exams: relevantExams.map(e => ({ id: e.id, title: e.title, weekNo: e.weekNo, totalMarks: (e.gradingConfig as any)?.totalMarks || 100 })), 
         studentRows: [] 
       } 
     };
   }
 
-  // Filter exams that are actually assigned to the selected groups
-  const relevantExams = allLabExams.filter(exam => {
-    if (branch === "all") return true; // Show all exams if "all branches" is selected
-    
-    // Check if exam is assigned to any of our target groups
-    return exam.groups.some((g: any) => targetGroupIds.includes(g.groupId));
-  });
-
-  
-
   const examIds = relevantExams.map(e => e.id);
 
   // 5. Get assignments
-  const assignments = await db.query.examAssignments.findMany({
-    where: and(
-      inArray(examAssignments.examId, examIds),
-      inArray(examAssignments.userId, studentIds)
-    )
-  });
+  let assignments: any[] = [];
+  if (examIds.length > 0) {
+    assignments = await db.query.examAssignments.findMany({
+      where: and(
+        inArray(examAssignments.examId, examIds),
+        inArray(examAssignments.userId, studentIds)
+      )
+    });
+  }
 
   // 6. Get student details
   const students = await db.select({
@@ -111,17 +118,17 @@ export async function getOverallLabAssessmentReportData(labId: string, branch: s
     const scores: Record<string, number | null> = {};
     
     relevantExams.forEach(exam => {
-      // Find if student was assigned this exam
+      // Find if student was assigned this exam AND actually attempted/completed it
       const assignment = studentAssignments.find((a: any) => a.examId === exam.id);
       
-      const configTotalMarks = (exam.gradingConfig as any)?.totalMarks || 100;
+      const configTotalMarks = (e: any) => (e.gradingConfig as any)?.totalMarks || 100;
       
-      if (assignment) {
+      if (assignment && (assignment.status === "completed" || assignment.status === "in_progress")) {
         scores[exam.id] = assignment.score || 0;
         totalScore += assignment.score || 0;
-        maxPossibleScore += configTotalMarks;
+        maxPossibleScore += configTotalMarks(exam);
       } else {
-        scores[exam.id] = null; // Did not take / not assigned
+        scores[exam.id] = null; // Did not take / not assigned / not started yet
       }
     });
 
@@ -146,13 +153,8 @@ export async function getOverallLabAssessmentReportData(labId: string, branch: s
     success: true, 
     data: { 
       lab, 
-      exams: relevantExams.map(e => ({ id: e.id, title: e.title, totalMarks: (e.gradingConfig as any)?.totalMarks || 100 })), 
+      exams: relevantExams.map(e => ({ id: e.id, title: e.title, weekNo: e.weekNo, totalMarks: (e.gradingConfig as any)?.totalMarks || 100 })), 
       studentRows 
     } 
   };
 }
-
-
-
-
-

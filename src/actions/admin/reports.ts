@@ -98,20 +98,25 @@ export async function getLabReportData(labId: string) {
   const exerciseNoMap = new Map(lab.exercises.map((e) => [e.id, e.exerciseNo]));
   const weekNos = lab.exercises.map((e) => e.exerciseNo).sort((a, b) => a - b);
 
-  // Build per-student per-week marks: userId → { weekNo: marks }
-  const marksMap = new Map<string, Map<number, number>>();
+  // Build per-student per-week marks: userId → { weekNo: { total, impl, writeUp, viva } }
+  const marksMap = new Map<string, Map<number, { total: number; impl: number; writeUp: number; viva: number }>>();
   for (const m of allMarks) {
     const weekNo = exerciseNoMap.get(m.exerciseId);
     if (weekNo === undefined) continue;
     if (!marksMap.has(m.userId)) marksMap.set(m.userId, new Map());
-    marksMap.get(m.userId)!.set(weekNo, parseFloat(m.marks ?? "0"));
+    marksMap.get(m.userId)!.set(weekNo, {
+      total: parseFloat(m.marks ?? "0"),
+      impl: parseFloat(m.implementationMarks ?? "0"),
+      writeUp: parseFloat(m.writeUpMarks ?? "0"),
+      viva: parseFloat(m.vivaMarks ?? "0"),
+    });
   }
 
   // Build student rows
   const studentRows = studentIds.map((uid) => {
     const s = studentMap.get(uid);
     const weekMarks = marksMap.get(uid) ?? new Map();
-    const weekScores: Record<number, { total: number, impl: number, writeUp: number, viva: number }> = {};
+    const weekScores: Record<number, { total: number; impl: number; writeUp: number; viva: number }> = {};
     let total = 0;
     for (const wk of weekNos) {
       const score = weekMarks.get(wk) ?? { total: 0, impl: 0, writeUp: 0, viva: 0 };

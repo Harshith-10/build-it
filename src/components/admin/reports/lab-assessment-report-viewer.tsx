@@ -90,7 +90,7 @@ export function LabAssessmentReportViewer({
     const isSingleWeek = selectedWeek && selectedWeek !== "all";
     const headers = [
       "S.No", "Roll No", "Name",
-      ...visibleExams.map((_, i) => isSingleWeek ? `Week ${examCols.indexOf(visibleExams[0]) + 1}` : `Week ${i + 1}`),
+      ...visibleExams.map((e) => `Week ${e.weekNo ?? (examCols.indexOf(e) + 1)}`),
       ...(isSingleWeek ? [] : ["Overall Total", "Percentage"]),
     ];
     const rows = filteredRows.map((s, i) => [
@@ -150,7 +150,7 @@ export function LabAssessmentReportViewer({
               }
             </SelectTrigger>
             <SelectContent>
-              {examCols.map((e, i) => <SelectItem key={e.id} value={e.id}>Week {i + 1}</SelectItem>)}
+              {examCols.map((e, i) => <SelectItem key={e.id} value={e.id}>Week {e.weekNo ?? (i + 1)}</SelectItem>)}
               <SelectItem value="all">All Weeks</SelectItem>
             </SelectContent>
           </Select>
@@ -212,8 +212,7 @@ export function LabAssessmentReportViewer({
                   <TableHead className="w-1/3">Name</TableHead>
                   {visibleExams.map((e, i) => (
                     <TableHead key={e.id} className="text-center whitespace-nowrap w-1/4">
-                      Week {examCols.indexOf(e) + 1}
-                      
+                      Week {e.weekNo ?? (examCols.indexOf(e) + 1)}
                     </TableHead>
                   ))}
                   {(!selectedWeek || selectedWeek === "all") && (

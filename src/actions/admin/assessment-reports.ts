@@ -1,6 +1,4 @@
-"use server";
-
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { exams } from "@/db/schema/exams";
 import { examAssignments } from "@/db/schema/assignments";
@@ -10,18 +8,15 @@ import { requireAdmin } from "@/lib/auth-access";
 
 export async function getAssessmentsForReports() {
   await requireAdmin();
-  return db.query.exams.findMany({
-    orderBy: (e, { desc }) => [desc(e.createdAt)],
-    with: { 
-      department: true,
-      lab: true,
-      groups: {
-        with: {
-          group: true
-        }
-      }
-    },
-  });
+  const cdcCount = await db.query.exams.findMany({ where: eq(exams.assessmentType, "coding_assessment") });
+  const aatCount = await db.query.exams.findMany({ where: eq(exams.assessmentType, "aat") });
+  const labCount = await db.query.exams.findMany({ where: eq(exams.assessmentType, "lab_assessment") });
+
+  return {
+    cdc: cdcCount.length,
+    aat: aatCount.length,
+    lab: labCount.length,
+  };
 }
 
 export async function getAssessmentReportData(examId: string) {
@@ -130,6 +125,11 @@ export async function getAggregatedCDCReport(semester: string) {
         eq(e.assessmentType, "coding_assessment"),
         eq(e.semester, semester)
       ),
+    with: {
+      groups: {
+        with: { group: true }
+      }
+    },
     orderBy: (e, { asc }) => [asc(e.startTime)],
   });
 
@@ -144,8 +144,14 @@ export async function getAggregatedCDCReport(semester: string) {
     where: inArray(examAssignments.examId, examIds),
   });
 
-  if (allAssignments.length === 0) {
-    return { success: false as const, error: "No student data available yet" };
+  if (allAssignments.length === 0) { 
+    return { 
+      success: true as const, 
+      data: { 
+        exams: semesterExams.map(e => ({ ...e, totalMarks: (e.gradingConfig as any)?.totalMarks || 100, assignedBatches: e.groups.map(g => g.group?.name || "") })), 
+        studentRows: [] 
+      } 
+    }; 
   }
 
   const studentIds = Array.from(new Set(allAssignments.map(a => a.userId)));
@@ -193,8 +199,11 @@ export async function getAggregatedCDCReport(semester: string) {
     const scores: Record<string, number> = {};
     
     studentAssignments.forEach(a => {
-      scores[a.examId] = a.score || 0;
-      totalScore += a.score || 0;
+      // ONLY count assignments that were actually attempted/completed
+      if (a.status === "completed" || a.status === "in_progress") {
+        scores[a.examId] = a.score || 0;
+        totalScore += a.score || 0;
+      }
     });
 
     return {
@@ -216,11 +225,13 @@ export async function getAggregatedCDCReport(semester: string) {
       exams: semesterExams.map(e => ({
         ...e,
         totalMarks: (e.gradingConfig as any)?.totalMarks || 100,
+        assignedBatches: e.groups.map(g => g.group?.name || "")
       })),
       studentRows,
     },
   };
 }
+
 export async function getAggregatedAATReport(semester: string) {
   await requireAdmin();
 
@@ -231,6 +242,11 @@ export async function getAggregatedAATReport(semester: string) {
         eq(e.assessmentType, "aat"),
         eq(e.semester, semester)
       ),
+    with: {
+      groups: {
+        with: { group: true }
+      }
+    },
     orderBy: (e, { asc }) => [asc(e.startTime)],
   });
 
@@ -247,7 +263,7 @@ export async function getAggregatedAATReport(semester: string) {
 
   const studentIds = Array.from(new Set(allAssignments.map(a => a.userId)));
   if (studentIds.length === 0) {
-    return { success: true as const, data: { exams: semesterExams, studentRows: [] } };
+    return { success: true as const, data: { exams: semesterExams.map(e => ({ ...e, totalMarks: (e.gradingConfig as any)?.totalMarks || 100, assignedBatches: e.groups.map(g => g.group?.name || "") })), studentRows: [] } };
   }
 
   // 3. Get student details
@@ -284,29 +300,21 @@ export async function getAggregatedAATReport(semester: string) {
     }
   }
 
-  // 5. Get marks
-  const allMarks = await db.query.examSubmissions.findMany({
-    where: (s, { inArray }) => inArray(s.examId, examIds),
-  });
-
-  const marksMap = new Map<string, Map<string, number>>();
-  for (const m of allMarks) {
-    if (!marksMap.has(m.userId)) marksMap.set(m.userId, new Map());
-    marksMap.get(m.userId)!.set(m.examId, parseFloat(m.totalMarks?.toString() ?? "0"));
-  }
-
-  // 6. Build rows
+  // 6. Build rows (Fixing the invalid 'examSubmissions' reference, using assignments instead)
   const studentRows = studentIds.map(uid => {
     const s = studentMap.get(uid);
-    const mMap = marksMap.get(uid) ?? new Map();
+    const studentAssignments = allAssignments.filter(a => a.userId === uid);
+    
     let totalScore = 0;
     const scores: Record<string, number> = {};
     
-    for (const ex of semesterExams) {
-      const mark = mMap.get(ex.id) ?? 0;
-      scores[ex.id] = mark;
-      totalScore += mark;
-    }
+    studentAssignments.forEach(a => {
+      // ONLY count assignments that were actually attempted/completed
+      if (a.status === "completed" || a.status === "in_progress") {
+        scores[a.examId] = a.score || 0;
+        totalScore += a.score || 0;
+      }
+    });
 
     return {
       userId: uid,
@@ -324,7 +332,11 @@ export async function getAggregatedAATReport(semester: string) {
   return {
     success: true as const,
     data: {
-      exams: semesterExams,
+      exams: semesterExams.map(e => ({
+        ...e,
+        totalMarks: (e.gradingConfig as any)?.totalMarks || 100,
+        assignedBatches: e.groups.map(g => g.group?.name || "")
+      })),
       studentRows,
     },
   };
