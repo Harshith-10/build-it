@@ -1,9 +1,19 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye, MoreHorizontal, Pencil, Trash2, Users } from "lucide-react";
+import {
+  ClipboardCheck,
+  Eye,
+  FileSpreadsheet,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { exportExamRankingsToExcel } from "@/actions/admin/exams";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -149,6 +159,39 @@ export const createColumns = (
       const exam = row.original;
       const canManage = exam.canManage ?? true;
       const router = useRouter();
+
+      const handleGetResults = async () => {
+        const toastId = toast.loading("Generating rankings Excel...");
+        try {
+          const res = await exportExamRankingsToExcel(exam.id);
+          if (!res.success || !res.base64) {
+            toast.error(res.error || "Failed to generate results", { id: toastId });
+            return;
+          }
+
+          const byteCharacters = atob(res.base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = res.filename || "Exam_Rankings.xlsx";
+          link.click();
+          URL.revokeObjectURL(url);
+          toast.success("Exam results downloaded successfully!", { id: toastId });
+        } catch (error) {
+          console.error("Failed to download results", error);
+          toast.error("Failed to download results", { id: toastId });
+        }
+      };
+
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -166,6 +209,16 @@ export const createColumns = (
                 </Link>
               </DropdownMenuItem>
             )}
+            {basePath === "/faculty" && (
+              <DropdownMenuItem
+                onClick={() =>
+                  router.push(`${basePath}/exams/${exam.id}/attendance`)
+                }
+              >
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Attendance
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={() =>
                 router.push(`${basePath}/exams/${exam.id}/submissions`)
@@ -173,6 +226,10 @@ export const createColumns = (
             >
               <Users className="w-4 h-4 mr-2" />
               View Submissions
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleGetResults}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Get Results
             </DropdownMenuItem>
 
             {canManage && (

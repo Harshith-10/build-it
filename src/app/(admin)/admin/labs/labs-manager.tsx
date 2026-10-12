@@ -505,7 +505,7 @@ export function LabsManager() {
               : "hover:text-foreground transition-colors"
           }
         >
-          Labs
+          Laboratory
         </button>
         {selectedLab && (
           <>
@@ -522,7 +522,7 @@ export function LabsManager() {
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {labs.length} lab{labs.length !== 1 ? "s" : ""} configured
+              {labs.length} laborator{labs.length !== 1 ? "ies" : "y"} configured
             </p>
             <Button
               size="sm"
@@ -794,6 +794,7 @@ export function LabsManager() {
           onSaved={() => fetchExercises(selectedLab.id)}
           labId={selectedLab.id}
           initial={editingExercise}
+          defaultExerciseNo={exercises.length + 1}
           onUpdateExercise={async (data) => {
             return data.id
               ? await updateExercise({

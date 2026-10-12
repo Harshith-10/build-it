@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { user } from "@/db/schema/auth";
-import { examModerators, exams } from "@/db/schema/exams";
+import { examGroupFaculty, examModerators, exams } from "@/db/schema/exams";
 import { departmentUsers } from "@/db/schema/departments";
 import { exerciseGroups } from "@/db/schema/labs";
 import { userGroupMembers } from "@/db/schema/groups";
@@ -169,6 +169,7 @@ export async function ensureExamReadAccess(examId: string) {
       permissions: undefined,
       isOwner: false,
       isModerator: false,
+      isAssignedFaculty: false,
       userDepartmentId,
       examRecord: null,
     };
@@ -182,6 +183,7 @@ export async function ensureExamReadAccess(examId: string) {
       permissions: undefined,
       isOwner: true,
       isModerator: false,
+      isAssignedFaculty: false,
       userDepartmentId,
       examRecord,
     };
@@ -202,6 +204,7 @@ export async function ensureExamReadAccess(examId: string) {
       permissions,
       isOwner: true,
       isModerator: false,
+      isAssignedFaculty: false,
       userDepartmentId,
       examRecord,
     };
@@ -217,7 +220,17 @@ export async function ensureExamReadAccess(examId: string) {
     },
   });
 
-  if (!moderatorLink) {
+  const groupFacultyLink = await db.query.examGroupFaculty.findFirst({
+    where: and(
+      eq(examGroupFaculty.examId, examId),
+      eq(examGroupFaculty.facultyId, session.user.id),
+    ),
+    columns: {
+      examId: true,
+    },
+  });
+
+  if (!moderatorLink && !groupFacultyLink) {
     throw new Error("Forbidden: missing exam access");
   }
 
@@ -227,7 +240,8 @@ export async function ensureExamReadAccess(examId: string) {
     isFaculty: true,
     permissions,
     isOwner: false,
-    isModerator: true,
+    isModerator: !!moderatorLink,
+    isAssignedFaculty: !!groupFacultyLink,
     userDepartmentId,
     examRecord,
   };

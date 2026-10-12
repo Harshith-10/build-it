@@ -6,3 +6,5 @@ export * from "./labs";
 export * from "./question-collections";
 export * from "./questions";
 export * from "./departments";
+export * from "./tickets";
+export * from "./analytics";

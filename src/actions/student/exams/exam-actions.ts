@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import {
   examAssignments,
+  examAttendance,
   examCollections,
   examGroups,
   questions,
@@ -22,6 +23,13 @@ export async function initializeExamSession(examId: string, pin?: string) {
 
   if (!session?.user) {
     redirect("/auth/sign-in");
+  }
+
+  if (session.user.role !== "student") {
+    return {
+      success: false,
+      error: "Only students are authorized to attempt assessments.",
+    };
   }
 
   const userId = session.user.id;
@@ -99,15 +107,32 @@ export async function initializeExamSession(examId: string, pin?: string) {
       );
     }
 
+    // 3. Attendance Lockout Check
+    if (activeSlot.exam.attendancePosted) {
+      const attendance = await db.query.examAttendance.findFirst({
+        where: and(
+          eq(examAttendance.examId, examId),
+          eq(examAttendance.userId, userId),
+        ),
+      });
+
+      if (attendance && !attendance.present) {
+        return {
+          success: false,
+          error: "Attendance Lockout: You have been marked absent for this exam. You cannot attempt this exam.",
+        };
+      }
+    }
+
     // PIN Validation
-    if (activeSlot.exam.requiresPin) {
+    if (activeSlot.pin) {
       if (!pin) {
         return {
           success: false,
           error: "Exam PIN is required.",
         };
       }
-      if (activeSlot.pin !== pin) {
+      if (activeSlot.pin !== pin.trim()) {
         return {
           success: false,
           error: "Invalid Exam PIN. Please check with your proctor.",
@@ -126,7 +151,7 @@ export async function initializeExamSession(examId: string, pin?: string) {
       strategyConfig,
     );
 
-    if (questionIds.length < 3) {
+    if (questionIds.length === 0) {
       throw new Error(
         "System Error: Not enough questions in the bank to generate an exam.",
       );

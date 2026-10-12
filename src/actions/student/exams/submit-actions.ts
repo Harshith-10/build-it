@@ -4,7 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import type { GradingConfigMap } from "@/db/schema";
+import { type GradingConfigMap, examAttendance } from "@/db/schema";
 import { examAssignments, submissions } from "@/db/schema/assignments";
 import { questions, testCases } from "@/db/schema/questions";
 import { auth } from "@/lib/auth";
@@ -74,6 +74,21 @@ export async function submitQuestion(
 
     if (assignment.status === "completed") {
       return { success: false, error: "Exam is already completed" };
+    }
+
+    if (assignment.exam.attendancePosted) {
+      const attendance = await db.query.examAttendance.findFirst({
+        where: and(
+          eq(examAttendance.examId, assignment.examId),
+          eq(examAttendance.userId, session.user.id),
+        ),
+      });
+      if (attendance && !attendance.present) {
+        return {
+          success: false,
+          error: "Attendance Lockout: You have been marked absent for this exam.",
+        };
+      }
     }
 
     const timing = buildExamTimingSnapshot({

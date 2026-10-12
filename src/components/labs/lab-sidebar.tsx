@@ -22,6 +22,11 @@ interface LabSidebarProps {
   activeId: string | null;
   onSelect: (id: string) => void;
   solvedIds: string[];
+  vivaQuestionsCount?: number;
+  activeVivaIndex?: number | null;
+  onSelectViva?: (index: number) => void;
+  vivaAnsweredCount?: number;
+  vivaAnsweredIndices?: number[];
 }
 
 export function LabSidebar({
@@ -31,6 +36,11 @@ export function LabSidebar({
   activeId,
   onSelect,
   solvedIds,
+  vivaQuestionsCount = 0,
+  activeVivaIndex = null,
+  onSelectViva,
+  vivaAnsweredCount = 0,
+  vivaAnsweredIndices = [],
 }: LabSidebarProps) {
   return (
     <Sidebar collapsible="icon">
@@ -61,7 +71,7 @@ export function LabSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {programs.map((p) => {
-                const isActive = activeId === p.id;
+                const isActive = activeId === p.id && activeVivaIndex === null;
                 const isSolved = solvedIds.includes(p.id);
 
                 return (
@@ -86,6 +96,49 @@ export function LabSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {vivaQuestionsCount > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="flex items-center justify-between">
+              <span>Viva Voce</span>
+              <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">
+                {vivaAnsweredCount}/{vivaQuestionsCount}
+              </span>
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {Array.from({ length: vivaQuestionsCount }).map((_, idx) => {
+                  const isActive = activeVivaIndex === idx;
+                  const isAnswered = vivaAnsweredIndices.includes(idx);
+
+                  return (
+                    <SidebarMenuItem key={`viva-${idx}`}>
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        onClick={() => onSelectViva?.(idx)}
+                        tooltip={`Viva Question ${idx + 1}`}
+                        className={
+                          isActive
+                            ? "bg-purple-500/15 text-purple-600 dark:text-purple-400 font-medium"
+                            : ""
+                        }
+                      >
+                        {isAnswered ? (
+                          <CheckCircle2 className="text-green-500 shrink-0 size-3.5" />
+                        ) : (
+                          <Circle className="text-purple-500/70 shrink-0 size-3.5" />
+                        )}
+                        <span className="flex-1 truncate">
+                          Viva Question {idx + 1}
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

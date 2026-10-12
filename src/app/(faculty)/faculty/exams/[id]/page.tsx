@@ -1,7 +1,10 @@
+import { ClipboardCheck, Pencil, Users } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getExam } from "@/actions/admin/exams";
 import { PageHeader } from "@/components/admin/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -72,6 +75,30 @@ export default async function FacultyExamDetailsPage({
           exam.isModerator
             ? "Read-only moderator view"
             : "Exam details and assignments"
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href={`/faculty/exams/${id}/attendance`}>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <ClipboardCheck className="h-4 w-4" />
+                Attendance
+              </Button>
+            </Link>
+            <Link href={`/faculty/exams/${id}/submissions`}>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Users className="h-4 w-4" />
+                Submissions
+              </Button>
+            </Link>
+            {exam.canManage && (
+              <Link href={`/faculty/exams/${id}/edit`}>
+                <Button size="sm" className="gap-1.5">
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Button>
+              </Link>
+            )}
+          </div>
         }
       />
 
@@ -181,6 +208,24 @@ export default async function FacultyExamDetailsPage({
                     <div className="md:col-span-2">
                       <p className="text-muted-foreground">PIN</p>
                       <p className="font-mono">{groupLink.pin || "-"}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-muted-foreground text-xs mb-1">
+                        Assigned Faculty
+                      </p>
+                      {groupLink.facultyList && groupLink.facultyList.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {groupLink.facultyList.map((f) => (
+                            <Badge key={f.id} variant="outline" className="text-xs">
+                              {f.name || f.email}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">
+                          No faculty assigned
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

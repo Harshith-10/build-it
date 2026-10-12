@@ -14,7 +14,7 @@ import {
 import { LocalDateTimeText } from "@/components/ui/local-date-time-text";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { db } from "@/db";
-import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
+import { examAssignments, examGroups, userGroupMembers, exams } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { getExamQuestionCount } from "@/lib/exam";
 import { ExamCardAction } from "./exam-card-action";
@@ -55,6 +55,7 @@ export default async function ExamsPage() {
   const userGroupIds = memberships.map((membership) => membership.groupId);
 
   const allExams = await db.query.exams.findMany({
+    where: eq(exams.assessmentType, "exam"),
     orderBy: (exams, { asc }) => [asc(exams.startTime)],
     with: {
       groups: {
@@ -128,7 +129,7 @@ export default async function ExamsPage() {
     <div className="flex flex-1 flex-col gap-6 min-h-0 w-full">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Exams</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Examinations</h2>
           <p className="text-muted-foreground">
             View upcoming and active exams assigned to you.
           </p>

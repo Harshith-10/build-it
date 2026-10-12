@@ -8,12 +8,14 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { userGroups } from "./groups";
 import { examCollections } from "./question-collections";
 import { departments } from "./departments";
+import { labs } from "./labs";
 
 export const examStatusEnum = pgEnum("exam_status", [
   "upcoming",
@@ -87,6 +89,13 @@ export const exams = pgTable("exams", {
   departmentId: uuid("department_id").references(() => departments.id, {
     onDelete: "set null",
   }),
+  labId: uuid("lab_id").references(() => labs.id, {
+    onDelete: "set null",
+  }),
+  assessmentType: text("assessment_type")
+    .$type<"exam" | "lab_assessment" | "coding_assessment">()
+    .default("exam")
+    .notNull(),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),
@@ -105,6 +114,7 @@ export const exams = pgTable("exams", {
   strategyConfig: json("strategy_config").$type<StrategyConfig>(),
   gradingConfig:
     json("grading_config").$type<GradingConfigMap[keyof GradingConfigMap]>(),
+  attendancePosted: boolean("attendance_posted").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -126,6 +136,24 @@ export const examGroups = pgTable("exam_groups", {
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
 });
 
+// ─── Exam Attendance ─────────────────────────────────────────────────────────
+
+export const examAttendance = pgTable(
+  "exam_attendance",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    present: boolean("present").notNull().default(false),
+    markedAt: timestamp("marked_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.examId, t.userId)],
+);
+
 export const examModerators = pgTable(
   "exam_moderators",
   {
@@ -141,10 +169,37 @@ export const examModerators = pgTable(
   (t) => [primaryKey({ columns: [t.examId, t.userId] })],
 );
 
-export const examsRelations = relations(exams, ({ many }) => ({
+// ─── Exam Group Faculty ──────────────────────────────────────────────────────
+// Maps which faculty member(s) handle a specific exam for a specific group/section.
+
+export const examGroupFaculty = pgTable(
+  "exam_group_faculty",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => userGroups.id, { onDelete: "cascade" }),
+    facultyId: text("faculty_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.examId, t.groupId, t.facultyId)],
+);
+
+export const examsRelations = relations(exams, ({ many, one }) => ({
+  lab: one(labs, {
+    fields: [exams.labId],
+    references: [labs.id],
+  }),
   groups: many(examGroups),
+  groupFaculty: many(examGroupFaculty),
   collections: many(examCollections),
   moderators: many(examModerators),
+  attendance: many(examAttendance),
 }));
 
 export const examGroupsRelations = relations(examGroups, ({ one }) => ({
@@ -158,6 +213,24 @@ export const examGroupsRelations = relations(examGroups, ({ one }) => ({
   }),
 }));
 
+export const examGroupFacultyRelations = relations(
+  examGroupFaculty,
+  ({ one }) => ({
+    exam: one(exams, {
+      fields: [examGroupFaculty.examId],
+      references: [exams.id],
+    }),
+    group: one(userGroups, {
+      fields: [examGroupFaculty.groupId],
+      references: [userGroups.id],
+    }),
+    faculty: one(user, {
+      fields: [examGroupFaculty.facultyId],
+      references: [user.id],
+    }),
+  }),
+);
+
 export const examModeratorsRelations = relations(examModerators, ({ one }) => ({
   exam: one(exams, {
     fields: [examModerators.examId],
@@ -165,6 +238,17 @@ export const examModeratorsRelations = relations(examModerators, ({ one }) => ({
   }),
   user: one(user, {
     fields: [examModerators.userId],
+    references: [user.id],
+  }),
+}));
+
+export const examAttendanceRelations = relations(examAttendance, ({ one }) => ({
+  exam: one(exams, {
+    fields: [examAttendance.examId],
+    references: [exams.id],
+  }),
+  user: one(user, {
+    fields: [examAttendance.userId],
     references: [user.id],
   }),
 }));

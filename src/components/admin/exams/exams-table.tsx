@@ -1,7 +1,7 @@
 "use client";
 
-import { GraduationCap } from "lucide-react";
-import { Suspense } from "react";
+import { GraduationCap, Loader2 } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
 import { deleteExam, getExams } from "@/actions/admin/exams";
 import { AdminEntityTable } from "@/components/admin/admin-entity-table";
 import type { EntityTableConfig } from "@/hooks/use-entity-table-vm";
@@ -21,6 +21,20 @@ const examsConfig: EntityTableConfig<Exam> = {
 };
 
 export function ExamsTableContent() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <AdminEntityTable
       config={examsConfig}
@@ -41,6 +55,20 @@ export function ExamsTableContent() {
 }
 
 export function ExamsTableContentForPath({ basePath }: { basePath: string }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <AdminEntityTable
       config={examsConfig}

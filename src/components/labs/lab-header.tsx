@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, LogOut } from "lucide-react";
 import Link from "next/link";
 import { SidebarTrigger } from "@/components/animate-ui/components/radix/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -48,14 +48,15 @@ export function LabHeader({
 
       {/* Right */}
       <div className="flex items-center gap-3">
-        {/* ✅ Submit Exercise Button */}
+        {/* End Laboratory Button */}
         <Button
+          variant="destructive"
           size="sm"
           onClick={onSubmit}
-          className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+          className="gap-2"
         >
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Submit Exercise
+          <LogOut className="h-4 w-4" />
+          <span className="hidden sm:inline">End Laboratory</span>
         </Button>
 
         <div className="h-5 w-px bg-border" />

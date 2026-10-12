@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 
 // Regex to extract email addresses from any text
@@ -143,122 +142,151 @@ export function BulkGroupDialog() {
           <Sparkles className="mr-2 h-4 w-4" /> Quick Import
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Quick Group Import
-          </DialogTitle>
-          <DialogDescription>
-            Paste a list of email addresses to quickly create a group. Emails
-            will be automatically extracted from the text.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4 py-2">
-          {/* Group Name */}
-          <div className="grid gap-2">
-            <Label htmlFor="bulk-group-name">Group Name *</Label>
-            <Input
-              id="bulk-group-name"
-              placeholder="e.g. Section A — Batch 2025"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {/* Description */}
-          <div className="grid gap-2">
-            <Label htmlFor="bulk-group-desc">Description</Label>
-            <Input
-              id="bulk-group-desc"
-              placeholder="Optional description for this group"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {/* Email Textarea */}
-          <div className="grid gap-2">
-            <Label
-              htmlFor="bulk-group-emails"
-              className="flex items-center gap-2"
-            >
-              <Mail className="h-4 w-4" />
-              Paste Emails
-            </Label>
-            <Textarea
-              id="bulk-group-emails"
-              placeholder={`Paste email addresses here — they'll be extracted automatically.\n\nExample:\n24955A0103@iare.ac.in\n24955A0104@iare.ac.in\n23951A04N3@iare.ac.in`}
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              disabled={isSubmitting}
-              className="min-h-[140px] font-mono text-sm"
-            />
-          </div>
-
-          {/* Extracted Preview */}
-          {extractedEmails.length > 0 && (
-            <div className="grid gap-2">
-              <Label className="text-muted-foreground">
-                {extractedEmails.length} email
-                {extractedEmails.length !== 1 ? "s" : ""} detected
-              </Label>
-              <ScrollArea className="max-h-[140px] rounded-md border p-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {extractedEmails.map((email) => (
-                    <Badge
-                      key={email}
-                      variant="secondary"
-                      className="gap-1 pr-1 font-mono text-xs"
-                    >
-                      {email}
-                      <button
-                        type="button"
-                        onClick={() => removeEmail(email)}
-                        className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
-                        disabled={isSubmitting}
-                      >
-                        <X className="h-3 w-3" />
-                        <span className="sr-only">Remove {email}</span>
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
-          )}
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
+        {/* Fixed header */}
+        <div className="px-5 pt-5 pb-3 shrink-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Quick Group Import
+            </DialogTitle>
+            <DialogDescription>
+              Paste a list of email addresses to quickly create a group. Emails
+              will be automatically extracted from the text.
+            </DialogDescription>
+          </DialogHeader>
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => setOpen(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={
-              isSubmitting || !name.trim() || extractedEmails.length === 0
-            }
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating…
-              </>
-            ) : (
-              <>
-                <Users className="mr-2 h-4 w-4" />
-                Create Group ({extractedEmails.length})
-              </>
+        {/* Scrollable form body */}
+        <div className="px-5 overflow-y-auto flex-1 min-h-0">
+          <div className="grid gap-3 pb-3">
+            {/* Group Name */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="bulk-group-name">Group Name *</Label>
+              <Input
+                id="bulk-group-name"
+                placeholder="e.g. Section A — Batch 2025"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {/* Description */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="bulk-group-desc">Description</Label>
+              <Input
+                id="bulk-group-desc"
+                placeholder="Optional description for this group"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {/* Email Textarea */}
+            <div className="grid gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="bulk-group-emails"
+                  className="flex items-center gap-2"
+                >
+                  <Mail className="h-4 w-4" />
+                  Paste Emails
+                </Label>
+                {rawText && (
+                  <button
+                    type="button"
+                    onClick={() => setRawText("")}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Clear text
+                  </button>
+                )}
+              </div>
+              <Textarea
+                id="bulk-group-emails"
+                placeholder={`Paste email addresses here — they'll be extracted automatically.\n\nExample:\n24955A0103@iare.ac.in\n24955A0104@iare.ac.in\n23951A04N3@iare.ac.in`}
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                disabled={isSubmitting}
+                className="h-28 resize-y font-mono text-sm"
+              />
+            </div>
+
+            {/* Extracted Preview */}
+            {extractedEmails.length > 0 && (
+              <div className="grid gap-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-muted-foreground text-xs font-medium">
+                    {extractedEmails.length} email
+                    {extractedEmails.length !== 1 ? "s" : ""} detected
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setRawText("")}
+                    className="text-xs text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                  >
+                    Remove all
+                  </button>
+                </div>
+                <div className="max-h-36 overflow-y-auto rounded-md border p-2.5 bg-muted/20">
+                  <div className="flex flex-wrap gap-1.5">
+                    {extractedEmails.map((email) => (
+                      <Badge
+                        key={email}
+                        variant="secondary"
+                        className="gap-1 pr-1 font-mono text-xs"
+                      >
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => removeEmail(email)}
+                          className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors cursor-pointer"
+                          disabled={isSubmitting}
+                        >
+                          <X className="h-3 w-3" />
+                          <span className="sr-only">Remove {email}</span>
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
-          </Button>
-        </DialogFooter>
+          </div>
+        </div>
+
+        {/* Fixed footer — always visible, never scrolls */}
+        <div className="px-5 py-4 shrink-0 border-t">
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={
+                isSubmitting || !name.trim() || extractedEmails.length === 0
+              }
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                <>
+                  <Users className="mr-2 h-4 w-4" />
+                  Create Group ({extractedEmails.length})
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

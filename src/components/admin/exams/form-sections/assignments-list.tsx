@@ -25,13 +25,26 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { ExamFormInput, ExamFormValues } from "../exam-form";
 import type { Group } from "../group-selection-dialog";
+import { FacultySelect } from "./faculty-select";
+
+export type FacultyOption = {
+  id: string;
+  name: string | null;
+  email: string;
+  username: string | null;
+};
 
 interface AssignmentsListProps {
   form: UseFormReturn<ExamFormInput, unknown, ExamFormValues>;
   fieldArray: UseFieldArrayReturn<ExamFormInput, "assignments", "id">;
+  availableFaculty?: FacultyOption[];
 }
 
-export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
+export function AssignmentsList({
+  form,
+  fieldArray,
+  availableFaculty = [],
+}: AssignmentsListProps) {
   const { fields, append, remove } = fieldArray;
   const [openDialog, setOpenDialog] = useState(false);
   const [masterPinEnabled, setMasterPinEnabled] = useState(false);
@@ -60,6 +73,7 @@ export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
           groupName: group.name,
           requiresPin: masterPinEnabled,
           pinCode: masterPinEnabled ? generatePin() : null,
+          facultyIds: [],
         });
       }
     });
@@ -104,96 +118,142 @@ export function AssignmentsList({ form, fieldArray }: AssignmentsListProps) {
             </Label>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {fields.map((field, index) => (
-              <Card key={field.id} className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-semibold text-2xl">{field.groupName}</h4>
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-col gap-4">
-                  <FormField
-                    control={form.control}
-                    name={`assignments.${index}.startTime`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">
-                          Override Start
-                        </FormLabel>
-                        <DateTimePicker
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          placeholder="Same as exam"
-                        />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`assignments.${index}.endTime`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Override End</FormLabel>
-                        <DateTimePicker
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          placeholder="Same as exam"
-                        />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`assignments.${index}.requiresPin`}
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2 mt-4">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={(checked) => {
-                              field.onChange(checked);
-                              if (checked) {
-                                form.setValue(
-                                  `assignments.${index}.pinCode`,
-                                  generatePin(),
-                                );
-                              }
-                            }}
-                            disabled={masterPinEnabled}
-                          />
-                        </FormControl>
-                        <FormLabel className="font-normal">
-                          Requires PIN
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  {form.watch(`assignments.${index}.requiresPin`) && (
+              <Card key={field.id} className="p-4 flex flex-col justify-between overflow-hidden">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-semibold text-2xl">{field.groupName}</h4>
+                    <Button
+                      variant="destructive"
+                      size="icon-sm"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-col gap-4">
                     <FormField
                       control={form.control}
-                      name={`assignments.${index}.pinCode`}
+                      name={`assignments.${index}.startTime`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">PIN Code</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value || ""}
-                              readOnly
-                              className="font-mono bg-muted"
-                              disabled
-                            />
-                          </FormControl>
+                          <FormLabel className="text-xs">
+                            Override Start
+                          </FormLabel>
+                          <DateTimePicker
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Same as exam"
+                          />
                         </FormItem>
                       )}
                     />
-                  )}
+                    <FormField
+                      control={form.control}
+                      name={`assignments.${index}.endTime`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Override End</FormLabel>
+                          <DateTimePicker
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Same as exam"
+                          />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`assignments.${index}.facultyIds`}
+                      render={({ field: facField }) => {
+                        const assignedElsewhereMap = new Map<string, string>();
+                        const currentAssignments =
+                          form.getValues("assignments") || [];
+                        currentAssignments.forEach((assign, i) => {
+                          if (
+                            i !== index &&
+                            assign.facultyIds &&
+                            assign.facultyIds.length > 0
+                          ) {
+                            for (const fId of assign.facultyIds) {
+                              if (fId) {
+                                assignedElsewhereMap.set(
+                                  fId,
+                                  assign.groupName || `Section ${i + 1}`,
+                                );
+                              }
+                            }
+                          }
+                        });
+
+                        return (
+                          <FormItem>
+                            <FormLabel className="text-xs">
+                              Assigned Faculty
+                            </FormLabel>
+                            <FormControl>
+                              <FacultySelect
+                                availableFaculty={availableFaculty}
+                                selectedFacultyId={facField.value?.[0]}
+                                onSelect={(facId) => {
+                                  facField.onChange(facId ? [facId] : []);
+                                }}
+                                assignedElsewhereMap={assignedElsewhereMap}
+                                placeholder="Select assigned faculty..."
+                              />
+                            </FormControl>
+                          </FormItem>
+                        );
+                      }}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`assignments.${index}.requiresPin`}
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2 mt-2">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={(checked) => {
+                                field.onChange(checked);
+                                if (checked) {
+                                  form.setValue(
+                                    `assignments.${index}.pinCode`,
+                                    generatePin(),
+                                  );
+                                }
+                              }}
+                              disabled={masterPinEnabled}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Requires PIN
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    {form.watch(`assignments.${index}.requiresPin`) && (
+                      <FormField
+                        control={form.control}
+                        name={`assignments.${index}.pinCode`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">PIN Code</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value || ""}
+                                readOnly
+                                className="font-mono bg-muted"
+                                disabled
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
                 </div>
               </Card>
             ))}

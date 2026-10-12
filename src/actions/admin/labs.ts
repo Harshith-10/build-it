@@ -11,6 +11,7 @@ import {
   labSubmissions,
   exerciseMarks,
   exerciseAttendance,
+  vivaSubmissions,
 } from "@/db/schema/labs";
 import { user } from "@/db/schema/auth";
 import {
@@ -197,20 +198,34 @@ export async function createExercise(data: {
       where: eq(exercises.labId, data.labId),
     });
 
-    const duplicate = existing.find(
+    const duplicateNo = existing.find((e) => e.exerciseNo === data.exerciseNo);
+    if (duplicateNo) {
+      return {
+        success: false,
+        error: `Exercise #${data.exerciseNo} ("${duplicateNo.title}") already exists in this lab. Please change the Exercise Number to ${existing.length + 1}.`,
+      };
+    }
+
+    const duplicateTitle = existing.find(
       (e) => e.title.trim().toLowerCase() === data.title.trim().toLowerCase()
     );
-    if (duplicate) {
-      return { success: false, error: `An exercise named "${duplicate.title}" already exists in this lab.` };
+    if (duplicateTitle) {
+      return { success: false, error: `An exercise named "${duplicateTitle.title}" already exists in this lab.` };
     }
 
     const [newExercise] = await db.insert(exercises).values(data).returning();
     revalidatePath("/admin/labs");
     revalidatePath("/faculty/labs");
     return { success: true, exercise: newExercise };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to create exercise:", error);
-    return { success: false, error: "Permission denied or failed to create exercise" };
+    if (error?.code === "23505") {
+      return { success: false, error: `Exercise #${data.exerciseNo} already exists in this lab. Please change Exercise Number.` };
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create exercise",
+    };
   }
 }
 
@@ -704,6 +719,24 @@ export async function getExerciseSubmissions(
       submissions = submissions.filter((s) => allowedStudentIds!.has(s.userId));
     }
 
+    let vivaSubs = await db.query.vivaSubmissions.findMany({
+      where: eq(vivaSubmissions.exerciseId, exerciseId),
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (allowedStudentIds) {
+      vivaSubs = vivaSubs.filter((s) => allowedStudentIds!.has(s.userId));
+    }
+
     let marks = await db.query.exerciseMarks.findMany({
       where: eq(exerciseMarks.exerciseId, exerciseId),
     });
@@ -720,6 +753,7 @@ export async function getExerciseSubmissions(
         email: string;
         username: string | null;
         solvedProgramIds: string[];
+        vivaSubmittedCount: number;
         marks: number | null;
         implementationMarks: number | null;
         writeUpMarks: number | null;
@@ -745,6 +779,7 @@ export async function getExerciseSubmissions(
           email: u.email ?? "",
           username: u.username ?? null,
           solvedProgramIds: [],
+          vivaSubmittedCount: 0,
           marks: null,
           implementationMarks: null,
           writeUpMarks: null,
@@ -762,14 +797,40 @@ export async function getExerciseSubmissions(
           email: sub.user?.email ?? "",
           username: sub.user?.username ?? null,
           solvedProgramIds: [],
+          vivaSubmittedCount: 0,
           marks: null,
           implementationMarks: null,
           writeUpMarks: null,
           vivaMarks: null,
         });
       }
-      if (sub.programId !== "00000000-0000-0000-0000-000000000000") {
+      if (
+        sub.programId !== "00000000-0000-0000-0000-000000000000" &&
+        !sub.language?.includes(":attempted")
+      ) {
         studentMap.get(sid)!.solvedProgramIds.push(sub.programId);
+      }
+    }
+
+    for (const vsub of vivaSubs) {
+      const sid = vsub.userId;
+      if (!studentMap.has(sid)) {
+        studentMap.set(sid, {
+          id: sid,
+          name: vsub.user?.name ?? "Unknown",
+          email: vsub.user?.email ?? "",
+          username: vsub.user?.username ?? null,
+          solvedProgramIds: [],
+          vivaSubmittedCount: 0,
+          marks: null,
+          implementationMarks: null,
+          writeUpMarks: null,
+          vivaMarks: null,
+        });
+      }
+      if (vsub.answerText && vsub.answerText.trim().length > 0) {
+        const student = studentMap.get(sid)!;
+        student.vivaSubmittedCount = (student.vivaSubmittedCount ?? 0) + 1;
       }
     }
 
@@ -921,5 +982,341 @@ export async function awardMarks({
   } catch (err) {
     console.error("[awardMarks]", err);
     return { success: false, error: "Permission denied or failed to award marks" };
+  }
+}
+
+export async function awardBatchMarks(data: {
+  exerciseId: string;
+  groupId: string;
+  marks: {
+    studentId: string;
+    implementationMarks: number;
+    writeUpMarks: number;
+    vivaMarks: number;
+  }[];
+}): Promise<{ success: boolean; count?: number; error?: string }> {
+  try {
+    const session = await requireUser();
+    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
+    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+
+    const { exerciseId, groupId, marks } = data;
+    if (!marks || marks.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const ex = await db.query.exercises.findFirst({
+      where: eq(exercises.id, exerciseId),
+      columns: { labId: true },
+    });
+    if (!ex) return { success: false, error: "Exercise not found" };
+
+    if (session.user.role === "faculty") {
+      const assigned = await db.query.labGroupFaculty.findFirst({
+        where: and(
+          eq(labGroupFaculty.labId, ex.labId),
+          eq(labGroupFaculty.facultyId, session.user.id),
+          eq(labGroupFaculty.groupId, groupId)
+        ),
+      });
+      if (!assigned) {
+        return { success: false, error: "You are not assigned to this section for this lab" };
+      }
+    }
+
+    const studentIds = marks.map((m) => m.studentId);
+
+    // Verify all students are members of this section
+    const groupMembers = await db.query.userGroupMembers.findMany({
+      where: and(
+        eq(userGroupMembers.groupId, groupId),
+        inArray(userGroupMembers.userId, studentIds)
+      ),
+      columns: { userId: true },
+    });
+    const validGroupStudentIds = new Set(groupMembers.map((m) => m.userId));
+
+    // Verify attendance: any student marked absent cannot be awarded marks
+    const attendanceRecords = await db.query.exerciseAttendance.findMany({
+      where: and(
+        eq(exerciseAttendance.exerciseId, exerciseId),
+        inArray(exerciseAttendance.userId, studentIds)
+      ),
+      columns: { userId: true, present: true },
+    });
+    const absentStudentIds = new Set(
+      attendanceRecords.filter((a) => !a.present).map((a) => a.userId)
+    );
+
+    const recordsToSave = marks.filter((m) => {
+      if (!validGroupStudentIds.has(m.studentId)) return false;
+      if (absentStudentIds.has(m.studentId)) return false;
+      return true;
+    });
+
+    if (recordsToSave.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    await db.transaction(async (tx) => {
+      for (const item of recordsToSave) {
+        const total = item.implementationMarks + item.writeUpMarks + item.vivaMarks;
+        await tx
+          .insert(exerciseMarks)
+          .values({
+            userId: item.studentId,
+            exerciseId,
+            implementationMarks: String(item.implementationMarks),
+            writeUpMarks: String(item.writeUpMarks),
+            vivaMarks: String(item.vivaMarks),
+            marks: String(total),
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: [exerciseMarks.userId, exerciseMarks.exerciseId],
+            set: {
+              implementationMarks: String(item.implementationMarks),
+              writeUpMarks: String(item.writeUpMarks),
+              vivaMarks: String(item.vivaMarks),
+              marks: String(total),
+              updatedAt: new Date(),
+            },
+          });
+      }
+    });
+
+    revalidatePath("/admin/labs");
+    revalidatePath("/faculty/labs");
+    revalidatePath("/labs");
+
+    return { success: true, count: recordsToSave.length };
+  } catch (err) {
+    console.error("[awardBatchMarks]", err);
+    return { success: false, error: "Failed to save batch marks" };
+  }
+}
+
+// ─── Delete Submissions (Individual & Section) ───────────────────────────────
+
+export async function deleteLabSubmission(data: {
+  exerciseId: string;
+  studentId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await requireUser();
+    const perm = await checkEntityPermission({ entity: "labs", action: "update" });
+    if (!perm.allowed) {
+      return { success: false, error: perm.reason ?? "Permission denied" };
+    }
+
+    const { exerciseId, studentId } = data;
+
+    const ex = await db.query.exercises.findFirst({
+      where: eq(exercises.id, exerciseId),
+      columns: { id: true, labId: true },
+    });
+    if (!ex) return { success: false, error: "Exercise not found" };
+
+    if (session.user.role === "faculty") {
+      const assigned = await db.query.labGroupFaculty.findMany({
+        where: and(
+          eq(labGroupFaculty.labId, ex.labId),
+          eq(labGroupFaculty.facultyId, session.user.id)
+        ),
+      });
+      const assignedGroupIds = assigned.map((a) => a.groupId);
+      if (assignedGroupIds.length === 0) {
+        return { success: false, error: "You are not assigned to any section for this lab" };
+      }
+
+      const studentMember = await db.query.userGroupMembers.findFirst({
+        where: and(
+          eq(userGroupMembers.userId, studentId),
+          inArray(userGroupMembers.groupId, assignedGroupIds)
+        ),
+      });
+      if (!studentMember) {
+        return { success: false, error: "Student is not in your assigned section for this lab" };
+      }
+    }
+
+    await db
+      .delete(labSubmissions)
+      .where(
+        and(
+          eq(labSubmissions.exerciseId, exerciseId),
+          eq(labSubmissions.userId, studentId)
+        )
+      );
+
+    await db
+      .delete(vivaSubmissions)
+      .where(
+        and(
+          eq(vivaSubmissions.exerciseId, exerciseId),
+          eq(vivaSubmissions.userId, studentId)
+        )
+      );
+
+    await db
+      .delete(exerciseMarks)
+      .where(
+        and(
+          eq(exerciseMarks.exerciseId, exerciseId),
+          eq(exerciseMarks.userId, studentId)
+        )
+      );
+
+    revalidatePath("/admin/labs");
+    revalidatePath("/faculty/labs");
+    revalidatePath("/labs");
+
+    return { success: true };
+  } catch (err) {
+    console.error("[deleteLabSubmission]", err);
+    return { success: false, error: "Failed to delete submission" };
+  }
+}
+
+export async function deleteSectionLabSubmissions(data: {
+  exerciseId: string;
+  groupId: string;
+}): Promise<{ success: boolean; count?: number; error?: string }> {
+  try {
+    const session = await requireUser();
+    const perm = await checkEntityPermission({ entity: "labs", action: "update" });
+    if (!perm.allowed) {
+      return { success: false, error: perm.reason ?? "Permission denied" };
+    }
+
+    const { exerciseId, groupId } = data;
+
+    const ex = await db.query.exercises.findFirst({
+      where: eq(exercises.id, exerciseId),
+      columns: { id: true, labId: true },
+    });
+    if (!ex) return { success: false, error: "Exercise not found" };
+
+    if (session.user.role === "faculty") {
+      const assigned = await db.query.labGroupFaculty.findFirst({
+        where: and(
+          eq(labGroupFaculty.labId, ex.labId),
+          eq(labGroupFaculty.facultyId, session.user.id),
+          eq(labGroupFaculty.groupId, groupId)
+        ),
+      });
+      if (!assigned) {
+        return { success: false, error: "You are not assigned to this section for this lab" };
+      }
+    }
+
+    const members = await db.query.userGroupMembers.findMany({
+      where: eq(userGroupMembers.groupId, groupId),
+      columns: { userId: true },
+    });
+
+    const userIds = members.map((m) => m.userId);
+    if (userIds.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    await db
+      .delete(labSubmissions)
+      .where(
+        and(
+          eq(labSubmissions.exerciseId, exerciseId),
+          inArray(labSubmissions.userId, userIds)
+        )
+      );
+
+    await db
+      .delete(vivaSubmissions)
+      .where(
+        and(
+          eq(vivaSubmissions.exerciseId, exerciseId),
+          inArray(vivaSubmissions.userId, userIds)
+        )
+      );
+
+    await db
+      .delete(exerciseMarks)
+      .where(
+        and(
+          eq(exerciseMarks.exerciseId, exerciseId),
+          inArray(exerciseMarks.userId, userIds)
+        )
+      );
+
+    revalidatePath("/admin/labs");
+    revalidatePath("/faculty/labs");
+    revalidatePath("/labs");
+
+    return { success: true, count: userIds.length };
+  } catch (err) {
+    console.error("[deleteSectionLabSubmissions]", err);
+    return { success: false, error: "Failed to delete section submissions" };
+  }
+}
+
+export async function resetSectionMarks(data: {
+  exerciseId: string;
+  groupId: string;
+}): Promise<{ success: boolean; count?: number; error?: string }> {
+  try {
+    const session = await requireUser();
+    const perm = await checkEntityPermission({ entity: "labs", action: "update" });
+    if (!perm.allowed) {
+      return { success: false, error: perm.reason ?? "Permission denied" };
+    }
+
+    const { exerciseId, groupId } = data;
+
+    const ex = await db.query.exercises.findFirst({
+      where: eq(exercises.id, exerciseId),
+      columns: { id: true, labId: true },
+    });
+    if (!ex) return { success: false, error: "Exercise not found" };
+
+    if (session.user.role === "faculty") {
+      const assigned = await db.query.labGroupFaculty.findFirst({
+        where: and(
+          eq(labGroupFaculty.labId, ex.labId),
+          eq(labGroupFaculty.facultyId, session.user.id),
+          eq(labGroupFaculty.groupId, groupId)
+        ),
+      });
+      if (!assigned) {
+        return { success: false, error: "You are not assigned to this section for this lab" };
+      }
+    }
+
+    const members = await db.query.userGroupMembers.findMany({
+      where: eq(userGroupMembers.groupId, groupId),
+      columns: { userId: true },
+    });
+
+    const userIds = members.map((m) => m.userId);
+    if (userIds.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    // Reset marks only (preserving code submissions and attendance)
+    await db
+      .delete(exerciseMarks)
+      .where(
+        and(
+          eq(exerciseMarks.exerciseId, exerciseId),
+          inArray(exerciseMarks.userId, userIds)
+        )
+      );
+
+    revalidatePath("/admin/labs");
+    revalidatePath("/faculty/labs");
+    revalidatePath("/labs");
+
+    return { success: true, count: userIds.length };
+  } catch (err) {
+    console.error("[resetSectionMarks]", err);
+    return { success: false, error: "Failed to reset section marks" };
   }
 }

@@ -30,9 +30,9 @@ export default async function StudentLabsPage() {
   return (
     <div className="flex flex-col gap-6 overflow-y-auto min-h-0 pr-1">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Labs</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Laboratory</h1>
         <p className="text-muted-foreground">
-          Your lab exercises for this semester
+          Your laboratory exercises for this semester
         </p>
       </div>
       <Separator />
@@ -42,9 +42,9 @@ export default async function StudentLabsPage() {
           <div className="bg-muted mb-4 rounded-full p-4">
             <FlaskConical className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium">No Labs Assigned</h3>
+          <h3 className="text-lg font-medium">No Laboratories Assigned</h3>
           <p className="text-muted-foreground mt-1 max-w-sm text-sm">
-            No labs have been configured for your semester yet.
+            No laboratories have been configured for your semester yet.
           </p>
         </div>
       ) : (
