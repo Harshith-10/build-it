@@ -207,6 +207,44 @@ export async function getFacultyAssessments() {
   });
 }
 
+/**
+ * Shared helper to get all group/section IDs a faculty member is authorized to manage
+ * for a given assessment (checks direct examGroupFaculty + folder-level labGroupFaculty).
+ */
+export async function getFacultyAllowedGroupIdsForAssessment(
+  userId: string,
+  assessmentId: string,
+): Promise<string[]> {
+  const directAssigned = await db.query.examGroupFaculty.findMany({
+    where: and(
+      eq(examGroupFaculty.examId, assessmentId),
+      eq(examGroupFaculty.facultyId, userId),
+    ),
+    columns: { groupId: true },
+  });
+  const allowedGroupIds = new Set<string>(directAssigned.map((a) => a.groupId));
+
+  const examItem = await db.query.exams.findFirst({
+    where: eq(exams.id, assessmentId),
+    columns: { labId: true },
+  });
+
+  if (examItem?.labId) {
+    const labAssigned = await db.query.labGroupFaculty.findMany({
+      where: and(
+        eq(labGroupFaculty.labId, examItem.labId),
+        eq(labGroupFaculty.facultyId, userId),
+      ),
+      columns: { groupId: true },
+    });
+    for (const la of labAssigned) {
+      allowedGroupIds.add(la.groupId);
+    }
+  }
+
+  return Array.from(allowedGroupIds);
+}
+
 export async function scheduleAssessmentForSection(params: {
   assessmentId: string;
   groupId: string;
@@ -219,37 +257,15 @@ export async function scheduleAssessmentForSection(params: {
   const isAdmin = session.user.role === "admin";
 
   if (!isAdmin) {
-    const isAssigned = await db.query.examGroupFaculty.findFirst({
-      where: and(
-        eq(examGroupFaculty.examId, params.assessmentId),
-        eq(examGroupFaculty.groupId, params.groupId),
-        eq(examGroupFaculty.facultyId, userId),
-      ),
-    });
-
-    if (!isAssigned) {
-      // Also check labGroupFaculty for folder-backed assessments
-      const examItem = await db.query.exams.findFirst({
-        where: eq(exams.id, params.assessmentId),
-        columns: { labId: true, assessmentType: true },
-      });
-      let isLabAssigned = false;
-      if (examItem?.labId) {
-        const labAssigned = await db.query.labGroupFaculty.findFirst({
-          where: and(
-            eq(labGroupFaculty.labId, examItem.labId),
-            eq(labGroupFaculty.groupId, params.groupId),
-            eq(labGroupFaculty.facultyId, userId),
-          ),
-        });
-        isLabAssigned = Boolean(labAssigned);
-      }
-      if (!isLabAssigned) {
-        return {
-          success: false,
-          error: "You are not assigned to manage this section for this assessment",
-        };
-      }
+    const allowedGroupIds = await getFacultyAllowedGroupIdsForAssessment(
+      userId,
+      params.assessmentId,
+    );
+    if (!allowedGroupIds.includes(params.groupId)) {
+      return {
+        success: false,
+        error: "You are not assigned to manage this section for this assessment",
+      };
     }
   }
 
@@ -323,34 +339,10 @@ export async function getAssessmentSubmissions(params: {
   // If faculty, verify assigned groups
   let allowedGroupIds: string[] = [];
   if (!isAdmin) {
-    const assigned = await db.query.examGroupFaculty.findMany({
-      where: and(
-        eq(examGroupFaculty.examId, params.assessmentId),
-        eq(examGroupFaculty.facultyId, userId),
-      ),
-      columns: { groupId: true },
-    });
-    allowedGroupIds = assigned.map((a) => a.groupId);
-
-    // Also check labGroupFaculty for folder-backed assessments
-    const examItem = await db.query.exams.findFirst({
-      where: eq(exams.id, params.assessmentId),
-      columns: { labId: true, assessmentType: true },
-    });
-    if (examItem?.labId) {
-      const labAssigned = await db.query.labGroupFaculty.findMany({
-        where: and(
-          eq(labGroupFaculty.labId, examItem.labId),
-          eq(labGroupFaculty.facultyId, userId),
-        ),
-        columns: { groupId: true },
-      });
-      for (const la of labAssigned) {
-        if (!allowedGroupIds.includes(la.groupId)) {
-          allowedGroupIds.push(la.groupId);
-        }
-      }
-    }
+    allowedGroupIds = await getFacultyAllowedGroupIdsForAssessment(
+      userId,
+      params.assessmentId,
+    );
 
     if (allowedGroupIds.length === 0) {
       return [];
@@ -432,15 +424,11 @@ export async function deleteAssessmentSubmission(assignmentId: string) {
 
     // Verify faculty permission on this assessment and section
     if (!isAdmin) {
-      const assignedSections = await db.query.examGroupFaculty.findMany({
-        where: and(
-          eq(examGroupFaculty.examId, assignment.examId),
-          eq(examGroupFaculty.facultyId, userId),
-        ),
-        columns: { groupId: true },
-      });
+      const allowedGroupIds = await getFacultyAllowedGroupIdsForAssessment(
+        userId,
+        assignment.examId,
+      );
 
-      const allowedGroupIds = assignedSections.map((s) => s.groupId);
       if (allowedGroupIds.length === 0) {
         return {
           success: false,
