@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Download, Search, AlertTriangle, Printer } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type StudentRow = {
   userId: string;
@@ -29,7 +28,7 @@ type StudentRow = {
   branch: string;
   section: string;
   status: string;
-  score: number;
+  score: number | null;
   timeTakenMinutes: number;
   malpracticeCount: number;
   isTerminated: boolean;
@@ -118,20 +117,18 @@ export function AssessmentReportViewer({
       "Roll No", 
       "Name", 
       ...(hideBranchSectionFilters ? [] : ["Branch", "Section"]),
-            "Score",
+      "Status",
+      "Score",
       "Time Taken (mins)",
-      "Malpractice Count",
-      "Terminated"
     ];
     const rows = filteredStudentRows.map((s, i) => [
       String(i + 1),
       s.roll,
       s.name,
       ...(hideBranchSectionFilters ? [] : [s.branch, s.section]),
-            String(s.score),
-      String(s.timeTakenMinutes),
-      String(s.malpracticeCount),
-      s.isTerminated ? "Yes" : "No"
+      s.status === "absent" ? "Absent (AB)" : s.status,
+      s.status === "absent" || s.score === null ? "AB" : String(s.score),
+      s.status === "absent" ? "—" : String(s.timeTakenMinutes),
     ]);
     downloadCsv(`${examTitle.replace(/\s+/g, "_")}_Report.csv`, headers, rows);
   };
@@ -142,6 +139,8 @@ export function AssessmentReportViewer({
         return <Badge variant="default" className="bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20">Completed</Badge>;
       case "in_progress":
         return <Badge variant="default" className="bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 hover:bg-amber-500/20 border-amber-500/20">In Progress</Badge>;
+      case "absent":
+        return <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 border-red-500/30">Absent (AB)</Badge>;
       case "not_started":
         return <Badge variant="outline" className="text-muted-foreground border-muted">Not Started</Badge>;
       default:
@@ -243,70 +242,51 @@ export function AssessmentReportViewer({
             <div className="flex items-center gap-3">
               <p className="text-sm text-muted-foreground">{filteredStudentRows.length} students found</p>
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={downloadCumulative}>
-                <Download className="h-4 w-4 mr-2" /> Download CSV
-              </Button>
-              <Button size="sm" onClick={() => window.print()}>
-                <Printer className="h-4 w-4 mr-2" /> Download PDF
-              </Button>
-            </div>
+            <Button size="sm" variant="outline" onClick={downloadCumulative}>
+              <Download className="h-4 w-4 mr-2" /> Download CSV
+            </Button>
           </div>
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="w-12 text-center">S.No</TableHead>
                   <TableHead>Roll No</TableHead>
                   <TableHead>Name</TableHead>
                   {!hideBranchSectionFilters && <TableHead>Branch</TableHead>}
                   {!hideBranchSectionFilters && <TableHead>Section</TableHead>}
+                  <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-center">Score</TableHead>
                   <TableHead className="text-center">Time Taken (mins)</TableHead>
-                  <TableHead className="text-center">Warnings</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredStudentRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={hideBranchSectionFilters ? 6 : 8} className="text-center py-8 text-muted-foreground">
                       No students found matching the selected filters.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredStudentRows.map((s, i) => (
                     <TableRow key={s.userId}>
-                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="text-center text-muted-foreground">{i + 1}</TableCell>
                       <TableCell className="font-mono text-xs font-medium">{s.roll}</TableCell>
                       <TableCell>{s.name}</TableCell>
                       {!hideBranchSectionFilters && <TableCell>{s.branch}</TableCell>}
                       {!hideBranchSectionFilters && <TableCell>{s.section}</TableCell>}
-                      <TableCell className="text-center font-bold text-cyan-600 dark:text-cyan-400">
-                        {s.score}
+                      <TableCell className="text-center">
+                        {getStatusBadge(s.status)}
+                      </TableCell>
+                      <TableCell className="text-center font-bold">
+                        {s.status === "absent" || s.score === null ? (
+                          <span className="text-red-500 font-bold">AB</span>
+                        ) : (
+                          <span className="text-cyan-600 dark:text-cyan-400">{s.score}</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center font-medium">
-                        {s.timeTakenMinutes > 0 ? s.timeTakenMinutes : "—"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {(s.malpracticeCount > 0 || s.isTerminated) ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="inline-flex items-center justify-center p-1.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                                  <AlertTriangle className="h-4 w-4" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <div className="text-xs">
-                                  <p>Malpractice Count: {s.malpracticeCount}</p>
-                                  {s.isTerminated && <p className="font-semibold text-red-500 mt-1">Terminated by Proctor</p>}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                        {s.status === "absent" ? "—" : (s.timeTakenMinutes > 0 ? s.timeTakenMinutes : "—")}
                       </TableCell>
                     </TableRow>
                   ))

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo } from "react";
-import { Download, Printer, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,7 +17,7 @@ export interface AATStudentExamRow {
   name: string;
   branch: string;
   section: string;
-  score: number;
+  score: number | string;
 }
 
 export function AATExamReportViewer({ examId, studentRows = [] }: { examId: string, studentRows: AATStudentExamRow[] }) {
@@ -47,11 +47,23 @@ export function AATExamReportViewer({ examId, studentRows = [] }: { examId: stri
   );
 
   const handleExportCSV = () => {
-    // CSV logic
-  };
-
-  const handlePrint = () => {
-    window.print();
+    const headers = ["S.No", "Roll No", "Student Name", "Branch", "Sec", "Score"];
+    const rows = filteredStudentRows.map((row, index) => [
+      String(index + 1),
+      row.roll,
+      row.name,
+      row.branch,
+      row.section,
+      String(row.score),
+    ]);
+    const csvContent = [headers, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `AAT_Exam_${examId}_Report.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -83,15 +95,6 @@ export function AATExamReportViewer({ examId, studentRows = [] }: { examId: stri
             >
               <Download className="h-4 w-4 mr-2" />
               Download CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              disabled={filteredStudentRows.length === 0}
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Print PDF
             </Button>
           </div>
         </div>
@@ -126,8 +129,12 @@ export function AATExamReportViewer({ examId, studentRows = [] }: { examId: stri
                   <TableCell>{row.name}</TableCell>
                   <TableCell className="text-center">{row.branch}</TableCell>
                   <TableCell className="text-center">{row.section}</TableCell>
-                  <TableCell className="text-center font-bold text-primary">
-                    {row.score}
+                  <TableCell className="text-center font-bold">
+                    {row.score === "AB" ? (
+                      <span className="text-red-500 font-bold">AB</span>
+                    ) : (
+                      <span className="text-primary">{row.score}</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

@@ -27,7 +27,7 @@ export interface CDCStudentExamRow {
   name: string;
   branch: string;
   section: string;
-  score: number;
+  score: number | string;
   attempted: number;
   totalConducted: number;
   cumulativeScore: number;
@@ -61,7 +61,34 @@ export function CDCExamReportViewer({ examId, studentRows = [] }: { examId: stri
   );
 
   const handleExportCSV = () => {
-    // CSV logic
+    const headers = [
+      "S.No",
+      "Roll No",
+      "Student Name",
+      "Branch",
+      "Batch",
+      "Exam Score",
+      "Exams Attempted",
+      "Cumulative Score",
+    ];
+    const rows = filteredStudentRows.map((row, index) => [
+      String(index + 1),
+      row.roll,
+      row.name,
+      row.branch,
+      row.section,
+      String(row.score),
+      `${row.attempted} / ${row.totalConducted}`,
+      String(row.cumulativeScore),
+    ]);
+    const csvContent = [headers, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `CDC_Exam_${examId}_Report.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -135,7 +162,13 @@ export function CDCExamReportViewer({ examId, studentRows = [] }: { examId: stri
                   <TableCell className="text-left font-medium">{row.name}</TableCell>
                   <TableCell className="text-center">{row.branch}</TableCell>
                   <TableCell className="text-center">{row.section}</TableCell>
-                  <TableCell className="text-center font-semibold text-primary">{row.score}</TableCell>
+                  <TableCell className="text-center font-semibold">
+                    {row.score === "AB" ? (
+                      <span className="text-red-500 font-bold">AB</span>
+                    ) : (
+                      <span className="text-primary">{row.score}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-center">{row.attempted} / {row.totalConducted}</TableCell>
                   <TableCell className="text-center font-semibold">{row.cumulativeScore}</TableCell>
                 </TableRow>

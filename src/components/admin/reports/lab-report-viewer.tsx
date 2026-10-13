@@ -26,7 +26,7 @@ type StudentRow = {
   name: string;
   branch: string;
   section: string;
-  weekScores: Record<number, { total: number, impl: number, writeUp: number, viva: number }>;
+  weekScores: Record<number, { total: number, impl: number, writeUp: number, viva: number, isAbsent?: boolean }>;
   total: number;
 };
 
@@ -144,13 +144,13 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
         s.name,
         ...(isSingleWeek
           ? [
-              singleScore ? String(singleScore.impl) : "-",
-              singleScore ? String(singleScore.writeUp) : "-",
-              singleScore ? String(singleScore.viva) : "-",
-              singleScore ? String(singleScore.total) : "-"
+              singleScore && !singleScore.isAbsent ? String(singleScore.impl) : "AB",
+              singleScore && !singleScore.isAbsent ? String(singleScore.writeUp) : "AB",
+              singleScore && !singleScore.isAbsent ? String(singleScore.viva) : "AB",
+              singleScore && !singleScore.isAbsent ? String(singleScore.total) : "AB"
             ]
           : [
-              ...visibleWeeks.map((w) => String(s.weekScores[w] ? s.weekScores[w].total : 0)),
+              ...visibleWeeks.map((w) => s.weekScores[w] && !s.weekScores[w].isAbsent ? String(s.weekScores[w].total) : "AB"),
               String(s.total),
               `${((s.total / (weekNos.length * 20)) * 100).toFixed(1)}%`
             ]
@@ -317,7 +317,7 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
                         <TableCell>{s.name}</TableCell>
                         
                         {isSingleWeek ? (
-                          singleScore ? (
+                          singleScore && !singleScore.isAbsent ? (
                             <>
                               <TableCell className="text-center">{singleScore.impl}</TableCell>
                               <TableCell className="text-center">{singleScore.writeUp}</TableCell>
@@ -326,16 +326,20 @@ export function LabReportViewer({ labName, weekNos, studentRows }: LabReportView
                             </>
                           ) : (
                             <>
-                              <TableCell className="text-center text-muted-foreground">-</TableCell>
-                              <TableCell className="text-center text-muted-foreground">-</TableCell>
-                              <TableCell className="text-center text-muted-foreground">-</TableCell>
-                              <TableCell className="text-center font-bold text-muted-foreground">-</TableCell>
+                              <TableCell className="text-center text-red-500 font-semibold">AB</TableCell>
+                              <TableCell className="text-center text-red-500 font-semibold">AB</TableCell>
+                              <TableCell className="text-center text-red-500 font-semibold">AB</TableCell>
+                              <TableCell className="text-center font-bold text-red-500">AB</TableCell>
                             </>
                           )
                         ) : (
                           visibleWeeks.map((w) => (
                             <TableCell key={w} className="text-center">
-                              {s.weekScores[w] ? s.weekScores[w].total : <span className="text-muted-foreground">-</span>}
+                              {s.weekScores[w] && !s.weekScores[w].isAbsent ? (
+                                s.weekScores[w].total
+                              ) : (
+                                <span className="text-red-500 font-bold">AB</span>
+                              )}
                             </TableCell>
                           ))
                         )}

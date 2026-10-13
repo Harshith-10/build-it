@@ -55,7 +55,7 @@ export function AssessmentOverallReportViewer({
 
   const handleDownloadCsv = () => {
     // Generate CSV headers
-    const baseHeaders = ["#", "Roll No", "Name"];
+    const baseHeaders = ["S.No", "Roll No", "Name"];
     const weekHeaders = selectedWeek === "all" 
       ? exams.map((_, i) => `Week ${i + 1}`) 
       : [`Week ${exams.findIndex(e => e.id === selectedWeek) + 1}`];
@@ -159,7 +159,7 @@ export function AssessmentOverallReportViewer({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]">#</TableHead>
+              <TableHead className="w-[50px] text-center">S.No</TableHead>
               <TableHead>Roll No</TableHead>
               <TableHead>Name</TableHead>
               {selectedWeek === "all" ? (
@@ -190,7 +190,7 @@ export function AssessmentOverallReportViewer({
             ) : (
               filteredStudentRows.map((student, idx) => (
                 <TableRow key={student.userId}>
-                  <TableCell>{idx + 1}</TableCell>
+                  <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
                   <TableCell className="font-medium">{student.roll}</TableCell>
                   <TableCell>{student.name}</TableCell>
                   

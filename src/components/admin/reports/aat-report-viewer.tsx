@@ -69,6 +69,31 @@ export function AATReportViewer() {
 
   const isSelectionMade = shouldFetch || searchQuery.trim() !== "";
 
+  const handleDownloadCSV = () => {
+    const isSingleExam = selectedExam !== "all" && selectedExam !== "";
+    const headers = [
+      "S.No", "Roll No", "Name",
+      ...(isSingleExam ? ["Score"] : [...exams.map((_, i) => `Exam ${i + 1}`), "Overall Total"])
+    ];
+    const rows = filteredStudentRows.map((s, i) => [
+      String(i + 1),
+      s.roll,
+      s.name,
+      ...(isSingleExam 
+        ? [s.scores[selectedExam] !== undefined ? String(s.scores[selectedExam]) : "AB"]
+        : [...exams.map(e => s.scores[e.id] !== undefined ? String(s.scores[e.id]) : "AB"), String(s.totalScore)]
+      )
+    ]);
+    const csvContent = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `AAT_Report_${selectedBranch}_${selectedSection}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Filters */}
@@ -171,7 +196,7 @@ export function AATReportViewer() {
                   )}
                 </p>
               </div>
-              <Button size="sm" variant="outline" disabled={filteredStudentRows.length === 0}>
+              <Button size="sm" variant="outline" disabled={filteredStudentRows.length === 0} onClick={handleDownloadCSV}>
                 <Download className="h-4 w-4 mr-2" />
                 Download CSV
               </Button>
@@ -212,13 +237,29 @@ export function AATReportViewer() {
                         
                         {selectedExam !== "all" && selectedExam !== "" ? (
                           <TableCell className="text-center font-medium">
-                            {s.scores[selectedExam] !== undefined ? s.scores[selectedExam] : <span className="text-muted-foreground">-</span>}
+                            {s.scores[selectedExam] !== undefined ? (
+                              s.scores[selectedExam] === "AB" ? (
+                                <span className="text-red-500 font-bold">AB</span>
+                              ) : (
+                                s.scores[selectedExam]
+                              )
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                         ) : (
                           <>
                             {exams.map((e) => (
                               <TableCell key={e.id} className="text-center">
-                                {s.scores[e.id] !== undefined ? s.scores[e.id] : <span className="text-muted-foreground">-</span>}
+                                {s.scores[e.id] !== undefined ? (
+                                  s.scores[e.id] === "AB" ? (
+                                    <span className="text-red-500 font-bold">AB</span>
+                                  ) : (
+                                    s.scores[e.id]
+                                  )
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
                               </TableCell>
                             ))}
                             {exams.length > 0 && <TableCell className="text-center font-bold text-primary">{s.totalScore}</TableCell>}

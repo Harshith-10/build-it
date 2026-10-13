@@ -1,3 +1,5 @@
+"use server";
+
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { exams } from "@/db/schema/exams";
@@ -22,25 +24,44 @@ export async function getAssessmentsForReports() {
 export async function getAssessmentReportData(examId: string) {
   await requireAdmin();
 
-  // 1. Get exam
+  // 1. Get exam with groups
   const exam = await db.query.exams.findFirst({
     where: eq(exams.id, examId),
-    with: { department: true }
+    with: { 
+      department: true,
+      groups: {
+        with: { group: true }
+      }
+    }
   });
   if (!exam) return { success: false as const, error: "Exam not found" };
 
-  // 2. Get all assignments for this exam
+  // 2. Get all target groups assigned to this exam
+  const assignedGroupIds = exam.groups.map((g) => g.groupId);
+
+  // 3. Get all group members for these assigned groups
+  const assignedGroupMembers = assignedGroupIds.length > 0
+    ? await db.query.userGroupMembers.findMany({
+        where: inArray(userGroupMembers.groupId, assignedGroupIds),
+        with: { group: true }
+      })
+    : [];
+
+  // 4. Get all assignments for this exam
   const allAssignments = await db.query.examAssignments.findMany({
     where: eq(examAssignments.examId, examId)
   });
 
-  if (allAssignments.length === 0)
+  // 5. Combine student IDs from assigned groups and assignments
+  const studentIds = Array.from(new Set([
+    ...assignedGroupMembers.map((m) => m.userId),
+    ...allAssignments.map((a) => a.userId)
+  ]));
+
+  if (studentIds.length === 0)
     return { success: false as const, error: "No students have been assigned this exam yet" };
 
-  // 3. Get all unique student ids
-  const studentIds = Array.from(new Set(allAssignments.map((a) => a.userId)));
-
-  // 4. Get student info
+  // 6. Get student info
   const students = await db
     .select({
       id: user.id,
@@ -51,55 +72,54 @@ export async function getAssessmentReportData(examId: string) {
     .from(user)
     .where(inArray(user.id, studentIds));
 
-  // 5. Get section (group) info for each student
-  const groupMembers = await db
-    .select({ userId: userGroupMembers.userId, groupId: userGroupMembers.groupId })
-    .from(userGroupMembers)
-    .where(inArray(userGroupMembers.userId, studentIds));
-
-  const groupIds = Array.from(new Set(groupMembers.map((m) => m.groupId)));
-  const groups = groupIds.length > 0
-    ? await db
-        .select({ id: userGroups.id, name: userGroups.name })
-        .from(userGroups)
-        .where(inArray(userGroups.id, groupIds))
-    : [];
-
-  // Build lookup maps
-  const studentMap = new Map(students.map((s) => [s.id, s]));
-  const groupMap = new Map(groups.map((g) => [g.id, g.name]));
+  // 7. Build user group/section map
   const userGroupMap = new Map<string, string>();
-  for (const gm of groupMembers) {
-    if (!userGroupMap.has(gm.userId)) {
-      userGroupMap.set(gm.userId, groupMap.get(gm.groupId) ?? "-");
+  for (const gm of assignedGroupMembers) {
+    if (gm.group?.name) {
+      userGroupMap.set(gm.userId, gm.group.name);
     }
   }
 
-  // Build student rows
-  const studentRows = allAssignments.map((a) => {
-    const s = studentMap.get(a.userId);
-    
-    // Calculate time taken if completed
+  const unmappedStudentIds = studentIds.filter((id) => !userGroupMap.has(id));
+  if (unmappedStudentIds.length > 0) {
+    const extraGroupMembers = await db.query.userGroupMembers.findMany({
+      where: inArray(userGroupMembers.userId, unmappedStudentIds),
+      with: { group: true }
+    });
+    for (const egm of extraGroupMembers) {
+      if (egm.group?.name && !userGroupMap.has(egm.userId)) {
+        userGroupMap.set(egm.userId, egm.group.name);
+      }
+    }
+  }
+
+  const assignmentMap = new Map(allAssignments.map((a) => [a.userId, a]));
+
+  // 8. Build student rows (including all absentees)
+  const studentRows = students.map((s) => {
+    const a = assignmentMap.get(s.id);
+    const hasAttempted = a && (a.status === "completed" || a.status === "in_progress");
+
     let timeTakenMinutes = 0;
-    if (a.startedAt && a.completedAt) {
+    if (a?.startedAt && a?.completedAt) {
       timeTakenMinutes = Math.round((a.completedAt.getTime() - a.startedAt.getTime()) / 60000);
-    } else if (a.startedAt && a.status === "in_progress") {
+    } else if (a?.startedAt && a?.status === "in_progress") {
       timeTakenMinutes = Math.round((Date.now() - a.startedAt.getTime()) / 60000);
     }
 
     return {
-      userId: a.userId,
-      roll: s?.username?.toUpperCase() ?? "N/A",
-      name: s?.name ?? "Unknown",
-      branch: s?.branch ?? "-",
-      section: userGroupMap.get(a.userId) ?? "-",
-      status: a.status,
-      score: a.score ?? 0,
-      startedAt: a.startedAt,
-      completedAt: a.completedAt,
+      userId: s.id,
+      roll: s.username?.toUpperCase() ?? "N/A",
+      name: s.name ?? "Unknown",
+      branch: s.branch ?? "-",
+      section: userGroupMap.get(s.id) ?? "-",
+      status: hasAttempted ? a!.status : "absent",
+      score: hasAttempted ? (a!.score ?? 0) : null,
+      startedAt: a?.startedAt ?? null,
+      completedAt: a?.completedAt ?? null,
       timeTakenMinutes,
-      malpracticeCount: a.malpracticeCount ?? 0,
-      isTerminated: a.isTerminated ?? false,
+      malpracticeCount: a?.malpracticeCount ?? 0,
+      isTerminated: a?.isTerminated ?? false,
     };
   });
 
@@ -139,12 +159,29 @@ export async function getAggregatedCDCReport(semester: string) {
 
   const examIds = semesterExams.map(e => e.id);
 
-  // 2. Get all assignments for these exams
+  // 2. Get all target groups assigned across all semester exams
+  const targetGroupIds = Array.from(new Set(semesterExams.flatMap((e) => e.groups.map((g) => g.groupId))));
+
+  // 3. Get all group members for these assigned groups
+  const groupMembers = targetGroupIds.length > 0
+    ? await db.query.userGroupMembers.findMany({
+        where: inArray(userGroupMembers.groupId, targetGroupIds),
+        with: { group: true }
+      })
+    : [];
+
+  // 4. Get all assignments for these exams
   const allAssignments = await db.query.examAssignments.findMany({
     where: inArray(examAssignments.examId, examIds),
   });
 
-  if (allAssignments.length === 0) { 
+  // 5. Union student IDs
+  const studentIds = Array.from(new Set([
+    ...groupMembers.map((m) => m.userId),
+    ...allAssignments.map((a) => a.userId)
+  ]));
+
+  if (studentIds.length === 0) { 
     return { 
       success: true as const, 
       data: { 
@@ -154,9 +191,7 @@ export async function getAggregatedCDCReport(semester: string) {
     }; 
   }
 
-  const studentIds = Array.from(new Set(allAssignments.map(a => a.userId)));
-
-  // 3. Get student info
+  // 6. Get student info
   const students = await db
     .select({
       id: user.id,
@@ -167,42 +202,53 @@ export async function getAggregatedCDCReport(semester: string) {
     .from(user)
     .where(inArray(user.id, studentIds));
 
-  // 4. Get section info
-  const groupMembers = await db
-    .select({ userId: userGroupMembers.userId, groupId: userGroupMembers.groupId })
-    .from(userGroupMembers)
-    .where(inArray(userGroupMembers.userId, studentIds));
-
-  const groupIds = Array.from(new Set(groupMembers.map((m) => m.groupId)));
-  const groups = groupIds.length > 0
-    ? await db
-        .select({ id: userGroups.id, name: userGroups.name })
-        .from(userGroups)
-        .where(inArray(userGroups.id, groupIds))
-    : [];
-
-  const studentMap = new Map(students.map((s) => [s.id, s]));
-  const groupMap = new Map(groups.map((g) => [g.id, g.name]));
+  // 7. Get section/batch info
   const userGroupMap = new Map<string, string>();
   for (const gm of groupMembers) {
-    if (!userGroupMap.has(gm.userId)) {
-      userGroupMap.set(gm.userId, groupMap.get(gm.groupId) ?? "-");
+    if (gm.group?.name) {
+      userGroupMap.set(gm.userId, gm.group.name);
     }
   }
 
-  // 5. Aggregate student rows
-  const studentRows = studentIds.map(userId => {
+  const unmappedStudentIds = studentIds.filter((id) => !userGroupMap.has(id));
+  if (unmappedStudentIds.length > 0) {
+    const extraGroupMembers = await db.query.userGroupMembers.findMany({
+      where: inArray(userGroupMembers.userId, unmappedStudentIds),
+      with: { group: true }
+    });
+    for (const egm of extraGroupMembers) {
+      if (egm.group?.name && !userGroupMap.has(egm.userId)) {
+        userGroupMap.set(egm.userId, egm.group.name);
+      }
+    }
+  }
+
+  const studentMap = new Map(students.map((s) => [s.id, s]));
+
+  // 8. Aggregate student rows including absentees
+  const studentRows = studentIds.map((userId) => {
     const s = studentMap.get(userId);
-    const studentAssignments = allAssignments.filter(a => a.userId === userId);
+    const studentAssignments = allAssignments.filter((a) => a.userId === userId);
+    const studentGroupIdList = groupMembers.filter((m) => m.userId === userId).map((m) => m.groupId);
     
     let totalScore = 0;
-    const scores: Record<string, number> = {};
+    const scores: Record<string, number | "AB"> = {};
     
-    studentAssignments.forEach(a => {
-      // ONLY count assignments that were actually attempted/completed
-      if (a.status === "completed" || a.status === "in_progress") {
-        scores[a.examId] = a.score || 0;
-        totalScore += a.score || 0;
+    semesterExams.forEach((exam) => {
+      const examGroupIds = new Set(exam.groups.map((g) => g.groupId));
+      const isAssigned = examGroupIds.size === 0 || 
+        studentGroupIdList.some((gid) => examGroupIds.has(gid)) ||
+        studentAssignments.some((a) => a.examId === exam.id);
+
+      if (isAssigned) {
+        const a = studentAssignments.find((asgn) => asgn.examId === exam.id);
+        if (a && (a.status === "completed" || a.status === "in_progress")) {
+          const scoreVal = a.score || 0;
+          scores[exam.id] = scoreVal;
+          totalScore += scoreVal;
+        } else {
+          scores[exam.id] = "AB";
+        }
       }
     });
 
@@ -256,17 +302,33 @@ export async function getAggregatedAATReport(semester: string) {
 
   const examIds = semesterExams.map(e => e.id);
 
-  // 2. Get all assignments for these exams
+  // 2. Get target group IDs
+  const targetGroupIds = Array.from(new Set(semesterExams.flatMap((e) => e.groups.map((g) => g.groupId))));
+
+  // 3. Get all group members for these assigned groups
+  const groupMembers = targetGroupIds.length > 0
+    ? await db.query.userGroupMembers.findMany({
+        where: inArray(userGroupMembers.groupId, targetGroupIds),
+        with: { group: true }
+      })
+    : [];
+
+  // 4. Get all assignments for these exams
   const allAssignments = await db.query.examAssignments.findMany({
     where: (a, { inArray }) => inArray(a.examId, examIds),
   });
 
-  const studentIds = Array.from(new Set(allAssignments.map(a => a.userId)));
+  // 5. Union student IDs
+  const studentIds = Array.from(new Set([
+    ...groupMembers.map((m) => m.userId),
+    ...allAssignments.map((a) => a.userId)
+  ]));
+
   if (studentIds.length === 0) {
     return { success: true as const, data: { exams: semesterExams.map(e => ({ ...e, totalMarks: (e.gradingConfig as any)?.totalMarks || 100, assignedBatches: e.groups.map(g => g.group?.name || "") })), studentRows: [] } };
   }
 
-  // 3. Get student details
+  // 6. Get student details
   const students = await db
     .select({
       id: user.id,
@@ -277,42 +339,53 @@ export async function getAggregatedAATReport(semester: string) {
     .from(user)
     .where(inArray(user.id, studentIds));
 
-  // 4. Get section details
-  const groupMembers = await db
-    .select({ userId: userGroupMembers.userId, groupId: userGroupMembers.groupId })
-    .from(userGroupMembers)
-    .where(inArray(userGroupMembers.userId, studentIds));
-
-  const groupIds = Array.from(new Set(groupMembers.map(m => m.groupId)));
-  const groups = groupIds.length > 0
-    ? await db
-        .select({ id: userGroups.id, name: userGroups.name })
-        .from(userGroups)
-        .where(inArray(userGroups.id, groupIds))
-    : [];
-
-  const studentMap = new Map(students.map(s => [s.id, s]));
-  const groupMap = new Map(groups.map(g => [g.id, g.name]));
+  // 7. Get section details
   const userGroupMap = new Map<string, string>();
   for (const gm of groupMembers) {
-    if (!userGroupMap.has(gm.userId)) {
-      userGroupMap.set(gm.userId, groupMap.get(gm.groupId) ?? "");
+    if (gm.group?.name) {
+      userGroupMap.set(gm.userId, gm.group.name);
     }
   }
 
-  // 6. Build rows (Fixing the invalid 'examSubmissions' reference, using assignments instead)
+  const unmappedStudentIds = studentIds.filter((id) => !userGroupMap.has(id));
+  if (unmappedStudentIds.length > 0) {
+    const extraGroupMembers = await db.query.userGroupMembers.findMany({
+      where: inArray(userGroupMembers.userId, unmappedStudentIds),
+      with: { group: true }
+    });
+    for (const egm of extraGroupMembers) {
+      if (egm.group?.name && !userGroupMap.has(egm.userId)) {
+        userGroupMap.set(egm.userId, egm.group.name);
+      }
+    }
+  }
+
+  const studentMap = new Map(students.map(s => [s.id, s]));
+
+  // 8. Build rows including absentees
   const studentRows = studentIds.map(uid => {
     const s = studentMap.get(uid);
     const studentAssignments = allAssignments.filter(a => a.userId === uid);
+    const studentGroupIdList = groupMembers.filter((m) => m.userId === uid).map((m) => m.groupId);
     
     let totalScore = 0;
-    const scores: Record<string, number> = {};
+    const scores: Record<string, number | "AB"> = {};
     
-    studentAssignments.forEach(a => {
-      // ONLY count assignments that were actually attempted/completed
-      if (a.status === "completed" || a.status === "in_progress") {
-        scores[a.examId] = a.score || 0;
-        totalScore += a.score || 0;
+    semesterExams.forEach((exam) => {
+      const examGroupIds = new Set(exam.groups.map((g) => g.groupId));
+      const isAssigned = examGroupIds.size === 0 ||
+        studentGroupIdList.some((gid) => examGroupIds.has(gid)) ||
+        studentAssignments.some((a) => a.examId === exam.id);
+
+      if (isAssigned) {
+        const a = studentAssignments.find((asgn) => asgn.examId === exam.id);
+        if (a && (a.status === "completed" || a.status === "in_progress")) {
+          const scoreVal = a.score || 0;
+          scores[exam.id] = scoreVal;
+          totalScore += scoreVal;
+        } else {
+          scores[exam.id] = "AB";
+        }
       }
     });
 

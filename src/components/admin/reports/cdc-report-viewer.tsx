@@ -30,7 +30,7 @@ type StudentRow = {
   branch: string;
   section: string;
   totalScore: number;
-  scores: Record<string, number>;
+  scores: Record<string, number | string>;
 };
 
 type CDCExam = {
@@ -172,7 +172,38 @@ export function CDCReportViewer({
     }
   };
 
-  const availableBatches = YEAR_BATCH_MAPPINGS[localYear] || [];
+  const availableBatches = useMemo(() => {
+    const predefined = YEAR_BATCH_MAPPINGS[localYear] || [];
+    const fromData = new Set<string>();
+
+    const extractPrefix = (name: string) => {
+      const m = name.trim().match(/^([a-zA-Z]+\d+)/i);
+      return m ? m[1].toUpperCase() : name.trim();
+    };
+
+    exams.forEach(e => {
+      e.assignedBatches?.forEach(b => {
+        if (b) fromData.add(extractPrefix(b));
+      });
+    });
+
+    studentRows.forEach(s => {
+      if (s.section && s.section !== "-") {
+        fromData.add(extractPrefix(s.section));
+      }
+    });
+
+    const combined = [...predefined];
+    fromData.forEach(batch => {
+      const base = batch.split(' ')[0];
+      const alreadyExists = combined.some(p => p.split(' ')[0].toUpperCase() === base.toUpperCase());
+      if (!alreadyExists && base) {
+        combined.push(base);
+      }
+    });
+
+    return combined;
+  }, [localYear, exams, studentRows]);
 
   // ==========================================
   // BATCH-WISE LOGIC
@@ -180,11 +211,12 @@ export function CDCReportViewer({
   const filteredExams = useMemo(() => {
     if (reportMode !== "batch" || !selectedBatch || selectedBatch === "none") return [];
     const batchPrefix = selectedBatch.split(' ')[0];
+    const batchRegex = new RegExp(`^${batchPrefix}(?:\\D|$)`, 'i');
     
     return exams.filter(e => {
       const matchesSearch = e.title.toLowerCase().includes(searchQuery.toLowerCase());
       const assigned = e.assignedBatches || [];
-      const matchesBatch = assigned.length === 0 || assigned.some(b => b.includes(batchPrefix));
+      const matchesBatch = assigned.length === 0 || assigned.some(b => batchRegex.test(b.trim()));
       return matchesSearch && matchesBatch;
     });
   }, [exams, selectedBatch, searchQuery, reportMode]);
@@ -193,16 +225,18 @@ export function CDCReportViewer({
     if (reportMode !== "batch" || !selectedBatch || selectedBatch === "none" || filteredExams.length === 0) return [];
     
     const batchPrefix = selectedBatch.split(' ')[0];
-    const batchStudents = studentRows.filter(s => s.section && s.section.includes(batchPrefix));
+    const batchRegex = new RegExp(`^${batchPrefix}(?:\\D|$)`, 'i');
+    const batchStudents = studentRows.filter(s => s.section && batchRegex.test(s.section.trim()));
 
     const calculated = batchStudents.map(student => {
       let attempted = 0;
       let scoreObtained = 0;
 
       filteredExams.forEach(exam => {
-        if (student.scores[exam.id] !== undefined) {
+        const sc = student.scores[exam.id];
+        if (sc !== undefined && sc !== "AB") {
           attempted++;
-          scoreObtained += student.scores[exam.id];
+          scoreObtained += Number(sc);
         }
       });
 
@@ -248,9 +282,9 @@ export function CDCReportViewer({
 
       branchExams.forEach(exam => {
         const score = student.scores[exam.id];
-        if (score !== undefined) {
+        if (score !== undefined && score !== "AB") {
           attempted++;
-          scoreObtained += score;
+          scoreObtained += Number(score);
         }
       });
 
@@ -549,7 +583,11 @@ export function CDCReportViewer({
                             return (
                               <TableCell key={exam ? exam.id : `empty-exam-td-${i}`} className="w-[100px] min-w-[100px] text-center px-4 border-b">
                                 {score !== undefined ? (
-                                  <span className="font-medium">{score}</span>
+                                  score === "AB" ? (
+                                    <span className="font-semibold text-red-500">AB</span>
+                                  ) : (
+                                    <span className="font-medium">{score}</span>
+                                  )
                                 ) : (
                                   <span className="text-muted-foreground opacity-50">-</span>
                                 )}

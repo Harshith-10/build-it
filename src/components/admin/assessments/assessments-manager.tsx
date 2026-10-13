@@ -1502,7 +1502,6 @@ function AssessmentFormDialog({
   const [description, setDescription] = useState("");
   const [semester, setSemester] = useState<string>("Year III");
   const [selectedLabId, setSelectedLabId] = useState<string>("");
-  const [weekNo, setWeekNo] = useState<string>("");
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>(
     [],
   );
@@ -1531,7 +1530,6 @@ function AssessmentFormDialog({
       setDescription(initial.description || "");
       setSemester((initial as any).semester || "Year III");
       setSelectedLabId(initial.labId || "");
-      setWeekNo((initial as any).weekNo != null ? String((initial as any).weekNo) : "");
       setSelectedCollectionIds(
         (initial as any).collections?.map((c: any) => c.collectionId) || [],
       );
@@ -1572,7 +1570,6 @@ function AssessmentFormDialog({
       setTitle("");
       setDescription("");
       setSemester("Year I");
-      setWeekNo("");
       setSelectedCollectionIds([]);
       setDurationMinutes(60);
       setTotalMarks(100);
@@ -1751,14 +1748,29 @@ function AssessmentFormDialog({
     try {
       setSubmitting(true);
 
+      let derivedSemester = !isLab ? (semester || "Year III") : null;
+      if (!isLab && groupAssignments.length > 0) {
+        for (const ga of groupAssignments) {
+          const group = availableGroups.find((g) => g.id === ga.groupId);
+          if (!group?.name) continue;
+          const match = group.name.match(/\b(202\d)\b/);
+          if (match) {
+            const yr = match[1];
+            if (yr === "2024") { derivedSemester = "Year III"; break; }
+            if (yr === "2025") { derivedSemester = "Year II"; break; }
+            if (yr === "2023") { derivedSemester = "Year IV"; break; }
+            if (yr === "2026") { derivedSemester = "Year I"; break; }
+          }
+        }
+      }
+
       const payload: UpsertAssessmentInput = {
         id: initial?.id,
         title: title.trim(),
         description: description.trim() || null,
         assessmentType: category,
-        semester: !isLab ? semester : null,
+        semester: derivedSemester,
         labId: isLab ? selectedLabId : null,
-        weekNo: isLab && weekNo ? Number(weekNo) : null,
         durationMinutes: Number(durationMinutes) || 60,
         totalMarks: Number(totalMarks) || 100,
         startTime: startTimeInput ? new Date(startTimeInput) : null,
@@ -1849,7 +1861,7 @@ function AssessmentFormDialog({
                   id="title"
                   placeholder={
                     isLab
-                      ? "e.g. Data Structures Lab Internal 1"
+                      ? "e.g. OOPL_W1 or [Subject]_W[No]"
                       : "e.g. Midterm Coding Assessment"
                   }
                   value={title}
@@ -1857,23 +1869,12 @@ function AssessmentFormDialog({
                   className="text-xs sm:text-sm"
                   required
                 />
+                {isLab && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Naming format: <span className="font-mono text-foreground font-semibold">[Subject]_W[No]</span> (e.g. <span className="font-mono text-foreground font-semibold">OOPL_W1</span>). The week number is automatically extracted for reports.
+                  </p>
+                )}
               </div>
-
-              {!isLab && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs sm:text-sm">Semester *</Label>
-                  <Select value={semester} onValueChange={setSemester}>
-                    <SelectTrigger className="text-xs sm:text-sm">
-                      <SelectValue placeholder="Select Semester" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["Year I", "Year II", "Year III", "Year IV"].map(sem => (
-                        <SelectItem key={sem} value={sem}>{sem}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="desc" className="text-xs sm:text-sm">Description</Label>
@@ -1920,24 +1921,6 @@ function AssessmentFormDialog({
                     </SelectContent>
                   </Select>
                 )}
-
-                <div className="space-y-1.5 pt-2">
-                  <Label htmlFor="weekNo" className="text-xs sm:text-sm">Week Number *</Label>
-                  <Input
-                    id="weekNo"
-                    type="number"
-                    min={1}
-                    max={30}
-                    placeholder="e.g. 1, 2, 3..."
-                    value={weekNo}
-                    onChange={(e) => setWeekNo(e.target.value)}
-                    className="text-xs sm:text-sm"
-                    required
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Links this assessment directly to the corresponding week in reports.
-                  </p>
-                </div>
               </div>
             )}
 

@@ -14,9 +14,10 @@ export const dynamic = "force-dynamic";
 export default async function CDCAssessmentsList({
   searchParams,
 }: {
-  searchParams: { sem?: string };
+  searchParams: Promise<{ sem?: string }>;
 }) {
-  const activeSem = searchParams.sem || "Year III";
+  const resolvedParams = await searchParams;
+  const activeSem = resolvedParams?.sem || "Year III";
   const result = await getAggregatedCDCReport(activeSem);
   
   const exams = result.success ? result.data.exams : [];

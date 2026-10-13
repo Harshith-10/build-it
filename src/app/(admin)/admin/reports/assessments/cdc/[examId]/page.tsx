@@ -31,9 +31,9 @@ export default async function CDCExamReportPage({ params }: Props) {
     const totalConducted = result.data.exams.length;
     
     dynamicStudentRows = result.data.studentRows
-      .filter(s => s.scores[examId] !== undefined) // Only students who took this exam
+      .filter(s => s.scores[examId] !== undefined)
       .map(s => {
-        let attempted = Object.keys(s.scores).length;
+        let attempted = Object.values(s.scores).filter((val) => val !== "AB").length;
         return {
           userId: s.userId,
           roll: s.roll,
