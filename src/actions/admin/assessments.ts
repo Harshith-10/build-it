@@ -216,6 +216,7 @@ export type UpsertAssessmentInput = {
   title: string;
   description?: string | null;
   assessmentType: "lab_assessment" | "coding_assessment";
+  semester?: string | null;
   labId?: string | null;
   durationMinutes?: number;
   startTime?: string | Date | null;
@@ -282,10 +283,32 @@ export async function upsertAssessment(data: UpsertAssessmentInput) {
     const totalMarks = Number(data.totalMarks) || 100;
     const gradingConfig = data.gradingConfig || { totalMarks };
 
+    let semester = data.semester || null;
+    if (!semester && data.assessmentType !== "lab_assessment" && data.groupAssignments && data.groupAssignments.length > 0) {
+      const gids = data.groupAssignments.map(ga => ga.groupId);
+      const matchedGroups = await db.query.userGroups.findMany({
+        where: inArray(userGroups.id, gids),
+        columns: { name: true }
+      });
+      for (const g of matchedGroups) {
+        if (!g.name) continue;
+        const match = g.name.match(/\b(202\d)\b/);
+        if (match) {
+          const yr = match[1];
+          if (yr === "2024") { semester = "Year III"; break; }
+          if (yr === "2025") { semester = "Year II"; break; }
+          if (yr === "2023") { semester = "Year IV"; break; }
+          if (yr === "2026") { semester = "Year I"; break; }
+        }
+      }
+      if (!semester) semester = "Year III";
+    }
+
     const commonFields = {
       title: data.title.trim(),
       description: data.description?.trim() || null,
       assessmentType: data.assessmentType,
+      semester,
       labId: data.assessmentType === "lab_assessment" ? data.labId || null : null,
       durationMinutes: Number(data.durationMinutes) || 60,
       requiresPin: Boolean(data.requiresPin),

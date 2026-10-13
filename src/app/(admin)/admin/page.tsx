@@ -6,6 +6,8 @@ import {
   MessageSquare,
   Plus,
   Users,
+  Code2,
+  BarChart2,
 } from "lucide-react";
 import Link from "next/link";
 import { getDashboardAnalytics } from "@/actions/admin/analytics";
@@ -43,66 +45,67 @@ export default async function AdminDashboard() {
 
   const stats = [
     {
-      title: "Total Users",
+      title: "Users",
       value: usersData.total,
       icon: Users,
       href: "/admin/users",
-      color:
-        "from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/5",
+      color: "from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/5",
       iconColor: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      title: "Exams",
-      value: examsData.total,
-      icon: GraduationCap,
-      href: "/admin/exams",
-      color:
-        "from-violet-500/10 to-violet-500/5 dark:from-violet-500/20 dark:to-violet-500/5",
-      iconColor: "text-violet-600 dark:text-violet-400",
-    },
-    {
-      title: "Laboratories",
-      value: Array.isArray(labsData) ? labsData.length : 0,
-      icon: FlaskConical,
-      href: "/admin/labs",
-      color:
-        "from-cyan-500/10 to-cyan-500/5 dark:from-cyan-500/20 dark:to-cyan-500/5",
-      iconColor: "text-cyan-600 dark:text-cyan-400",
-    },
-    {
-      title: "Problems",
-      value: problemsData.total,
-      icon: FileQuestion,
-      href: "/admin/problems",
-      color:
-        "from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/5",
-      iconColor: "text-amber-600 dark:text-amber-400",
     },
     {
       title: "Groups",
       value: groupsData.total,
       icon: Users,
       href: "/admin/groups",
-      color:
-        "from-emerald-500/10 to-emerald-500/5 dark:from-emerald-500/20 dark:to-emerald-500/5",
+      color: "from-emerald-500/10 to-emerald-500/5 dark:from-emerald-500/20 dark:to-emerald-500/5",
       iconColor: "text-emerald-600 dark:text-emerald-400",
+    },
+    {
+      title: "Problems",
+      value: problemsData.total,
+      icon: FileQuestion,
+      href: "/admin/problems",
+      color: "from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/5",
+      iconColor: "text-amber-600 dark:text-amber-400",
     },
     {
       title: "Collections",
       value: collectionsData.total,
       icon: Library,
       href: "/admin/collections",
-      color:
-        "from-rose-500/10 to-rose-500/5 dark:from-rose-500/20 dark:to-rose-500/5",
+      color: "from-rose-500/10 to-rose-500/5 dark:from-rose-500/20 dark:to-rose-500/5",
       iconColor: "text-rose-600 dark:text-rose-400",
+    },
+    {
+      title: "Examinations",
+      value: examsData.total,
+      icon: GraduationCap,
+      href: "/admin/exams",
+      color: "from-violet-500/10 to-violet-500/5 dark:from-violet-500/20 dark:to-violet-500/5",
+      iconColor: "text-violet-600 dark:text-violet-400",
+    },
+    {
+      title: "Laboratory",
+      value: Array.isArray(labsData) ? labsData.length : "-",
+      icon: FlaskConical,
+      href: "/admin/labs",
+      color: "from-cyan-500/10 to-cyan-500/5 dark:from-cyan-500/20 dark:to-cyan-500/5",
+      iconColor: "text-cyan-600 dark:text-cyan-400",
+    },
+    {
+      title: "Reports",
+      value: "-",
+      icon: BarChart2,
+      href: "/admin/reports",
+      color: "from-orange-500/10 to-orange-500/5 dark:from-orange-500/20 dark:to-orange-500/5",
+      iconColor: "text-orange-600 dark:text-orange-400",
     },
     {
       title: "Open Requests",
       value: openRequestCount,
       icon: MessageSquare,
       href: "/admin/requests",
-      color:
-        "from-indigo-500/10 to-indigo-500/5 dark:from-indigo-500/20 dark:to-indigo-500/5",
+      color: "from-indigo-500/10 to-indigo-500/5 dark:from-indigo-500/20 dark:to-indigo-500/5",
       iconColor: "text-indigo-600 dark:text-indigo-400",
     },
   ];
@@ -151,7 +154,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Resource Stats */}
-      <div className="grid gap-3.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-7">
+      <div className="grid gap-3.5 grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card

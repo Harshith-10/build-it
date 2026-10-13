@@ -1500,6 +1500,7 @@ function AssessmentFormDialog({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [semester, setSemester] = useState<string>("Year III");
   const [selectedLabId, setSelectedLabId] = useState<string>("");
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>(
     [],
@@ -1527,6 +1528,7 @@ function AssessmentFormDialog({
     if (initial) {
       setTitle(initial.title || "");
       setDescription(initial.description || "");
+      setSemester((initial as any).semester || "Year III");
       setSelectedLabId(initial.labId || "");
       setSelectedCollectionIds(
         (initial as any).collections?.map((c: any) => c.collectionId) || [],
@@ -1567,6 +1569,7 @@ function AssessmentFormDialog({
     } else {
       setTitle("");
       setDescription("");
+      setSemester("Year I");
       setSelectedCollectionIds([]);
       setDurationMinutes(60);
       setTotalMarks(100);
@@ -1745,11 +1748,28 @@ function AssessmentFormDialog({
     try {
       setSubmitting(true);
 
+      let derivedSemester = !isLab ? (semester || "Year III") : null;
+      if (!isLab && groupAssignments.length > 0) {
+        for (const ga of groupAssignments) {
+          const group = availableGroups.find((g) => g.id === ga.groupId);
+          if (!group?.name) continue;
+          const match = group.name.match(/\b(202\d)\b/);
+          if (match) {
+            const yr = match[1];
+            if (yr === "2024") { derivedSemester = "Year III"; break; }
+            if (yr === "2025") { derivedSemester = "Year II"; break; }
+            if (yr === "2023") { derivedSemester = "Year IV"; break; }
+            if (yr === "2026") { derivedSemester = "Year I"; break; }
+          }
+        }
+      }
+
       const payload: UpsertAssessmentInput = {
         id: initial?.id,
         title: title.trim(),
         description: description.trim() || null,
         assessmentType: category,
+        semester: derivedSemester,
         labId: isLab ? selectedLabId : null,
         durationMinutes: Number(durationMinutes) || 60,
         totalMarks: Number(totalMarks) || 100,
@@ -1841,7 +1861,7 @@ function AssessmentFormDialog({
                   id="title"
                   placeholder={
                     isLab
-                      ? "e.g. Data Structures Lab Internal 1"
+                      ? "e.g. OOPL_W1 or [Subject]_W[No]"
                       : "e.g. Midterm Coding Assessment"
                   }
                   value={title}
@@ -1849,6 +1869,11 @@ function AssessmentFormDialog({
                   className="text-xs sm:text-sm"
                   required
                 />
+                {isLab && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Naming format: <span className="font-mono text-foreground font-semibold">[Subject]_W[No]</span> (e.g. <span className="font-mono text-foreground font-semibold">OOPL_W1</span>). The week number is automatically extracted for reports.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">

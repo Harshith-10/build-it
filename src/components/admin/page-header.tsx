@@ -35,12 +35,34 @@ function _generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
   return crumbs;
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+
+export function PageHeader({ title, description, backHref, actions }: PageHeaderProps) {
+  const router = useRouter();
+
   return (
     <div className="space-y-1">
       {/* Title row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {backHref && (
+            backHref === "back" ? (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only">Go back</span>
+              </Button>
+            ) : (
+              <Link href={backHref}>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="sr-only">Go back</span>
+                </Button>
+              </Link>
+            )
+          )}
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
             {description && (

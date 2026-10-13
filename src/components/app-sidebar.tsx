@@ -83,6 +83,11 @@ const adminNavMain = [
     icon: FlaskConical,
   },
   {
+    title: "Reports",
+    url: "/admin/reports",
+    icon: BarChart2,
+  },
+  {
     title: "Assessments",
     url: "/admin/assessments",
     icon: ClipboardCheck,

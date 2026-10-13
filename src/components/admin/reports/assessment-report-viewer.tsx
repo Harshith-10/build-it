@@ -1,0 +1,306 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { Download, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type StudentRow = {
+  userId: string;
+  roll: string;
+  name: string;
+  branch: string;
+  section: string;
+  status: string;
+  score: number | null;
+  timeTakenMinutes: number;
+  malpracticeCount: number;
+  isTerminated: boolean;
+};
+
+interface AssessmentReportViewerProps {
+  examTitle: string;
+  studentRows: StudentRow[];
+  preselectedBranch?: string;
+  preselectedSection?: string;
+  hideBranchSectionFilters?: boolean;
+}
+
+function downloadCsv(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers, ...rows].map((r) => r.join(",")).join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function AssessmentReportViewer({ 
+  examTitle, 
+  studentRows,
+  preselectedBranch = "all",
+  preselectedSection = "all",
+  hideBranchSectionFilters = false
+}: AssessmentReportViewerProps) {
+  const [selectedBranch, setSelectedBranch] = useState<string>(preselectedBranch);
+  const [selectedSection, setSelectedSection] = useState<string>(preselectedSection);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Format section to only show the letter (e.g. "CSE-A" -> "A")
+  const formattedStudentRows = useMemo(() => {
+    return studentRows.map((s) => {
+      const parts = (s.section || "").split("-");
+      const cleanSection = parts.length > 1 ? parts.pop()! : s.section;
+      return { ...s, section: cleanSection || "—" };
+    });
+  }, [studentRows]);
+
+  const BRANCH_SECTIONS: Record<string, number> = {
+    "CSE": 7,
+    "IT": 2,
+    "AIML": 4,
+    "DS": 1,
+    "ECE": 2,
+    "EEE": 1,
+    "MECH": 1,
+    "CIVIL": 1,
+    "AERO": 1,
+  };
+
+  const availableBranches = Object.keys(BRANCH_SECTIONS);
+
+  const availableSections = useMemo(() => {
+    if (!selectedBranch || selectedBranch === "all" || !BRANCH_SECTIONS[selectedBranch]) {
+      return [];
+    }
+    const count = BRANCH_SECTIONS[selectedBranch];
+    return Array.from({ length: count }, (_, i) => String.fromCharCode(65 + i));
+  }, [selectedBranch]);
+
+  const filteredStudentRows = useMemo(() => {
+    return formattedStudentRows.filter((s) => {
+      const matchBranch = selectedBranch === "" || selectedBranch === "all" || s.branch === selectedBranch;
+      const matchSection = selectedSection === "" || selectedSection === "all" || s.section === selectedSection;
+      
+      const query = searchQuery.trim().toLowerCase();
+      const matchSearch = query === "" || 
+        s.roll.toLowerCase().includes(query) || 
+        s.name.toLowerCase().includes(query);
+        
+      return matchBranch && matchSection && matchSearch;
+    });
+  }, [formattedStudentRows, selectedBranch, selectedSection, searchQuery]);
+
+  const isSelectionMade = (selectedBranch !== "" && selectedSection !== "") || searchQuery.trim() !== "";
+
+  const downloadCumulative = () => {
+    const headers = [
+      "S.No", 
+      "Roll No", 
+      "Name", 
+      ...(hideBranchSectionFilters ? [] : ["Branch", "Section"]),
+      "Status",
+      "Score",
+      "Time Taken (mins)",
+    ];
+    const rows = filteredStudentRows.map((s, i) => [
+      String(i + 1),
+      s.roll,
+      s.name,
+      ...(hideBranchSectionFilters ? [] : [s.branch, s.section]),
+      s.status === "absent" ? "Absent (AB)" : s.status,
+      s.status === "absent" || s.score === null ? "AB" : String(s.score),
+      s.status === "absent" ? "—" : String(s.timeTakenMinutes),
+    ]);
+    downloadCsv(`${examTitle.replace(/\s+/g, "_")}_Report.csv`, headers, rows);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <Badge variant="default" className="bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20">Completed</Badge>;
+      case "in_progress":
+        return <Badge variant="default" className="bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 hover:bg-amber-500/20 border-amber-500/20">In Progress</Badge>;
+      case "absent":
+        return <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 border-red-500/30">Absent (AB)</Badge>;
+      case "not_started":
+        return <Badge variant="outline" className="text-muted-foreground border-muted">Not Started</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Header Stats */}
+      {hideBranchSectionFilters && (
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground border-b pb-4">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-foreground bg-muted px-2 py-1 rounded-md text-xs uppercase">
+              {preselectedBranch === "all" ? "All Branches" : preselectedBranch}
+            </span>
+          </div>
+          <div>•</div>
+          <div>{preselectedSection === "all" ? "All Sections" : `Section ${preselectedSection}`}</div>
+          <div>•</div>
+          <div>{filteredStudentRows.length} students</div>
+        </div>
+      )}
+
+      {/* Main Filter Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-muted/30 p-4 rounded-lg border">
+        {!hideBranchSectionFilters && (
+          <>
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-medium text-muted-foreground">Branch</label>
+              <Select
+                value={selectedBranch}
+                onValueChange={(val) => {
+                  setSelectedBranch(val);
+                  setSelectedSection(""); // Reset section when branch changes
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableBranches.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="all">All Branches</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+    
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-medium text-muted-foreground">Section</label>
+              <Select value={selectedSection} onValueChange={setSelectedSection}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSections.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="all">All Sections</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
+
+        <div className="flex flex-col gap-1.5 w-full">
+          <label className="text-xs font-medium text-muted-foreground">Search Student</label>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              type="text" 
+              placeholder="Name or Roll No..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
+      </div>
+
+      {!isSelectionMade ? (
+        <div className="py-20 text-center border rounded-lg bg-muted/10 flex flex-col items-center">
+          <div className="h-12 w-12 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center mb-4">
+            <Search className="h-6 w-6 text-cyan-600 dark:text-cyan-400 opacity-50" />
+          </div>
+          <h3 className="text-lg font-medium">No data to display</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Please select a Branch and Section, or search for a specific Name/Roll No above.
+          </p>
+        </div>
+      ) : (
+        <div className="w-full">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground">{filteredStudentRows.length} students found</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={downloadCumulative}>
+              <Download className="h-4 w-4 mr-2" /> Download CSV
+            </Button>
+          </div>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12 text-center">S.No</TableHead>
+                  <TableHead>Roll No</TableHead>
+                  <TableHead>Name</TableHead>
+                  {!hideBranchSectionFilters && <TableHead>Branch</TableHead>}
+                  {!hideBranchSectionFilters && <TableHead>Section</TableHead>}
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center">Score</TableHead>
+                  <TableHead className="text-center">Time Taken (mins)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredStudentRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={hideBranchSectionFilters ? 6 : 8} className="text-center py-8 text-muted-foreground">
+                      No students found matching the selected filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredStudentRows.map((s, i) => (
+                    <TableRow key={s.userId}>
+                      <TableCell className="text-center text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="font-mono text-xs font-medium">{s.roll}</TableCell>
+                      <TableCell>{s.name}</TableCell>
+                      {!hideBranchSectionFilters && <TableCell>{s.branch}</TableCell>}
+                      {!hideBranchSectionFilters && <TableCell>{s.section}</TableCell>}
+                      <TableCell className="text-center">
+                        {getStatusBadge(s.status)}
+                      </TableCell>
+                      <TableCell className="text-center font-bold">
+                        {s.status === "absent" || s.score === null ? (
+                          <span className="text-red-500 font-bold">AB</span>
+                        ) : (
+                          <span className="text-cyan-600 dark:text-cyan-400">{s.score}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center font-medium">
+                        {s.status === "absent" ? "—" : (s.timeTakenMinutes > 0 ? s.timeTakenMinutes : "—")}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
+

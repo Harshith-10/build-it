@@ -13,7 +13,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { exportExamRankingsToExcel } from "@/actions/admin/exams";
+import { exportExamRankingsToExcel, getExamDashboardData } from "@/actions/admin/exams";
+import { generateResultsDashboardHtml } from "@/lib/results-dashboard-template";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -168,7 +169,6 @@ export const createColumns = (
             toast.error(res.error || "Failed to generate results", { id: toastId });
             return;
           }
-
           const byteCharacters = atob(res.base64);
           const byteNumbers = new Array(byteCharacters.length);
           for (let i = 0; i < byteCharacters.length; i++) {
@@ -178,7 +178,6 @@ export const createColumns = (
           const blob = new Blob([byteArray], {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           });
-
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -189,6 +188,29 @@ export const createColumns = (
         } catch (error) {
           console.error("Failed to download results", error);
           toast.error("Failed to download results", { id: toastId });
+        }
+      };
+
+      const handleAnalyzeResults = async () => {
+        const toastId = toast.loading("Loading dashboard...");
+        try {
+          const res = await getExamDashboardData(exam.id);
+          if (!res.success || !res.data) {
+            toast.error(res.error || "Failed to load dashboard", { id: toastId });
+            return;
+          }
+          const html = generateResultsDashboardHtml({
+            examTitle: res.data.examTitle,
+            students: res.data.students,
+            branchOrder: res.data.branchOrder,
+          });
+          toast.dismiss(toastId);
+          const blob = new Blob([html], { type: "text/html" });
+          const url = URL.createObjectURL(blob);
+          window.open(url, "_blank");
+        } catch (error) {
+          console.error("Failed to open dashboard", error);
+          toast.error("Failed to open dashboard", { id: toastId });
         }
       };
 
@@ -227,9 +249,15 @@ export const createColumns = (
               <Users className="w-4 h-4 mr-2" />
               View Submissions
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleGetResults}>
+            <DropdownMenuItem
+              onClick={() => router.push(`${basePath}/exams/${exam.id}/results?print=true`)}
+            >
               <FileSpreadsheet className="w-4 h-4 mr-2" />
               Get Results
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleAnalyzeResults}>
+              <ClipboardCheck className="w-4 h-4 mr-2" />
+              Analyze Results
             </DropdownMenuItem>
 
             {canManage && (

@@ -93,9 +93,11 @@ export const exams = pgTable("exams", {
     onDelete: "set null",
   }),
   assessmentType: text("assessment_type")
-    .$type<"exam" | "lab_assessment" | "coding_assessment">()
+    .$type<"exam" | "lab_assessment" | "coding_assessment" | "aat">()
     .default("exam")
     .notNull(),
+  semester: text("semester"),
+  weekNo: integer("week_no"),
   ownerId: text("owner_id"),
   transferredBy: text("transferred_by"),
   transferredAt: timestamp("transferred_at"),
@@ -190,7 +192,11 @@ export const examGroupFaculty = pgTable(
   (t) => [unique().on(t.examId, t.groupId, t.facultyId)],
 );
 
-export const examsRelations = relations(exams, ({ many, one }) => ({
+export const examsRelations = relations(exams, ({ one, many }) => ({
+  department: one(departments, {
+    fields: [exams.departmentId],
+    references: [departments.id],
+  }),
   lab: one(labs, {
     fields: [exams.labId],
     references: [labs.id],
@@ -252,3 +258,4 @@ export const examAttendanceRelations = relations(examAttendance, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
