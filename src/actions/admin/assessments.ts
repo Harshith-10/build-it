@@ -572,44 +572,10 @@ export async function getAvailableFaculty() {
 export async function getCodingFolders() {
   await requireFacultyOrAdmin();
 
-  let folderList = await db.query.labs.findMany({
+  const folderList = await db.query.labs.findMany({
     where: eq(labs.branch, "CODING"),
     orderBy: (labs, { asc }) => [asc(labs.name)],
   });
-
-  // If no folders exist yet, auto-create "Level 1" to organize existing & future assessments
-  if (folderList.length === 0) {
-    const [created] = await db
-      .insert(labs)
-      .values({
-        name: "Level 1",
-        branch: "CODING",
-        semester: 1,
-        description: "Level 1 Coding Assessments",
-      })
-      .returning();
-
-    // Link any orphan coding assessments to this new folder
-    await db
-      .update(exams)
-      .set({ labId: created.id })
-      .where(
-        and(eq(exams.assessmentType, "coding_assessment"), isNull(exams.labId)),
-      );
-
-    folderList = await db.query.labs.findMany({
-      where: eq(labs.branch, "CODING"),
-      orderBy: (labs, { asc }) => [asc(labs.name)],
-    });
-  } else {
-    // If any unassigned coding assessments exist, link them to the first folder so they aren't lost
-    await db
-      .update(exams)
-      .set({ labId: folderList[0].id })
-      .where(
-        and(eq(exams.assessmentType, "coding_assessment"), isNull(exams.labId)),
-      );
-  }
 
   const codingAssessments = await db.query.exams.findMany({
     where: eq(exams.assessmentType, "coding_assessment"),
@@ -639,6 +605,35 @@ export async function getCodingFolders() {
       upcomingAssessmentsCount: upcomingCount,
     };
   });
+}
+
+/** Explicit bootstrap endpoint to create default folder and link orphans (Admin only) */
+export async function ensureDefaultCodingFolder() {
+  await requireAdmin();
+
+  const existing = await db.query.labs.findFirst({
+    where: eq(labs.branch, "CODING"),
+  });
+  if (existing) return existing;
+
+  const [created] = await db
+    .insert(labs)
+    .values({
+      name: "Level 1",
+      branch: "CODING",
+      semester: 1,
+      description: "Level 1 Coding Assessments",
+    })
+    .returning();
+
+  await db
+    .update(exams)
+    .set({ labId: created.id })
+    .where(
+      and(eq(exams.assessmentType, "coding_assessment"), isNull(exams.labId)),
+    );
+
+  return created;
 }
 
 export async function createCodingFolder(data: {

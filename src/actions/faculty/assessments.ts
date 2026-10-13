@@ -62,7 +62,10 @@ export async function getFacultyAssessments() {
       );
       const labExams = await db.query.exams.findMany({
         where: and(
-          eq(exams.assessmentType, "lab_assessment"),
+          inArray(exams.assessmentType, [
+            "lab_assessment",
+            "coding_assessment",
+          ]),
           inArray(exams.labId, assignedLabIds),
         ),
         columns: { id: true, labId: true },
@@ -150,8 +153,8 @@ export async function getFacultyAssessments() {
           .filter((agf) => agf.examId === item.id)
           .map((agf) => agf.groupId);
 
-    // If lab assessment, also add any sections assigned in labGroupFaculty
-    if (!isAdmin && item.labId && item.assessmentType === "lab_assessment") {
+    // If folder-backed assessment (lab or coding), also add any sections assigned in labGroupFaculty
+    if (!isAdmin && item.labId) {
       const labGroupsForExam = labFacultyMap.filter(
         (l) => l.labId === item.labId,
       );
@@ -225,13 +228,13 @@ export async function scheduleAssessmentForSection(params: {
     });
 
     if (!isAssigned) {
-      // Also check labGroupFaculty for lab assessments
+      // Also check labGroupFaculty for folder-backed assessments
       const examItem = await db.query.exams.findFirst({
         where: eq(exams.id, params.assessmentId),
         columns: { labId: true, assessmentType: true },
       });
       let isLabAssigned = false;
-      if (examItem?.labId && examItem.assessmentType === "lab_assessment") {
+      if (examItem?.labId) {
         const labAssigned = await db.query.labGroupFaculty.findFirst({
           where: and(
             eq(labGroupFaculty.labId, examItem.labId),
@@ -329,12 +332,12 @@ export async function getAssessmentSubmissions(params: {
     });
     allowedGroupIds = assigned.map((a) => a.groupId);
 
-    // Also check labGroupFaculty for lab assessments
+    // Also check labGroupFaculty for folder-backed assessments
     const examItem = await db.query.exams.findFirst({
       where: eq(exams.id, params.assessmentId),
       columns: { labId: true, assessmentType: true },
     });
-    if (examItem?.labId && examItem.assessmentType === "lab_assessment") {
+    if (examItem?.labId) {
       const labAssigned = await db.query.labGroupFaculty.findMany({
         where: and(
           eq(labGroupFaculty.labId, examItem.labId),
