@@ -1574,9 +1574,11 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
         onClose={() => setFormOpen(false)}
         initial={editingAssessment}
         fixedLabId={
-          selectedCategory === "coding_assessment"
-            ? selectedCodingFolder?.id || null
-            : selectedLab?.id || null
+          editingAssessment
+            ? null
+            : selectedCategory === "coding_assessment"
+              ? selectedCodingFolder?.id || null
+              : selectedLab?.id || null
         }
         categoryType={
           editingAssessment

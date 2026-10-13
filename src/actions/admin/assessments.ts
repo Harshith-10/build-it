@@ -354,9 +354,38 @@ export async function upsertAssessment(data: UpsertAssessmentInput) {
       }
     }
 
-    // Auto-inherit folder's group & faculty assignments if not provided (lab assessments only)
+    // Validate that the assigned folder matches the assessment category
+    if (data.labId) {
+      const targetFolder = await db.query.labs.findFirst({
+        where: eq(labs.id, data.labId),
+        columns: { id: true, branch: true },
+      });
+      if (targetFolder) {
+        if (
+          data.assessmentType === "coding_assessment" &&
+          targetFolder.branch !== "CODING"
+        ) {
+          return {
+            success: false,
+            error: "Selected folder is not a valid coding assessment folder",
+          };
+        }
+        if (
+          data.assessmentType === "lab_assessment" &&
+          targetFolder.branch === "CODING"
+        ) {
+          return {
+            success: false,
+            error: "Selected lab subject is invalid for a lab assessment",
+          };
+        }
+      }
+    }
+
+    // Auto-inherit folder's group & faculty assignments on creation if not provided (lab assessments only)
     let groupAssignments = data.groupAssignments;
     if (
+      !data.id &&
       (!groupAssignments || groupAssignments.length === 0) &&
       data.labId &&
       data.assessmentType === "lab_assessment"
@@ -380,65 +409,67 @@ export async function upsertAssessment(data: UpsertAssessmentInput) {
       }
     }
 
-    // Re-sync exam groups & group faculty assignments
+    // Re-sync exam groups & group faculty assignments atomically
     if (groupAssignments) {
-      // 1. Get existing slots to preserve faculty-scheduled times
-      const existingSlots = await db.query.examGroups.findMany({
-        where: eq(examGroups.examId, assessmentId),
-      });
-      const slotMap = new Map(existingSlots.map((s) => [s.groupId, s]));
+      await db.transaction(async (tx) => {
+        // 1. Get existing slots to preserve faculty-scheduled times
+        const existingSlots = await tx.query.examGroups.findMany({
+          where: eq(examGroups.examId, assessmentId!),
+        });
+        const slotMap = new Map(existingSlots.map((s) => [s.groupId, s]));
 
-      await db
-        .delete(examGroupFaculty)
-        .where(eq(examGroupFaculty.examId, assessmentId));
-      await db.delete(examGroups).where(eq(examGroups.examId, assessmentId));
+        await tx
+          .delete(examGroupFaculty)
+          .where(eq(examGroupFaculty.examId, assessmentId!));
+        await tx.delete(examGroups).where(eq(examGroups.examId, assessmentId!));
 
-      const groupRows = groupAssignments.map((ga) => {
-        const existing = slotMap.get(ga.groupId);
-        const slotInput = data.groupSlots?.find(
-          (s) => s.groupId === ga.groupId,
-        );
+        const groupRows = groupAssignments!.map((ga) => {
+          const existing = slotMap.get(ga.groupId);
+          const slotInput = data.groupSlots?.find(
+            (s) => s.groupId === ga.groupId,
+          );
 
-        return {
-          examId: assessmentId!,
-          groupId: ga.groupId,
-          startTime: slotInput?.startTime
-            ? new Date(slotInput.startTime)
-            : existing?.startTime || null,
-          endTime: slotInput?.endTime
-            ? new Date(slotInput.endTime)
-            : existing?.endTime || null,
-          pin:
-            slotInput?.pin !== undefined
-              ? slotInput.pin
-              : existing?.pin || null,
-        };
-      });
-
-      if (groupRows.length > 0) {
-        await db.insert(examGroups).values(groupRows);
-      }
-
-      // Insert faculty-to-group assignments
-      const facultyAssignments: {
-        examId: string;
-        groupId: string;
-        facultyId: string;
-      }[] = [];
-
-      for (const ga of groupAssignments) {
-        for (const facultyId of ga.facultyIds) {
-          facultyAssignments.push({
+          return {
             examId: assessmentId!,
             groupId: ga.groupId,
-            facultyId,
-          });
-        }
-      }
+            startTime: slotInput?.startTime
+              ? new Date(slotInput.startTime)
+              : existing?.startTime || null,
+            endTime: slotInput?.endTime
+              ? new Date(slotInput.endTime)
+              : existing?.endTime || null,
+            pin:
+              slotInput?.pin !== undefined
+                ? slotInput.pin
+                : existing?.pin || null,
+          };
+        });
 
-      if (facultyAssignments.length > 0) {
-        await db.insert(examGroupFaculty).values(facultyAssignments);
-      }
+        if (groupRows.length > 0) {
+          await tx.insert(examGroups).values(groupRows);
+        }
+
+        // Insert faculty-to-group assignments
+        const facultyAssignments: {
+          examId: string;
+          groupId: string;
+          facultyId: string;
+        }[] = [];
+
+        for (const ga of groupAssignments!) {
+          for (const facultyId of ga.facultyIds) {
+            facultyAssignments.push({
+              examId: assessmentId!,
+              groupId: ga.groupId,
+              facultyId,
+            });
+          }
+        }
+
+        if (facultyAssignments.length > 0) {
+          await tx.insert(examGroupFaculty).values(facultyAssignments);
+        }
+      });
     }
 
     revalidatePath("/admin/assessments");
