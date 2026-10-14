@@ -166,6 +166,12 @@ export default async function FacultyExamDetailsPage({
                 {exam.requiresPin ? "Enabled" : "Disabled"}
               </p>
             </div>
+            <div>
+              <p className="text-muted-foreground">ShieldIt Proctoring</p>
+              <p className="font-medium">
+                {exam.requireShieldIt ? "Enabled" : "Disabled"}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -11,6 +11,7 @@ import {
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -18,6 +19,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { ShieldCheck } from "lucide-react";
 import type { ExamFormInput, ExamFormValues } from "../exam-form";
 
 interface BasicDetailsProps {
@@ -109,6 +112,29 @@ export function BasicDetails({ form }: BasicDetailsProps) {
             )}
           />
         </div>
+        <FormField
+          control={form.control}
+          name="requireShieldIt"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-xs">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base font-semibold flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  Require ShieldIt Extension Proctoring
+                </FormLabel>
+                <FormDescription className="text-xs text-muted-foreground">
+                  Enforces secure environment: pauses unauthorized extensions/AI assistants, detects secondary monitors, and monitors tab focus.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
         <p className="text-xs text-muted-foreground">
           Times are selected in your local timezone and stored as exact UTC
           timestamps.

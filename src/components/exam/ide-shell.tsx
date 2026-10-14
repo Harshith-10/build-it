@@ -51,6 +51,7 @@ interface IDEShellProps {
   assignmentId: string;
   completedQuestionIds: string[];
   latestSubmissions?: Record<string, Record<string, string>>;
+  requireShieldIt?: boolean;
 }
 
 function formatCountdown(ms: number): string {
@@ -72,7 +73,11 @@ export function IDEShell({
   assignmentId,
   completedQuestionIds,
   latestSubmissions,
+  requireShieldIt = true,
 }: IDEShellProps) {
+  const isMasterEnabled = process.env.NEXT_PUBLIC_ENABLE_SHIELDIT !== "false";
+  const isShieldItRequired = isMasterEnabled && requireShieldIt;
+
   const [activeQuestionId, setActiveQuestionId] = useQueryState("q", {
     defaultValue: questions[0]?.id || "",
   });
@@ -155,10 +160,10 @@ export function IDEShell({
 
   // Reinforce lockdown if in active exam session (strictly enforce single-display policy)
   useEffect(() => {
-    if (isInstalled && !isLockdownActive) {
+    if (isShieldItRequired && isInstalled && !isLockdownActive) {
       startLockdown(assignmentId, false).catch(() => {});
     }
-  }, [isInstalled, isLockdownActive, assignmentId, startLockdown]);
+  }, [isShieldItRequired, isInstalled, isLockdownActive, assignmentId, startLockdown]);
 
   useEffect(() => {
     if (violations.length > 0) {
@@ -258,7 +263,7 @@ export function IDEShell({
                 question={activeQuestion}
                 assignmentId={assignmentId}
                 userId={user.id}
-                isCodingLocked={hardDeadlineReached || isInstalled === false}
+                isCodingLocked={hardDeadlineReached || (isShieldItRequired && isInstalled === false)}
                 latestSubmissions={latestSubmissions}
               />
             </ResizablePanel>
@@ -266,7 +271,7 @@ export function IDEShell({
         </div>
 
         {/* Anti-Malpractice Lockout: Freezes exam immediately if ShieldIt is turned off */}
-        {isInstalled === false && (
+        {isShieldItRequired && isInstalled === false && (
           <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-background/95 backdrop-blur-md p-6 text-center animate-in fade-in duration-200">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-6 ring-8 ring-destructive/20 animate-pulse">
               <ShieldAlert className="h-10 w-10" />

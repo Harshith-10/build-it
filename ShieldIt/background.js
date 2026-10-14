@@ -88,6 +88,14 @@ async function enforceLockdown() {
         }
       }
 
+      const newlyBlockedIds = unauthorizedEnabled.map((e) => e.id);
+      state.disabledExtensions = Array.from(new Set([...(state.disabledExtensions || []), ...newlyBlockedIds]));
+      await persistState();
+      const histData = await chrome.storage.local.get("shieldit_all_paused_history");
+      const existingHist = histData["shieldit_all_paused_history"] || [];
+      const updatedHist = Array.from(new Set([...existingHist, ...newlyBlockedIds]));
+      await chrome.storage.local.set({ shieldit_all_paused_history: updatedHist });
+
       sendViolationToExamTab({
         type: "UNAUTHORIZED_EXTENSION_ENABLED",
         severity: "CRITICAL",
@@ -378,15 +386,10 @@ async function stopLockdown(forceAll = false, providedSecret = null) {
     const historyPaused = data["shieldit_all_paused_history"] || [];
     toRestore = Array.from(new Set([...toRestore, ...historyPaused]));
 
-    // Fallback: If toRestore is empty OR forceAll is true, scan all third-party disabled extensions!
-    if (forceAll || toRestore.length === 0) {
-      console.log("[ShieldIt] Scanning all currently disabled extensions to restore...");
-      const allExts = await chrome.management.getAll();
-      const selfId = chrome.runtime.id;
-      const currentlyDisabled = allExts
-        .filter((ext) => ext.id !== selfId && !ext.enabled && ext.type !== "theme" && ext.mayDisable !== false)
-        .map((ext) => ext.id);
-      toRestore = Array.from(new Set([...toRestore, ...currentlyDisabled]));
+    // Strictly restore ONLY the extensions that were paused by ShieldIt!
+    // Never turn on extensions that the user already had disabled before the exam started.
+    if (toRestore.length === 0) {
+      console.log("[ShieldIt] No extensions were paused by ShieldIt. Nothing to restore.");
     }
 
     console.log(`[ShieldIt] Restoring ${toRestore.length} extensions...`);

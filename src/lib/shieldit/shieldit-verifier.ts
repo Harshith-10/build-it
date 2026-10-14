@@ -8,7 +8,9 @@ export interface ShieldItSignaturePayload {
   signature: string;
 }
 
-export const OFFICIAL_EXTENSION_ID = "opjkppmncihahojoofiohhhlhdjpikfg";
+export const OFFICIAL_EXTENSION_ID =
+  process.env.NEXT_PUBLIC_SHIELDIT_EXTENSION_ID ||
+  "opjkppmncihahojoofiohhhlhdjpikfg";
 
 /**
  * Safely resolves the server-side HMAC secret.

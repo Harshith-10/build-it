@@ -19,11 +19,13 @@ import {
 interface UseExamOnboardingProps {
   examId: string;
   requiresPin: boolean;
+  requireShieldIt?: boolean;
 }
 
 export function useExamOnboarding({
   examId,
   requiresPin,
+  requireShieldIt = true,
 }: UseExamOnboardingProps) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -49,42 +51,49 @@ export function useExamOnboarding({
 
     setIsLoading(true);
 
-    try {
-      // 2. Activate ShieldIt extension lockdown (pauses Monica, AI copilots, etc.)
-      const lockResult = await startShieldItLockdown(examId, {
-        allowMultipleDisplays: false,
-      });
+    const isMasterEnabled = process.env.NEXT_PUBLIC_ENABLE_SHIELDIT !== "false";
+    const isShieldItRequired = isMasterEnabled && requireShieldIt;
 
-      if (!lockResult.success) {
-        toast.error(
-          lockResult.message || "ShieldIt lockdown failed. Please close other windows.",
-        );
-        await document.exitFullscreen().catch(() => {});
-        setIsLoading(false);
-        return;
+    try {
+      // 2. Activate ShieldIt extension lockdown (if required)
+      if (isShieldItRequired) {
+        const lockResult = await startShieldItLockdown(examId, {
+          allowMultipleDisplays: false,
+        });
+
+        if (!lockResult.success) {
+          toast.error(
+            lockResult.message || "ShieldIt lockdown failed. Please close other windows.",
+          );
+          await document.exitFullscreen().catch(() => {});
+          setIsLoading(false);
+          return;
+        }
       }
 
-      // 3. Optional Cryptographic Handshake Signature
+      // 3. Cryptographic Handshake Signature
       let shielditPayload = null;
-      try {
-        const challengeRes = await getShieldItExamChallenge(examId);
-        if (challengeRes.success && challengeRes.userId && challengeRes.nonce) {
-          const sigRes = await requestShieldItSignature(challengeRes.userId, examId, {
-            nonce: challengeRes.nonce,
-            timestamp: challengeRes.timestamp,
-          });
-          if (sigRes.success && sigRes.signature && sigRes.nonce && sigRes.timestamp && sigRes.extensionId) {
-            shielditPayload = {
-              extensionId: sigRes.extensionId,
-              version: sigRes.version || "1.0.1",
-              nonce: sigRes.nonce,
-              timestamp: sigRes.timestamp,
-              signature: sigRes.signature,
-            };
+      if (isShieldItRequired) {
+        try {
+          const challengeRes = await getShieldItExamChallenge(examId);
+          if (challengeRes.success && challengeRes.userId && challengeRes.nonce) {
+            const sigRes = await requestShieldItSignature(challengeRes.userId, examId, {
+              nonce: challengeRes.nonce,
+              timestamp: challengeRes.timestamp,
+            });
+            if (sigRes.success && sigRes.signature && sigRes.nonce && sigRes.timestamp && sigRes.extensionId) {
+              shielditPayload = {
+                extensionId: sigRes.extensionId,
+                version: sigRes.version || "1.0.3",
+                nonce: sigRes.nonce,
+                timestamp: sigRes.timestamp,
+                signature: sigRes.signature,
+              };
+            }
           }
+        } catch (handshakeErr) {
+          console.warn("ShieldIt cryptographic handshake skipped/deferred:", handshakeErr);
         }
-      } catch (handshakeErr) {
-        console.warn("ShieldIt cryptographic handshake skipped/deferred:", handshakeErr);
       }
 
       // 4. Initialize Session on server

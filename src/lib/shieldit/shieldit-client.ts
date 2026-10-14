@@ -478,7 +478,7 @@ export async function requestShieldItSignature(
       examId,
       nonce: challenge.nonce,
       timestamp: challenge.timestamp
-    }, 2000);
+    }, 4000);
   } catch (err: any) {
     return {
       success: false,

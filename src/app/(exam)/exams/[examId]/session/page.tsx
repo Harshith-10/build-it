@@ -71,6 +71,7 @@ export default async function SessionPage({
     columns: {
       title: true,
       durationMinutes: true,
+      requireShieldIt: true,
     },
   });
 
@@ -131,6 +132,7 @@ export default async function SessionPage({
       assignmentId={assignment.id}
       completedQuestionIds={completedQuestionIds}
       latestSubmissions={latestSubmissions}
+      requireShieldIt={exam?.requireShieldIt ?? true}
     />
   );
 }

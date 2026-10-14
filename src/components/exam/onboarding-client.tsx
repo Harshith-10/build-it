@@ -52,13 +52,18 @@ interface OnboardingClientProps {
     startTime: Date;
     endTime: Date;
     requiresPin: boolean;
+    requireShieldIt?: boolean;
   };
 }
 
 export default function OnboardingClient({ exam }: OnboardingClientProps) {
+  const isMasterEnabled = process.env.NEXT_PUBLIC_ENABLE_SHIELDIT !== "false";
+  const isShieldItRequired = isMasterEnabled && (exam.requireShieldIt ?? true);
+
   const { isLoading, pin, setPin, handleStartExam } = useExamOnboarding({
     examId: exam.id,
     requiresPin: exam.requiresPin,
+    requireShieldIt: isShieldItRequired,
   });
 
   const { isInstalled, displayCount, extensionVersion, checkStatus } =
@@ -208,8 +213,8 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               )}
             </div>
 
-            {/* ShieldIt Extension Status Check */}
-            {isInstalled === false && (
+            {/* ShieldIt Extension Status Check (Only when required) */}
+            {isShieldItRequired && isInstalled === false && (
               <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200">
                 <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 <div className="flex-1">
@@ -257,12 +262,12 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               </Alert>
             )}
 
-            {isInstalled === true && (
+            {isShieldItRequired && isInstalled === true && (
               <div className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-emerald-800 dark:text-emerald-300">
                 <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <div className="text-sm">
                   <span className="font-semibold">ShieldIt Proctor Verified</span>
-                  <span className="ml-2 text-xs opacity-80">(v{extensionVersion || "1.0.1"} active)</span>
+                  <span className="ml-2 text-xs opacity-80">(v{extensionVersion || "1.0.3"} active)</span>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Your browser environment is protected and ready for examination.
                   </p>
@@ -270,7 +275,7 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               </div>
             )}
 
-            {displayCount > 1 && (
+            {isShieldItRequired && displayCount > 1 && (
               <Alert variant="destructive">
                 <Monitor className="h-4 w-4" />
                 <AlertTitle>Dual Displays Prohibited</AlertTitle>
@@ -336,16 +341,16 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
               disabled={
                 isLoading ||
                 !instructionsAcknowledged ||
-                isInstalled === false ||
-                displayCount > 1
+                (isShieldItRequired && isInstalled === false) ||
+                (isShieldItRequired && displayCount > 1)
               }
               className="w-full max-w-sm text-lg"
             >
               {isLoading
                 ? "Initializing..."
-                : isInstalled === false
+                : isShieldItRequired && isInstalled === false
                   ? "Install ShieldIt to Begin"
-                  : displayCount > 1
+                  : isShieldItRequired && displayCount > 1
                     ? "Disconnect External Display"
                     : exam.requiresPin
                       ? "Continue to PIN"

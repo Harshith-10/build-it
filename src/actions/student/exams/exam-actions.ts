@@ -9,6 +9,7 @@ import {
   examAttendance,
   examCollections,
   examGroups,
+  exams,
   questions,
   type StrategyConfig,
   type StrategyConfigMap,
@@ -64,7 +65,14 @@ export async function initializeExamSession(
   const userId = session.user.id;
 
   // 0. Optional / Configurable ShieldIt HMAC Handshake Verification
-  if (process.env.REQUIRE_SHIELDIT_HMAC === "true" || shielditPayload) {
+  const examRecord = await db.query.exams.findFirst({
+    where: eq(exams.id, examId),
+    columns: { requireShieldIt: true },
+  });
+  const isMasterEnabled = process.env.NEXT_PUBLIC_ENABLE_SHIELDIT !== "false";
+  const isShieldItRequired = isMasterEnabled && (examRecord?.requireShieldIt ?? true);
+
+  if (isShieldItRequired && (process.env.REQUIRE_SHIELDIT_HMAC === "true" || shielditPayload)) {
     if (!shielditPayload) {
       return {
         success: false,
