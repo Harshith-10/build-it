@@ -97,15 +97,19 @@ type FacultyAssessmentItem = Awaited<
 
 export type AssessmentTableRow = {
   id: string;
+  assessmentId: string;
   title: string;
   description?: string | null;
   assessmentType: string;
   strategyType: string;
+  sectionNames: string[];
+  groupId: string | null;
   startTime: Date | string | null;
   endTime: Date | string | null;
   status: "Active" | "Upcoming" | "Ended" | "Not Scheduled";
   createdAt: Date | string;
   raw: FacultyAssessmentItem;
+  targetGroup?: FacultyAssessmentItem["assignedGroups"][number];
 };
 
 function formatStartTimeDisplay(value: Date | string | null | undefined) {
@@ -166,8 +170,15 @@ function renderStatusBadge(status: string) {
 export function FacultyAssessmentsManager() {
   const [assessments, setAssessments] = useState<FacultyAssessmentItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<"lab_assessment" | "coding_assessment">("lab_assessment");
+  const [selectedCategory, setSelectedCategory] = useState<
+    "lab_assessment" | "coding_assessment"
+  >("lab_assessment");
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null);
+  const [selectedCodingFolderId, setSelectedCodingFolderId] = useState<
+    string | null
+  >(null);
+  const [selectedSectionFilter, setSelectedSectionFilter] = useState<string>("all");
+  const [subSectionFilter, setSubSectionFilter] = useState<string>("all");
 
   // TanStack Table State
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -183,7 +194,9 @@ export function FacultyAssessmentsManager() {
   const [subSearchQuery, setSubSearchQuery] = useState("");
   const [subPage, setSubPage] = useState(1);
   const [subPageSize, setSubPageSize] = useState(10);
-  const [deleteSubTargetId, setDeleteSubTargetId] = useState<string | null>(null);
+  const [deleteSubTargetId, setDeleteSubTargetId] = useState<string | null>(
+    null,
+  );
   const [deletingSub, setDeletingSub] = useState(false);
 
   // Schedule Modal state
@@ -243,7 +256,8 @@ export function FacultyAssessmentsManager() {
       const labId = item.labId || "unassigned";
       const labName = item.lab?.name || "General Lab Assessments";
       const labCode = item.lab?.code || null;
-      const labDesc = (item.lab as any)?.description || item.description || null;
+      const labDesc =
+        (item.lab as any)?.description || item.description || null;
 
       if (!labMap.has(labId)) {
         labMap.set(labId, {
@@ -271,6 +285,50 @@ export function FacultyAssessmentsManager() {
     return labFolders.find((f) => f.id === selectedLabId) || null;
   }, [selectedLabId, labFolders]);
 
+  // Unique coding assessment folders
+  const codingFolders = useMemo(() => {
+    const folderMap = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        description?: string | null;
+        assessments: FacultyAssessmentItem[];
+        activeCount: number;
+      }
+    >();
+
+    codingAssessments.forEach((item) => {
+      const folderId = item.labId || "unassigned";
+      const folderName = item.lab?.name || "General";
+      const folderDesc =
+        (item.lab as any)?.description || item.description || null;
+
+      if (!folderMap.has(folderId)) {
+        folderMap.set(folderId, {
+          id: folderId,
+          name: folderName,
+          description: folderDesc,
+          assessments: [],
+          activeCount: 0,
+        });
+      }
+      const entry = folderMap.get(folderId)!;
+      entry.assessments.push(item);
+      const hasActive = item.assignedGroups.some(
+        (g) => g.slotStatus === "active",
+      );
+      if (hasActive) entry.activeCount++;
+    });
+
+    return Array.from(folderMap.values());
+  }, [codingAssessments]);
+
+  const selectedCodingFolder = useMemo(() => {
+    if (!selectedCodingFolderId) return null;
+    return codingFolders.find((f) => f.id === selectedCodingFolderId) || null;
+  }, [selectedCodingFolderId, codingFolders]);
+
   const displayedRawAssessments = useMemo(() => {
     if (selectedCategory === "lab_assessment") {
       return selectedLabId
@@ -279,48 +337,135 @@ export function FacultyAssessmentsManager() {
           )
         : [];
     }
-    return codingAssessments;
-  }, [selectedCategory, selectedLabId, labAssessments, codingAssessments]);
+    return selectedCodingFolderId
+      ? codingAssessments.filter(
+          (a) => (a.labId || "unassigned") === selectedCodingFolderId,
+        )
+      : [];
+  }, [
+    selectedCategory,
+    selectedLabId,
+    selectedCodingFolderId,
+    labAssessments,
+    codingAssessments,
+  ]);
+
+  // Available sections within current view for filtering
+  const availableSectionsInView = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of displayedRawAssessments) {
+      for (const g of item.assignedGroups || []) {
+        map.set(g.groupId, g.groupName);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [displayedRawAssessments]);
 
   // Transform into table data
+  // When all sections are selected, display 1 consolidated row per assessment with section badges.
+  // When a specific section is filtered, display only that section's row.
   const tableData = useMemo<AssessmentTableRow[]>(() => {
-    return displayedRawAssessments.map((item) => {
+    const rows: AssessmentTableRow[] = [];
+
+    for (const item of displayedRawAssessments) {
       const groups = item.assignedGroups ?? [];
-      const activeGroup = groups.find((g) => g.slotStatus === "active");
-      const upcomingGroup = groups.find((g) => g.slotStatus === "upcoming");
-      const targetGroup = activeGroup || upcomingGroup || groups[0];
 
-      let status: AssessmentTableRow["status"] = "Not Scheduled";
-      if (activeGroup) {
-        status = "Active";
-      } else if (upcomingGroup) {
-        status = "Upcoming";
-      } else if (targetGroup?.startTime && targetGroup?.endTime) {
-        const now = new Date();
-        const end = new Date(targetGroup.endTime);
-        if (now > end) {
-          status = "Ended";
-        } else {
+      if (selectedSectionFilter === "all") {
+        // EXACTLY 1 consolidated row per assessment
+        const activeGroup = groups.find((g) => g.slotStatus === "active");
+        const upcomingGroup = groups.find((g) => g.slotStatus === "upcoming");
+        const firstWithTime = groups.find((g) => g.startTime);
+        const repGroup =
+          activeGroup || upcomingGroup || firstWithTime || groups[0];
+
+        let status: AssessmentTableRow["status"] = "Not Scheduled";
+        if (activeGroup) {
+          status = "Active";
+        } else if (upcomingGroup) {
           status = "Upcoming";
+        } else if (
+          groups.length > 0 &&
+          groups.every((g) => g.slotStatus === "ended")
+        ) {
+          status = "Ended";
+        } else if (repGroup?.startTime && repGroup?.endTime) {
+          const now = new Date();
+          const start = new Date(repGroup.startTime);
+          const end = new Date(repGroup.endTime);
+          if (now >= start && now <= end) status = "Active";
+          else if (now > end) status = "Ended";
+          else status = "Upcoming";
+        } else if (item.startTime && item.endTime) {
+          const now = new Date();
+          const start = new Date(item.startTime);
+          const end = new Date(item.endTime);
+          if (now >= start && now <= end) status = "Active";
+          else if (now > end) status = "Ended";
+          else status = "Upcoming";
         }
+
+        const sectionNames = groups.map((g) => g.groupName);
+
+        rows.push({
+          id: item.id,
+          assessmentId: item.id,
+          title: item.title,
+          description: item.description,
+          assessmentType: item.assessmentType,
+          strategyType: "Random N",
+          sectionNames,
+          groupId: null,
+          startTime: repGroup?.startTime || item.startTime || null,
+          endTime: repGroup?.endTime || item.endTime || null,
+          status,
+          createdAt: item.createdAt,
+          raw: item,
+          targetGroup: repGroup,
+        });
+      } else {
+        // Filtered to a specific section: show assessment if it belongs to this section
+        const matchingGroup = groups.find(
+          (g) => g.groupId === selectedSectionFilter,
+        );
+        if (!matchingGroup) continue;
+
+        let status: AssessmentTableRow["status"] = "Not Scheduled";
+        if (matchingGroup.slotStatus === "active") {
+          status = "Active";
+        } else if (matchingGroup.slotStatus === "upcoming") {
+          status = "Upcoming";
+        } else if (matchingGroup.slotStatus === "ended") {
+          status = "Ended";
+        } else if (matchingGroup.startTime && matchingGroup.endTime) {
+          const now = new Date();
+          const start = new Date(matchingGroup.startTime);
+          const end = new Date(matchingGroup.endTime);
+          if (now >= start && now <= end) status = "Active";
+          else if (now > end) status = "Ended";
+          else status = "Upcoming";
+        }
+
+        rows.push({
+          id: `${item.id}-${matchingGroup.groupId}`,
+          assessmentId: item.id,
+          title: item.title,
+          description: item.description,
+          assessmentType: item.assessmentType,
+          strategyType: "Random N",
+          sectionNames: [matchingGroup.groupName],
+          groupId: matchingGroup.groupId,
+          startTime: matchingGroup.startTime ?? null,
+          endTime: matchingGroup.endTime ?? null,
+          status,
+          createdAt: item.createdAt,
+          raw: item,
+          targetGroup: matchingGroup,
+        });
       }
+    }
 
-      const strategyType = "Random N";
-
-      return {
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        assessmentType: item.assessmentType,
-        strategyType,
-        startTime: targetGroup?.startTime ?? null,
-        endTime: targetGroup?.endTime ?? null,
-        status,
-        createdAt: item.createdAt,
-        raw: item,
-      };
-    });
-  }, [displayedRawAssessments]);
+    return rows;
+  }, [displayedRawAssessments, selectedSectionFilter]);
 
   function openScheduleDialog(
     assessment: FacultyAssessmentItem,
@@ -361,7 +506,9 @@ export function FacultyAssessmentsManager() {
     const startDate = new Date(startTimeInput);
     const endDate = new Date(endTimeInput);
     if (endDate <= startDate) {
-      toast.error("End date and time must be strictly after Start date and time");
+      toast.error(
+        "End date and time must be strictly after Start date and time",
+      );
       return;
     }
 
@@ -391,19 +538,43 @@ export function FacultyAssessmentsManager() {
     }
   }
 
-  async function openSubmissionsView(assessment: FacultyAssessmentItem) {
+  async function openSubmissionsView(
+    assessment: FacultyAssessmentItem,
+    groupId?: string,
+  ) {
     setActiveSubmissionsAssessment(assessment);
+    setSubSectionFilter(groupId || "all");
     setSubSearchQuery("");
     setSubPage(1);
     setLoadingSubmissions(true);
     try {
       const data = await getAssessmentSubmissions({
         assessmentId: assessment.id,
+        groupId: groupId || undefined,
       });
       setSubmissionsList(data);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load submissions");
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  }
+
+  async function handleFilterSubmissionsBySection(groupId: string) {
+    if (!activeSubmissionsAssessment) return;
+    setSubSectionFilter(groupId);
+    setSubPage(1);
+    setLoadingSubmissions(true);
+    try {
+      const data = await getAssessmentSubmissions({
+        assessmentId: activeSubmissionsAssessment.id,
+        groupId: groupId === "all" ? undefined : groupId,
+      });
+      setSubmissionsList(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to filter submissions");
     } finally {
       setLoadingSubmissions(false);
     }
@@ -437,8 +608,7 @@ export function FacultyAssessmentsManager() {
         id: "serialNumber",
         header: "#",
         cell: ({ row, table: t }) =>
-          t.getState().pagination.pageIndex *
-            t.getState().pagination.pageSize +
+          t.getState().pagination.pageIndex * t.getState().pagination.pageSize +
           row.index +
           1,
         enableSorting: false,
@@ -456,6 +626,36 @@ export function FacultyAssessmentsManager() {
           </div>
         ),
         enableSorting: true,
+      },
+      {
+        accessorKey: "sectionNames",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Section" />
+        ),
+        cell: ({ row }) => {
+          const names: string[] = row.original.sectionNames || [];
+          if (names.length === 0) {
+            return (
+              <span className="text-xs text-muted-foreground italic">
+                All Sections
+              </span>
+            );
+          }
+          return (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {names.map((name) => (
+                <Badge
+                  key={name}
+                  variant="outline"
+                  className="font-mono text-xs px-2 py-0.5 font-normal"
+                >
+                  {name}
+                </Badge>
+              ))}
+            </div>
+          );
+        },
+        enableSorting: false,
       },
       {
         accessorKey: "startTime",
@@ -515,6 +715,8 @@ export function FacultyAssessmentsManager() {
         enableHiding: false,
         cell: ({ row }) => {
           const item = row.original.raw;
+          const targetGroup = row.original.targetGroup;
+          const groupId = row.original.groupId;
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -524,11 +726,17 @@ export function FacultyAssessmentsManager() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => openSubmissionsView(item)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    openSubmissionsView(item, groupId || undefined)
+                  }
+                >
                   <Users className="w-4 h-4 mr-2" />
                   Submissions
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openScheduleDialog(item)}>
+                <DropdownMenuItem
+                  onClick={() => openScheduleDialog(item, targetGroup)}
+                >
                   <Clock className="w-4 h-4 mr-2" />
                   Schedule Window
                 </DropdownMenuItem>
@@ -688,6 +896,24 @@ export function FacultyAssessmentsManager() {
           </div>
 
           <div className="flex items-center gap-2">
+            {activeSubmissionsAssessment.assignedGroups.length > 1 && (
+              <Select
+                value={subSectionFilter}
+                onValueChange={handleFilterSubmissionsBySection}
+              >
+                <SelectTrigger className="h-9 w-44 text-xs sm:text-sm">
+                  <SelectValue placeholder="All Sections" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assigned Sections</SelectItem>
+                  {activeSubmissionsAssessment.assignedGroups.map((g) => (
+                    <SelectItem key={g.groupId} value={g.groupId}>
+                      {g.groupName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -713,13 +939,18 @@ export function FacultyAssessmentsManager() {
                 <TableHead className="text-xs">Score</TableHead>
                 <TableHead className="text-xs">Malpractice</TableHead>
                 <TableHead className="text-xs">Attempted</TableHead>
-                <TableHead className="w-20 text-right text-xs pr-4">Actions</TableHead>
+                <TableHead className="w-20 text-right text-xs pr-4">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loadingSubmissions ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-48 text-center text-xs text-muted-foreground">
+                  <TableCell
+                    colSpan={8}
+                    className="h-48 text-center text-xs text-muted-foreground"
+                  >
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span>Loading submissions...</span>
@@ -728,7 +959,10 @@ export function FacultyAssessmentsManager() {
                 </TableRow>
               ) : paginatedSubmissions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-48 text-center text-xs text-muted-foreground">
+                  <TableCell
+                    colSpan={8}
+                    className="h-48 text-center text-xs text-muted-foreground"
+                  >
                     <div className="flex flex-col items-center justify-center gap-2">
                       <GraduationCap className="h-8 w-8 text-muted-foreground/60" />
                       <p className="font-medium text-foreground">
@@ -765,7 +999,10 @@ export function FacultyAssessmentsManager() {
                       <TableCell className="text-xs font-mono text-foreground">
                         {sub.user?.username || "-"}
                         {sub.user?.section && (
-                          <Badge variant="outline" className="ml-1.5 text-[10px] py-0 font-normal">
+                          <Badge
+                            variant="outline"
+                            className="ml-1.5 text-[10px] py-0 font-normal"
+                          >
                             Sec {sub.user.section}
                           </Badge>
                         )}
@@ -802,7 +1039,9 @@ export function FacultyAssessmentsManager() {
 
                       <TableCell className="text-xs text-muted-foreground">
                         {sub.completedAt || sub.createdAt
-                          ? new Date(sub.completedAt || sub.createdAt).toLocaleString("en-US", {
+                          ? new Date(
+                              sub.completedAt || sub.createdAt,
+                            ).toLocaleString("en-US", {
                               month: "short",
                               day: "numeric",
                               hour: "numeric",
@@ -915,11 +1154,15 @@ export function FacultyAssessmentsManager() {
                 Delete Submission?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-xs sm:text-sm text-muted-foreground">
-                Are you sure you want to delete this submission? This action cannot be undone.
+                Are you sure you want to delete this submission? This action
+                cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
-              <AlertDialogCancel disabled={deletingSub} className="text-xs sm:text-sm">
+              <AlertDialogCancel
+                disabled={deletingSub}
+                className="text-xs sm:text-sm"
+              >
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
@@ -950,6 +1193,8 @@ export function FacultyAssessmentsManager() {
             onClick={() => {
               setSelectedCategory("lab_assessment");
               setSelectedLabId(null);
+              setSelectedCodingFolderId(null);
+              setSelectedSectionFilter("all");
             }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               selectedCategory === "lab_assessment"
@@ -969,6 +1214,8 @@ export function FacultyAssessmentsManager() {
             onClick={() => {
               setSelectedCategory("coding_assessment");
               setSelectedLabId(null);
+              setSelectedCodingFolderId(null);
+              setSelectedSectionFilter("all");
             }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               selectedCategory === "coding_assessment"
@@ -991,7 +1238,9 @@ export function FacultyAssessmentsManager() {
           disabled={loading}
           className="gap-1.5 h-8 text-xs"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+          />
           Refresh
         </Button>
       </div>
@@ -1001,8 +1250,10 @@ export function FacultyAssessmentsManager() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {labFolders.length} lab subject{labFolders.length !== 1 ? "s" : ""} &bull;{" "}
-              {labAssessments.length} assessment{labAssessments.length !== 1 ? "s" : ""}
+              {labFolders.length} lab subject
+              {labFolders.length !== 1 ? "s" : ""} &bull;{" "}
+              {labAssessments.length} assessment
+              {labAssessments.length !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -1041,7 +1292,10 @@ export function FacultyAssessmentsManager() {
                             {lab.name}
                           </span>
                           {lab.code && (
-                            <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 font-normal">
+                            <Badge
+                              variant="secondary"
+                              className="font-mono text-[10px] px-1.5 py-0 font-normal"
+                            >
                               {lab.code}
                             </Badge>
                           )}
@@ -1058,7 +1312,8 @@ export function FacultyAssessmentsManager() {
 
                   <div className="flex items-center justify-between mt-auto pt-2 border-t text-xs text-muted-foreground">
                     <span>
-                      {lab.assessments.length} assessment{lab.assessments.length !== 1 ? "s" : ""}
+                      {lab.assessments.length} assessment
+                      {lab.assessments.length !== 1 ? "s" : ""}
                     </span>
                     {lab.activeCount > 0 ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-medium">
@@ -1075,16 +1330,126 @@ export function FacultyAssessmentsManager() {
         </div>
       )}
 
+      {/* ─── CODING ASSESSMENT FOLDERS GRID (FACULTY ROOT VIEW) ──────────── */}
+      {selectedCategory === "coding_assessment" && !selectedCodingFolderId && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {codingFolders.length} folder
+              {codingFolders.length !== 1 ? "s" : ""} &bull;{" "}
+              {codingAssessments.length} assessment
+              {codingAssessments.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          {codingFolders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border border-dashed bg-muted/20">
+              <Code2 className="h-8 w-8 text-muted-foreground/60 mb-2" />
+              <p className="text-sm font-medium text-foreground">
+                No coding assessments assigned
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You have not been assigned to any coding assessment sections
+                yet.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {codingFolders.map((folder) => (
+                <div
+                  key={folder.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedCodingFolderId(folder.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedCodingFolderId(folder.id);
+                    }
+                  }}
+                  className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer min-w-0 bg-card"
+                >
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <div className="p-2 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5">
+                        <Code2 className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold text-sm break-words text-foreground">
+                          {folder.name}
+                        </span>
+                        {folder.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                            {folder.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t text-xs text-muted-foreground">
+                    <span>
+                      {folder.assessments.length} assessment
+                      {folder.assessments.length !== 1 ? "s" : ""}
+                    </span>
+                    {folder.activeCount > 0 ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        {folder.activeCount} active now
+                      </span>
+                    ) : (
+                      <span>Open Folder &rarr;</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── 3. INSIDE LAB OR CODING ASSESSMENTS: DATA TABLE VIEW ──────────── */}
-      {(selectedCategory === "coding_assessment" || (selectedCategory === "lab_assessment" && selectedLabId)) && (
+      {((selectedCategory === "coding_assessment" && selectedCodingFolderId) ||
+        (selectedCategory === "lab_assessment" && selectedLabId)) && (
         <div className="flex flex-1 flex-col gap-4 min-h-0 h-full w-full">
+          {/* Header Banner for Selected Coding Folder */}
+          {selectedCategory === "coding_assessment" && selectedCodingFolder && (
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-card">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedCodingFolderId(null);
+                  setSelectedSectionFilter("all");
+                }}
+                className="gap-1.5 h-8 text-xs font-normal"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to All Folders
+              </Button>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm sm:text-base text-foreground">
+                  {selectedCodingFolder.name}
+                </span>
+                {selectedCodingFolder.description && (
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                    — {selectedCodingFolder.description}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Header Banner for Selected Lab */}
           {selectedCategory === "lab_assessment" && selectedLab && (
             <div className="flex items-center gap-2 p-3 border rounded-lg bg-card">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSelectedLabId(null)}
+                onClick={() => {
+                  setSelectedLabId(null);
+                  setSelectedSectionFilter("all");
+                }}
                 className="gap-1.5 h-8 text-xs font-normal"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
@@ -1102,16 +1467,38 @@ export function FacultyAssessmentsManager() {
             </div>
           )}
 
-          {/* Table Toolbar: Search & View Options */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search assessments..."
-                value={globalFilter ?? ""}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="pl-8 h-9"
-              />
+          {/* Table Toolbar: Search, Section Filter & View Options */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-1 max-w-lg">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search assessments..."
+                  value={globalFilter ?? ""}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  className="pl-8 h-9 text-xs sm:text-sm"
+                />
+              </div>
+              {availableSectionsInView.length > 1 && (
+                <Select
+                  value={selectedSectionFilter}
+                  onValueChange={(val) => setSelectedSectionFilter(val)}
+                >
+                  <SelectTrigger className="h-9 w-44 text-xs">
+                    <SelectValue placeholder="All Sections" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      All Sections ({availableSectionsInView.length})
+                    </SelectItem>
+                    {availableSectionsInView.map((sec) => (
+                      <SelectItem key={sec.id} value={sec.id}>
+                        {sec.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <DataTableViewOptions table={table} />
           </div>
@@ -1211,6 +1598,57 @@ export function FacultyAssessmentsManager() {
 
           <form onSubmit={handleSaveSchedule} className="flex flex-col">
             <div className="space-y-4 px-4 sm:px-6 py-4">
+              {schedulingTarget &&
+                schedulingTarget.assessment.assignedGroups.length > 1 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs sm:text-sm">Student Section</Label>
+                    <Select
+                      value={schedulingTarget.group.groupId}
+                      onValueChange={(selectedGroupId) => {
+                        const newGroup =
+                          schedulingTarget.assessment.assignedGroups.find(
+                            (g) => g.groupId === selectedGroupId,
+                          );
+                        if (newGroup) {
+                          setSchedulingTarget({
+                            assessment: schedulingTarget.assessment,
+                            group: newGroup,
+                          });
+                          const toInputFormat = (
+                            d: Date | null | undefined,
+                          ) => {
+                            if (!d) return "";
+                            const date = new Date(d);
+                            const pad = (n: number) =>
+                              String(n).padStart(2, "0");
+                            return `${date.getFullYear()}-${pad(
+                              date.getMonth() + 1,
+                            )}-${pad(date.getDate())}T${pad(
+                              date.getHours(),
+                            )}:${pad(date.getMinutes())}`;
+                          };
+                          setStartTimeInput(toInputFormat(newGroup.startTime));
+                          setEndTimeInput(toInputFormat(newGroup.endTime));
+                          setPinInput(newGroup.pin || "");
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-xs sm:text-sm">
+                        <SelectValue placeholder="Select section" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {schedulingTarget.assessment.assignedGroups.map(
+                          (g) => (
+                            <SelectItem key={g.groupId} value={g.groupId}>
+                              {g.groupName}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
               <div className="space-y-1.5">
                 <Label htmlFor="start-time" className="text-xs sm:text-sm">
                   Start Date & Time <span className="text-destructive">*</span>
@@ -1251,7 +1689,8 @@ export function FacultyAssessmentsManager() {
                   className="text-xs sm:text-sm h-9 font-mono"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  If set, students must enter this PIN before beginning the assessment.
+                  If set, students must enter this PIN before beginning the
+                  assessment.
                 </p>
               </div>
             </div>

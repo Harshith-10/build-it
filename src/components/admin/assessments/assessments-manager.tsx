@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -37,24 +35,39 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import {
+  createCodingFolder,
   deleteAssessment,
+  deleteCodingFolder,
   getAssessments,
   getAssessmentsSummary,
   getAvailableCollections,
   getAvailableFaculty,
   getAvailableGroups,
   getAvailableLabs,
-  upsertAssessment,
+  getCodingFolders,
   type UpsertAssessmentInput,
+  updateCodingFolder,
+  upsertAssessment,
 } from "@/actions/admin/assessments";
 import { createLab } from "@/actions/admin/labs";
 import {
   deleteAssessmentSubmission,
   getAssessmentSubmissions,
 } from "@/actions/faculty/assessments";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +77,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { DataTableViewOptions } from "@/components/ui/data-table-view-options";
 import {
   Dialog,
   DialogContent,
@@ -80,7 +96,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -96,19 +111,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { DataTableViewOptions } from "@/components/ui/data-table-view-options";
-import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { Textarea } from "@/components/ui/textarea";
 import { formatLocalDateTime, getLocalTimeZoneName } from "@/lib/date-time";
 
 type AssessmentCategory = "lab_assessment" | "coding_assessment";
@@ -198,13 +201,30 @@ function renderStatusBadge(status: string) {
 }
 
 export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
-  const [selectedCategory, setSelectedCategory] = useState<AssessmentCategory>("lab_assessment");
+  const [selectedCategory, setSelectedCategory] =
+    useState<AssessmentCategory>("lab_assessment");
   const [selectedLab, setSelectedLab] = useState<any | null>(null);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [assessments, setAssessments] = useState<AssessmentItem[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
   const [labSearchQuery, setLabSearchQuery] = useState("");
+
+  // Coding folder state
+  const [selectedCodingFolder, setSelectedCodingFolder] = useState<any | null>(
+    null,
+  );
+  const [availableCodingFolders, setAvailableCodingFolders] = useState<any[]>(
+    [],
+  );
+  const [codingFolderSearchQuery, setCodingFolderSearchQuery] = useState("");
+  const [createCodingFolderOpen, setCreateCodingFolderOpen] = useState(false);
+  const [editingCodingFolder, setEditingCodingFolder] = useState<any | null>(
+    null,
+  );
+  const [deleteFolderTargetId, setDeleteFolderTargetId] = useState<
+    string | null
+  >(null);
 
   // TanStack Table State
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -215,17 +235,21 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
   // Dialog states
   const [formOpen, setFormOpen] = useState(false);
   const [createLabOpen, setCreateLabOpen] = useState(false);
-  const [editingAssessment, setEditingAssessment] = useState<AssessmentItem | null>(null);
+  const [editingAssessment, setEditingAssessment] =
+    useState<AssessmentItem | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Submissions View State
-  const [activeSubmissionsAssessment, setActiveSubmissionsAssessment] = useState<AssessmentItem | null>(null);
+  const [activeSubmissionsAssessment, setActiveSubmissionsAssessment] =
+    useState<AssessmentItem | null>(null);
   const [submissionsList, setSubmissionsList] = useState<any[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [subSearchQuery, setSubSearchQuery] = useState("");
   const [subPage, setSubPage] = useState(1);
   const [subPageSize, setSubPageSize] = useState(10);
-  const [deleteSubTargetId, setDeleteSubTargetId] = useState<string | null>(null);
+  const [deleteSubTargetId, setDeleteSubTargetId] = useState<string | null>(
+    null,
+  );
   const [deletingSub, setDeletingSub] = useState(false);
 
   // Lookups
@@ -240,12 +264,12 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (selectedCategory === "coding_assessment") {
-      loadAssessmentsList("coding_assessment");
+    if (selectedCategory === "coding_assessment" && selectedCodingFolder) {
+      loadAssessmentsList("coding_assessment", selectedCodingFolder.id);
     } else if (selectedCategory === "lab_assessment" && selectedLab) {
       loadAssessmentsList("lab_assessment", selectedLab.id);
     }
-  }, [selectedCategory, selectedLab]);
+  }, [selectedCategory, selectedLab, selectedCodingFolder]);
 
   async function loadSummary() {
     try {
@@ -262,16 +286,19 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
 
   async function loadLookups() {
     try {
-      const [labs, collections, groups, faculty] = await Promise.all([
-        getAvailableLabs(),
-        getAvailableCollections(),
-        getAvailableGroups(),
-        getAvailableFaculty(),
-      ]);
+      const [labs, collections, groups, faculty, codingFolders] =
+        await Promise.all([
+          getAvailableLabs(),
+          getAvailableCollections(),
+          getAvailableGroups(),
+          getAvailableFaculty(),
+          getCodingFolders(),
+        ]);
       setAvailableLabs(labs);
       setAvailableCollections(collections);
       setAvailableGroups(groups);
       setAvailableFaculty(faculty);
+      setAvailableCodingFolders(codingFolders);
     } catch (err) {
       console.error(err);
     }
@@ -280,9 +307,14 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
   async function loadAssessmentsList(type: AssessmentCategory, labId?: string) {
     try {
       setLoadingList(true);
+      const targetLabId =
+        labId ||
+        (type === "lab_assessment"
+          ? selectedLab?.id
+          : selectedCodingFolder?.id);
       const list = await getAssessments({
         type,
-        labId: labId || (type === "lab_assessment" ? selectedLab?.id : undefined),
+        labId: targetLabId,
       });
       setAssessments(list);
     } catch (err) {
@@ -299,8 +331,8 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
       const res = await deleteAssessment(deleteTargetId);
       if (res.success) {
         toast.success("Assessment deleted successfully");
-        if (selectedCategory === "coding_assessment") {
-          loadAssessmentsList("coding_assessment");
+        if (selectedCategory === "coding_assessment" && selectedCodingFolder) {
+          loadAssessmentsList("coding_assessment", selectedCodingFolder.id);
         } else if (selectedLab) {
           loadAssessmentsList("lab_assessment", selectedLab.id);
         }
@@ -313,6 +345,27 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
       toast.error(err.message || "Failed to delete assessment");
     } finally {
       setDeleteTargetId(null);
+    }
+  }
+
+  async function handleDeleteCodingFolder() {
+    if (!deleteFolderTargetId) return;
+    try {
+      const res = await deleteCodingFolder(deleteFolderTargetId);
+      if (res.success) {
+        toast.success("Folder and its assessments deleted successfully");
+        if (selectedCodingFolder?.id === deleteFolderTargetId) {
+          setSelectedCodingFolder(null);
+        }
+        loadLookups();
+        loadSummary();
+      } else {
+        toast.error(res.error || "Failed to delete folder");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete folder");
+    } finally {
+      setDeleteFolderTargetId(null);
     }
   }
 
@@ -402,8 +455,7 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
         id: "serialNumber",
         header: "#",
         cell: ({ row, table: t }) =>
-          t.getState().pagination.pageIndex *
-            t.getState().pagination.pageSize +
+          t.getState().pagination.pageIndex * t.getState().pagination.pageSize +
           row.index +
           1,
         enableSorting: false,
@@ -544,9 +596,21 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
   const filteredLabs = availableLabs.filter(
     (lab) =>
       lab.name.toLowerCase().includes(labSearchQuery.toLowerCase()) ||
-      (lab.code && lab.code.toLowerCase().includes(labSearchQuery.toLowerCase())) ||
+      (lab.code &&
+        lab.code.toLowerCase().includes(labSearchQuery.toLowerCase())) ||
       (lab.description &&
         lab.description.toLowerCase().includes(labSearchQuery.toLowerCase())),
+  );
+
+  const filteredCodingFolders = availableCodingFolders.filter(
+    (folder) =>
+      folder.name
+        .toLowerCase()
+        .includes(codingFolderSearchQuery.toLowerCase()) ||
+      (folder.description &&
+        folder.description
+          .toLowerCase()
+          .includes(codingFolderSearchQuery.toLowerCase())),
   );
 
   // Filtered submissions
@@ -702,13 +766,18 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
                 <TableHead className="text-xs">Score</TableHead>
                 <TableHead className="text-xs">Malpractice</TableHead>
                 <TableHead className="text-xs">Attempted</TableHead>
-                <TableHead className="w-20 text-right text-xs pr-4">Actions</TableHead>
+                <TableHead className="w-20 text-right text-xs pr-4">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loadingSubmissions ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-48 text-center text-xs text-muted-foreground">
+                  <TableCell
+                    colSpan={8}
+                    className="h-48 text-center text-xs text-muted-foreground"
+                  >
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span>Loading submissions...</span>
@@ -717,7 +786,10 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
                 </TableRow>
               ) : paginatedSubmissions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-48 text-center text-xs text-muted-foreground">
+                  <TableCell
+                    colSpan={8}
+                    className="h-48 text-center text-xs text-muted-foreground"
+                  >
                     <div className="flex flex-col items-center justify-center gap-2">
                       <GraduationCap className="h-8 w-8 text-muted-foreground/60" />
                       <p className="font-medium text-foreground">
@@ -754,7 +826,10 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
                       <TableCell className="text-xs font-mono text-foreground">
                         {sub.user?.username || "-"}
                         {sub.user?.section && (
-                          <Badge variant="outline" className="ml-1.5 text-[10px] py-0 font-normal">
+                          <Badge
+                            variant="outline"
+                            className="ml-1.5 text-[10px] py-0 font-normal"
+                          >
                             Sec {sub.user.section}
                           </Badge>
                         )}
@@ -791,7 +866,9 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
 
                       <TableCell className="text-xs text-muted-foreground">
                         {sub.completedAt || sub.createdAt
-                          ? new Date(sub.completedAt || sub.createdAt).toLocaleString("en-US", {
+                          ? new Date(
+                              sub.completedAt || sub.createdAt,
+                            ).toLocaleString("en-US", {
                               month: "short",
                               day: "numeric",
                               hour: "numeric",
@@ -904,11 +981,15 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
                 Delete Submission?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-xs sm:text-sm text-muted-foreground">
-                Are you sure you want to delete this submission? This action cannot be undone.
+                Are you sure you want to delete this submission? This action
+                cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
-              <AlertDialogCancel disabled={deletingSub} className="text-xs sm:text-sm">
+              <AlertDialogCancel
+                disabled={deletingSub}
+                className="text-xs sm:text-sm"
+              >
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
@@ -938,6 +1019,7 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
             onClick={() => {
               setSelectedCategory("lab_assessment");
               setSelectedLab(null);
+              setSelectedCodingFolder(null);
             }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               selectedCategory === "lab_assessment"
@@ -948,7 +1030,7 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
             <FlaskConical className="h-3.5 w-3.5 text-violet-500" />
             Lab Assessments
             <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 font-normal">
-              {loadingSummary ? "-" : summary?.labAssessments.total ?? 0}
+              {loadingSummary ? "-" : (summary?.labAssessments.total ?? 0)}
             </span>
           </button>
 
@@ -957,6 +1039,7 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
             onClick={() => {
               setSelectedCategory("coding_assessment");
               setSelectedLab(null);
+              setSelectedCodingFolder(null);
             }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               selectedCategory === "coding_assessment"
@@ -967,7 +1050,7 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
             <Code2 className="h-3.5 w-3.5 text-cyan-500" />
             Coding Assessments
             <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-normal">
-              {loadingSummary ? "-" : summary?.codingAssessments.total ?? 0}
+              {loadingSummary ? "-" : (summary?.codingAssessments.total ?? 0)}
             </span>
           </button>
         </div>
@@ -984,19 +1067,37 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
             </Button>
           )}
 
-          {isAdmin && selectedCategory === "coding_assessment" && (
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingAssessment(null);
-                setFormOpen(true);
-              }}
-              className="gap-1.5 h-8 text-xs font-normal"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create Coding Assessment
-            </Button>
-          )}
+          {isAdmin &&
+            selectedCategory === "coding_assessment" &&
+            !selectedCodingFolder && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingCodingFolder(null);
+                  setCreateCodingFolderOpen(true);
+                }}
+                className="gap-1.5 h-8 text-xs font-normal"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create Folder
+              </Button>
+            )}
+
+          {isAdmin &&
+            selectedCategory === "coding_assessment" &&
+            selectedCodingFolder && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingAssessment(null);
+                  setFormOpen(true);
+                }}
+                className="gap-1.5 h-8 text-xs font-normal"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create Coding Assessment
+              </Button>
+            )}
 
           <Button
             variant="outline"
@@ -1004,8 +1105,14 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
             onClick={() => {
               loadLookups();
               loadSummary();
-              if (selectedCategory === "coding_assessment") {
-                loadAssessmentsList("coding_assessment");
+              if (
+                selectedCategory === "coding_assessment" &&
+                selectedCodingFolder
+              ) {
+                loadAssessmentsList(
+                  "coding_assessment",
+                  selectedCodingFolder.id,
+                );
               } else if (selectedLab) {
                 loadAssessmentsList("lab_assessment", selectedLab.id);
               }
@@ -1023,7 +1130,8 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {filteredLabs.length} lab subject{filteredLabs.length !== 1 ? "s" : ""}
+              {filteredLabs.length} lab subject
+              {filteredLabs.length !== 1 ? "s" : ""}
             </p>
 
             {availableLabs.length > 3 && (
@@ -1046,7 +1154,8 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
                 No lab subject folders found
               </p>
               <p className="text-xs text-muted-foreground mt-1 mb-4">
-                Create a lab subject folder to start organizing internal lab assessments.
+                Create a lab subject folder to start organizing internal lab
+                assessments.
               </p>
               {isAdmin && (
                 <Button
@@ -1088,12 +1197,18 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
                             {lab.name}
                           </span>
                           {lab.code && (
-                            <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 font-normal">
+                            <Badge
+                              variant="secondary"
+                              className="font-mono text-[10px] px-1.5 py-0 font-normal"
+                            >
                               {lab.code}
                             </Badge>
                           )}
                           {lab.semester && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 font-normal"
+                            >
                               Sem {lab.semester}
                             </Badge>
                           )}
@@ -1110,7 +1225,8 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
 
                   <div className="flex items-center justify-between mt-auto pt-2 border-t text-xs text-muted-foreground">
                     <span>
-                      {lab.assessmentsCount ?? 0} assessment{(lab.assessmentsCount ?? 0) !== 1 ? "s" : ""}
+                      {lab.assessmentsCount ?? 0} assessment
+                      {(lab.assessmentsCount ?? 0) !== 1 ? "s" : ""}
                     </span>
                     {lab.activeAssessmentsCount > 0 ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-medium">
@@ -1127,9 +1243,187 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
         </div>
       )}
 
+      {/* ─── CODING ASSESSMENTS: FOLDERS VIEW (FIRST PAGE) ────────────────── */}
+      {selectedCategory === "coding_assessment" && !selectedCodingFolder && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              {filteredCodingFolders.length} folder
+              {filteredCodingFolders.length !== 1 ? "s" : ""}
+            </p>
+
+            {availableCodingFolders.length > 2 && (
+              <div className="relative w-full sm:w-60">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search folders..."
+                  value={codingFolderSearchQuery}
+                  onChange={(e) => setCodingFolderSearchQuery(e.target.value)}
+                  className="pl-8 h-8 text-xs w-full"
+                />
+              </div>
+            )}
+          </div>
+
+          {filteredCodingFolders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border border-dashed bg-muted/20">
+              <Code2 className="h-8 w-8 text-muted-foreground/60 mb-2" />
+              <p className="text-sm font-medium text-foreground">
+                No coding folders found
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 mb-4">
+                Create a folder (e.g. Level 1, Level 2) and assign faculty to
+                student sections.
+              </p>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingCodingFolder(null);
+                    setCreateCodingFolderOpen(true);
+                  }}
+                  className="gap-1.5 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Create Folder
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredCodingFolders.map((folder) => (
+                <div
+                  key={folder.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setSelectedCodingFolder(folder);
+                    loadAssessmentsList("coding_assessment", folder.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedCodingFolder(folder);
+                      loadAssessmentsList("coding_assessment", folder.id);
+                    }
+                  }}
+                  className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer min-w-0 bg-card group relative"
+                >
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <div className="p-2 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5">
+                        <Code2 className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold text-sm break-words text-foreground">
+                          {folder.name}
+                        </span>
+                        {folder.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                            {folder.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {isAdmin && (
+                      <div
+                        className="flex items-center gap-1 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            setEditingCodingFolder(folder);
+                            setCreateCodingFolderOpen(true);
+                          }}
+                          title="Edit Folder"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => setDeleteFolderTargetId(folder.id)}
+                          title="Delete Folder"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t text-xs text-muted-foreground">
+                    <span>
+                      {folder.assessmentsCount ?? 0} assessment
+                      {(folder.assessmentsCount ?? 0) !== 1 ? "s" : ""}
+                    </span>
+                    {folder.activeAssessmentsCount > 0 ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        {folder.activeAssessmentsCount} active
+                      </span>
+                    ) : (
+                      <span className="group-hover:text-primary transition-colors">
+                        Open Folder &rarr;
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── 3. INSIDE LAB OR CODING ASSESSMENTS: DATA TABLE VIEW ──────────── */}
-      {(selectedCategory === "coding_assessment" || (selectedCategory === "lab_assessment" && selectedLab)) && (
+      {((selectedCategory === "coding_assessment" && selectedCodingFolder) ||
+        (selectedCategory === "lab_assessment" && selectedLab)) && (
         <div className="flex flex-1 flex-col gap-4 min-h-0 h-full w-full">
+          {/* Header Banner for Selected Coding Folder */}
+          {selectedCategory === "coding_assessment" && selectedCodingFolder && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 border rounded-lg bg-card">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedCodingFolder(null)}
+                  className="gap-1.5 h-8 text-xs font-normal"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back to All Folders
+                </Button>
+                <div className="h-4 w-px bg-border hidden sm:block" />
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm sm:text-base text-foreground">
+                    {selectedCodingFolder.name}
+                  </span>
+                  {selectedCodingFolder.description && (
+                    <span className="text-xs text-muted-foreground hidden md:inline">
+                      — {selectedCodingFolder.description}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingAssessment(null);
+                    setFormOpen(true);
+                  }}
+                  className="gap-1.5 h-8 text-xs font-normal shrink-0"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Create Assessment in {selectedCodingFolder.name}
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Header Banner for Selected Lab */}
           {selectedCategory === "lab_assessment" && selectedLab && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 border rounded-lg bg-card">
@@ -1279,25 +1573,79 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         initial={editingAssessment}
-        fixedLabId={selectedLab?.id || null}
+        fixedLabId={
+          editingAssessment
+            ? null
+            : selectedCategory === "coding_assessment"
+              ? selectedCodingFolder?.id || null
+              : selectedLab?.id || null
+        }
         categoryType={
           editingAssessment
             ? (editingAssessment.assessmentType as AssessmentCategory)
             : selectedCategory
         }
         availableLabs={availableLabs}
+        availableCodingFolders={availableCodingFolders}
         availableCollections={availableCollections}
         availableGroups={availableGroups}
         availableFaculty={availableFaculty}
         onSaved={() => {
           setFormOpen(false);
-          if (selectedCategory === "coding_assessment") {
-            loadAssessmentsList("coding_assessment");
+          if (
+            selectedCategory === "coding_assessment" &&
+            selectedCodingFolder
+          ) {
+            loadAssessmentsList("coding_assessment", selectedCodingFolder.id);
           } else if (selectedLab) {
             loadAssessmentsList("lab_assessment", selectedLab.id);
           }
           loadSummary();
           loadLookups();
+        }}
+      />
+
+      {/* ─── CONFIRM DELETE CODING FOLDER ───────────────────────────────────── */}
+      <AlertDialog
+        open={Boolean(deleteFolderTargetId)}
+        onOpenChange={(open) => !open && setDeleteFolderTargetId(null)}
+      >
+        <AlertDialogContent className="w-[95vw] sm:max-w-md p-4 sm:p-6">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base sm:text-lg">
+              Delete Coding Folder
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs sm:text-sm">
+              Are you sure you want to delete this folder? All coding
+              assessments and student assignments inside this folder will also
+              be deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCodingFolder}
+              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm"
+            >
+              Delete Folder
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── CREATE / EDIT CODING FOLDER DIALOG ─────────────────────────────── */}
+      <CodingFolderDialog
+        open={createCodingFolderOpen}
+        onClose={() => {
+          setCreateCodingFolderOpen(false);
+          setEditingCodingFolder(null);
+        }}
+        initial={editingCodingFolder}
+        onSaved={() => {
+          loadLookups();
+          loadSummary();
         }}
       />
 
@@ -1308,7 +1656,9 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
       >
         <AlertDialogContent className="w-[95vw] sm:max-w-md p-4 sm:p-6">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base sm:text-lg">Delete Assessment</AlertDialogTitle>
+            <AlertDialogTitle className="text-base sm:text-lg">
+              Delete Assessment
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-xs sm:text-sm">
               Are you sure you want to delete this assessment? This will delete
               all section assignments and student submissions associated with
@@ -1316,7 +1666,9 @@ export function AssessmentsManager({ isAdmin = true }: { isAdmin?: boolean }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
-            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAssessment}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto text-xs sm:text-sm"
@@ -1383,16 +1735,21 @@ function CreateLabDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="w-[95vw] sm:max-w-md p-0 gap-0 flex flex-col max-h-[85vh] overflow-hidden">
         <DialogHeader className="p-4 sm:p-6 pb-3 border-b shrink-0 bg-background">
-          <DialogTitle className="text-base sm:text-lg">Create Lab Subject Folder</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">
+            Create Lab Subject Folder
+          </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
-            Add a new lab subject folder to organize and group related lab assessments.
+            Add a new lab subject folder to organize and group related lab
+            assessments.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleCreate} className="flex flex-col flex-1 min-h-0">
           <div className="space-y-4 px-4 sm:px-6 py-4 flex-1 overflow-y-auto">
             <div className="space-y-1.5">
-              <Label htmlFor="lab-name" className="text-xs sm:text-sm">Lab Subject Name *</Label>
+              <Label htmlFor="lab-name" className="text-xs sm:text-sm">
+                Lab Subject Name *
+              </Label>
               <Input
                 id="lab-name"
                 placeholder="e.g. Database Management Systems Laboratory"
@@ -1405,7 +1762,9 @@ function CreateLabDialog({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="lab-code" className="text-xs sm:text-sm">Subject Code</Label>
+                <Label htmlFor="lab-code" className="text-xs sm:text-sm">
+                  Subject Code
+                </Label>
                 <Input
                   id="lab-code"
                   placeholder="e.g. CS3301"
@@ -1416,7 +1775,9 @@ function CreateLabDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="lab-sem" className="text-xs sm:text-sm">Semester</Label>
+                <Label htmlFor="lab-sem" className="text-xs sm:text-sm">
+                  Semester
+                </Label>
                 <Input
                   id="lab-sem"
                   type="number"
@@ -1433,7 +1794,9 @@ function CreateLabDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="lab-desc" className="text-xs sm:text-sm">Description</Label>
+              <Label htmlFor="lab-desc" className="text-xs sm:text-sm">
+                Description
+              </Label>
               <Textarea
                 id="lab-desc"
                 placeholder="Optional syllabus, course overview, or department notes..."
@@ -1455,7 +1818,11 @@ function CreateLabDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting} className="gap-1.5 text-xs sm:text-sm h-9 px-4">
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="gap-1.5 text-xs sm:text-sm h-9 px-4"
+            >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Create Lab Subject
             </Button>
@@ -1475,6 +1842,7 @@ function AssessmentFormDialog({
   categoryType,
   fixedLabId,
   availableLabs,
+  availableCodingFolders = [],
   availableCollections,
   availableGroups,
   availableFaculty,
@@ -1486,6 +1854,7 @@ function AssessmentFormDialog({
   categoryType: AssessmentCategory;
   fixedLabId?: string | null;
   availableLabs: any[];
+  availableCodingFolders?: any[];
   availableCollections: any[];
   availableGroups: any[];
   availableFaculty: any[];
@@ -1517,10 +1886,15 @@ function AssessmentFormDialog({
   >([]);
 
   const selectedLabObj = availableLabs.find((l) => l.id === selectedLabId);
+  const selectedCodingFolderObj = availableCodingFolders?.find(
+    (f) => f.id === selectedLabId,
+  );
 
-  const filteredCollections = availableCollections.filter((c) =>
-    c.title.toLowerCase().includes(collectionSearch.toLowerCase()) ||
-    (c.description && c.description.toLowerCase().includes(collectionSearch.toLowerCase())),
+  const filteredCollections = availableCollections.filter(
+    (c) =>
+      c.title.toLowerCase().includes(collectionSearch.toLowerCase()) ||
+      (c.description &&
+        c.description.toLowerCase().includes(collectionSearch.toLowerCase())),
   );
 
   useEffect(() => {
@@ -1532,9 +1906,7 @@ function AssessmentFormDialog({
         (initial as any).collections?.map((c: any) => c.collectionId) || [],
       );
       setDurationMinutes(initial.durationMinutes || 60);
-      setTotalMarks(
-        Number((initial as any).gradingConfig?.totalMarks) || 100,
-      );
+      setTotalMarks(Number((initial as any).gradingConfig?.totalMarks) || 100);
       setQuestionCount(
         Number((initial as any).strategyConfig?.count) || (isLab ? 2 : 3),
       );
@@ -1612,12 +1984,25 @@ function AssessmentFormDialog({
           setGroupAssignments([]);
         }
       } else {
-        setSelectedLabId("");
+        const targetFolderId =
+          fixedLabId || availableCodingFolders[0]?.id || "";
+        setSelectedLabId(targetFolderId);
         setSelectedExerciseIds([]);
         setGroupAssignments([]);
       }
     }
-  }, [initial, open, categoryType, fixedLabId, availableLabs]);
+  }, [
+    initial,
+    open,
+    categoryType,
+    fixedLabId,
+    availableLabs,
+    availableCodingFolders,
+  ]);
+
+  function handleCodingFolderSelect(folderId: string) {
+    setSelectedLabId(folderId);
+  }
 
   function handleLabSelect(labId: string) {
     setSelectedLabId(labId);
@@ -1632,7 +2017,10 @@ function AssessmentFormDialog({
       }
     }
 
-    if (targetLab?.facultyAssignments && targetLab.facultyAssignments.length > 0) {
+    if (
+      targetLab?.facultyAssignments &&
+      targetLab.facultyAssignments.length > 0
+    ) {
       const map: Record<string, string[]> = {};
       for (const fa of targetLab.facultyAssignments) {
         if (!map[fa.groupId]) map[fa.groupId] = [];
@@ -1717,7 +2105,9 @@ function AssessmentFormDialog({
     }
 
     if (groupAssignments.length === 0) {
-      toast.error("Please assign at least one section/group to this assessment");
+      toast.error(
+        "Please assign at least one section/group to this assessment",
+      );
       return;
     }
 
@@ -1750,7 +2140,7 @@ function AssessmentFormDialog({
         title: title.trim(),
         description: description.trim() || null,
         assessmentType: category,
-        labId: isLab ? selectedLabId : null,
+        labId: selectedLabId || null,
         durationMinutes: Number(durationMinutes) || 60,
         totalMarks: Number(totalMarks) || 100,
         startTime: startTimeInput ? new Date(startTimeInput) : null,
@@ -1836,7 +2226,9 @@ function AssessmentFormDialog({
             {/* Title & Description */}
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label htmlFor="title" className="text-xs sm:text-sm">Title *</Label>
+                <Label htmlFor="title" className="text-xs sm:text-sm">
+                  Title *
+                </Label>
                 <Input
                   id="title"
                   placeholder={
@@ -1852,7 +2244,9 @@ function AssessmentFormDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="desc" className="text-xs sm:text-sm">Description</Label>
+                <Label htmlFor="desc" className="text-xs sm:text-sm">
+                  Description
+                </Label>
                 <Textarea
                   id="desc"
                   placeholder="Optional instructions or syllabus notes..."
@@ -1867,14 +2261,14 @@ function AssessmentFormDialog({
             {/* Category-Specific Target & Problem Collections Selection */}
             {isLab && (
               <div className="space-y-1.5 border-t pt-3">
-                <Label className="text-xs sm:text-sm">Target Lab Subject *</Label>
+                <Label className="text-xs sm:text-sm">
+                  Target Lab Subject *
+                </Label>
                 {fixedLabId && selectedLabObj ? (
                   <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/40 text-xs sm:text-sm">
                     <div className="flex items-center gap-2">
                       <Folder className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">
-                        {selectedLabObj.name}
-                      </span>
+                      <span className="font-medium">{selectedLabObj.name}</span>
                     </div>
                     {selectedLabObj.code && (
                       <Badge variant="outline" className="font-mono text-xs">
@@ -1889,8 +2283,53 @@ function AssessmentFormDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {availableLabs.map((lab) => (
-                        <SelectItem key={lab.id} value={lab.id} className="text-xs sm:text-sm">
+                        <SelectItem
+                          key={lab.id}
+                          value={lab.id}
+                          className="text-xs sm:text-sm"
+                        >
                           {lab.name} {lab.code ? `(${lab.code})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
+            {!isLab && (
+              <div className="space-y-1.5 border-t pt-3">
+                <Label className="text-xs sm:text-sm">Folder *</Label>
+                {fixedLabId && selectedCodingFolderObj ? (
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/40 text-xs sm:text-sm">
+                    <div className="flex items-center gap-2">
+                      <Code2 className="h-4 w-4 text-cyan-500" />
+                      <span className="font-medium text-foreground">
+                        {selectedCodingFolderObj.name}
+                      </span>
+                      {selectedCodingFolderObj.description && (
+                        <span className="text-xs text-muted-foreground hidden sm:inline">
+                          — {selectedCodingFolderObj.description}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedLabId}
+                    onValueChange={handleCodingFolderSelect}
+                  >
+                    <SelectTrigger className="text-xs sm:text-sm">
+                      <SelectValue placeholder="Select a Folder..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCodingFolders.map((f) => (
+                        <SelectItem
+                          key={f.id}
+                          value={f.id}
+                          className="text-xs sm:text-sm"
+                        >
+                          {f.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1974,7 +2413,9 @@ function AssessmentFormDialog({
                         </div>
                       ) : (
                         filteredCollections.map((col) => {
-                          const isSelected = selectedCollectionIds.includes(col.id);
+                          const isSelected = selectedCollectionIds.includes(
+                            col.id,
+                          );
                           return (
                             <div
                               key={col.id}
@@ -1994,7 +2435,9 @@ function AssessmentFormDialog({
                                 readOnly
                                 className="rounded border-border text-primary"
                               />
-                              <span className="truncate flex-1">{col.title}</span>
+                              <span className="truncate flex-1">
+                                {col.title}
+                              </span>
                             </div>
                           );
                         })
@@ -2015,7 +2458,9 @@ function AssessmentFormDialog({
                           variant="secondary"
                           className="text-[11px] font-normal gap-1 pl-2 pr-1 py-0.5"
                         >
-                          <span className="truncate max-w-[180px]">{col.title}</span>
+                          <span className="truncate max-w-[180px]">
+                            {col.title}
+                          </span>
                           <button
                             type="button"
                             onClick={() =>
@@ -2086,7 +2531,10 @@ function AssessmentFormDialog({
             {/* Assessment Schedule Window */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 border-t pt-3">
               <div className="space-y-1.5">
-                <Label htmlFor="start-time" className="text-xs sm:text-sm font-medium">
+                <Label
+                  htmlFor="start-time"
+                  className="text-xs sm:text-sm font-medium"
+                >
                   Start Date & Time *
                 </Label>
                 <Input
@@ -2100,7 +2548,10 @@ function AssessmentFormDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="end-time" className="text-xs sm:text-sm font-medium">
+                <Label
+                  htmlFor="end-time"
+                  className="text-xs sm:text-sm font-medium"
+                >
                   End Date & Time *
                 </Label>
                 <Input
@@ -2213,6 +2664,146 @@ function AssessmentFormDialog({
                 : isLab
                   ? "Create Lab Assessment"
                   : "Create Coding Assessment"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── CODING FOLDER DIALOG (CREATE / EDIT) ────────────────────────────────────
+
+function CodingFolderDialog({
+  open,
+  onClose,
+  initial,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  initial: any | null;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (initial) {
+      setName(initial.name || "");
+      setDescription(initial.description || "");
+    } else {
+      setName("");
+      setDescription("");
+    }
+  }, [initial, open]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Folder name is required");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      if (initial) {
+        const res = await updateCodingFolder({
+          id: initial.id,
+          name: name.trim(),
+          description: description.trim() || undefined,
+        });
+        if (res.success) {
+          toast.success("Folder updated successfully");
+          onSaved();
+          onClose();
+        } else {
+          toast.error(res.error || "Failed to update folder");
+        }
+      } else {
+        const res = await createCodingFolder({
+          name: name.trim(),
+          description: description.trim() || undefined,
+        });
+        if (res.success) {
+          toast.success("Folder created successfully");
+          onSaved();
+          onClose();
+        } else {
+          toast.error(res.error || "Failed to create folder");
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save folder");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="w-[95vw] sm:max-w-md flex flex-col p-0 gap-0 overflow-hidden shadow-2xl">
+        <DialogHeader className="p-4 sm:p-6 pb-3 border-b shrink-0 bg-background">
+          <DialogTitle className="text-base sm:text-lg">
+            {initial ? "Edit Coding Folder" : "Create Coding Folder"}
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Configure the folder name and description (e.g. Level 1, Level 2).
+          </DialogDescription>
+        </DialogHeader>
+
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1 min-h-0 overflow-hidden"
+        >
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-4 sm:px-6 py-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="folder-name" className="text-xs sm:text-sm">
+                Folder Name *
+              </Label>
+              <Input
+                id="folder-name"
+                placeholder="e.g. Level 1 or Basic Algorithms"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="text-xs sm:text-sm"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="folder-desc" className="text-xs sm:text-sm">
+                Description
+              </Label>
+              <Textarea
+                id="folder-desc"
+                placeholder="Optional description of this level or track..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="text-xs sm:text-sm"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="px-4 sm:px-6 py-3.5 border-t border-border bg-muted/40 shrink-0 flex items-center justify-end gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={submitting}
+              className="text-xs sm:text-sm h-9 px-4"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="gap-1.5 text-xs sm:text-sm h-9 px-4 font-medium"
+            >
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {initial ? "Save Changes" : "Create Folder"}
             </Button>
           </DialogFooter>
         </form>
