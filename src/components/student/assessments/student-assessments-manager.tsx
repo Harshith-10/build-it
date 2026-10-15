@@ -1,21 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import {
+  ArrowLeft,
   Calendar,
   ChevronRight,
-  Clock,
   Code2,
   FlaskConical,
-  Folder,
   Key,
   LayoutList,
   Timer,
   Trophy,
-  Users,
 } from "lucide-react";
-
+import { useMemo, useState } from "react";
+import { ExamCardAction } from "@/app/(student)/exams/exam-card-action";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -25,7 +24,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LocalDateTimeText } from "@/components/ui/local-date-time-text";
-import { ExamCardAction } from "@/app/(student)/exams/exam-card-action";
 
 export interface StudentAssessmentItem {
   id: string;
@@ -62,6 +60,9 @@ export function StudentAssessmentsManager({
     "lab_assessment" | "coding_assessment"
   >("lab_assessment");
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null);
+  const [selectedCodingFolderId, setSelectedCodingFolderId] = useState<
+    string | null
+  >(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -106,17 +107,18 @@ export function StudentAssessmentsManager({
       const labCode = item.lab?.code || null;
       const labDesc = item.description || null;
 
-      if (!labMap.has(labId)) {
-        labMap.set(labId, {
+      let entry = labMap.get(labId);
+      if (!entry) {
+        entry = {
           id: labId,
           name: labName,
           code: labCode,
           description: labDesc,
           assessments: [],
           activeCount: 0,
-        });
+        };
+        labMap.set(labId, entry);
       }
-      const entry = labMap.get(labId)!;
       entry.assessments.push(item);
       if (item.status === "active") entry.activeCount++;
     });
@@ -131,11 +133,58 @@ export function StudentAssessmentsManager({
 
   const displayedLabAssessments = useMemo(() => {
     return selectedLabId
-      ? labAssessments.filter(
-          (a) => (a.lab?.id || "general") === selectedLabId,
-        )
+      ? labAssessments.filter((a) => (a.lab?.id || "general") === selectedLabId)
       : [];
   }, [selectedLabId, labAssessments]);
+
+  // Group coding assessments into folders
+  const codingFolders = useMemo(() => {
+    const folderMap = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        description?: string | null;
+        assessments: StudentAssessmentItem[];
+        activeCount: number;
+      }
+    >();
+
+    codingAssessments.forEach((item) => {
+      const folderId = item.lab?.id || "general";
+      const folderName = item.lab?.name || "General";
+      const folderDesc = item.description || null;
+
+      let entry = folderMap.get(folderId);
+      if (!entry) {
+        entry = {
+          id: folderId,
+          name: folderName,
+          description: folderDesc,
+          assessments: [],
+          activeCount: 0,
+        };
+        folderMap.set(folderId, entry);
+      }
+      entry.assessments.push(item);
+      if (item.status === "active") entry.activeCount++;
+    });
+
+    return Array.from(folderMap.values());
+  }, [codingAssessments]);
+
+  const selectedCodingFolder = useMemo(() => {
+    if (!selectedCodingFolderId) return null;
+    return codingFolders.find((f) => f.id === selectedCodingFolderId) || null;
+  }, [selectedCodingFolderId, codingFolders]);
+
+  const displayedCodingAssessments = useMemo(() => {
+    return selectedCodingFolderId
+      ? codingAssessments.filter(
+          (a) => (a.lab?.id || "general") === selectedCodingFolderId,
+        )
+      : [];
+  }, [selectedCodingFolderId, codingAssessments]);
 
   return (
     <div className="flex flex-col gap-5 max-w-6xl w-full">
@@ -147,6 +196,7 @@ export function StudentAssessmentsManager({
             onClick={() => {
               setSelectedCategory("lab_assessment");
               setSelectedLabId(null);
+              setSelectedCodingFolderId(null);
             }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               selectedCategory === "lab_assessment"
@@ -166,6 +216,7 @@ export function StudentAssessmentsManager({
             onClick={() => {
               setSelectedCategory("coding_assessment");
               setSelectedLabId(null);
+              setSelectedCodingFolderId(null);
             }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               selectedCategory === "coding_assessment"
@@ -187,8 +238,10 @@ export function StudentAssessmentsManager({
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {labFolders.length} lab subject{labFolders.length !== 1 ? "s" : ""} &bull;{" "}
-              {labAssessments.length} assessment{labAssessments.length !== 1 ? "s" : ""}
+              {labFolders.length} lab subject
+              {labFolders.length !== 1 ? "s" : ""} &bull;{" "}
+              {labAssessments.length} assessment
+              {labAssessments.length !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -199,7 +252,8 @@ export function StudentAssessmentsManager({
                 No lab assessments assigned
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                You do not have any lab assessments assigned to your section at this time.
+                You do not have any lab assessments assigned to your section at
+                this time.
               </p>
             </div>
           ) : (
@@ -227,7 +281,10 @@ export function StudentAssessmentsManager({
                             {lab.name}
                           </span>
                           {lab.code && (
-                            <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 font-normal">
+                            <Badge
+                              variant="secondary"
+                              className="font-mono text-[10px] px-1.5 py-0 font-normal"
+                            >
                               {lab.code}
                             </Badge>
                           )}
@@ -244,14 +301,17 @@ export function StudentAssessmentsManager({
 
                   <div className="flex items-center justify-between mt-auto pt-2 border-t text-xs text-muted-foreground">
                     <span>
-                      {lab.assessments.length} assessment{lab.assessments.length !== 1 ? "s" : ""}
+                      {lab.assessments.length} assessment
+                      {lab.assessments.length !== 1 ? "s" : ""}
                     </span>
                     {lab.activeCount > 0 ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                         {lab.activeCount} active now
                       </span>
                     ) : (
-                      <span className="group-hover:text-foreground">Open Lab &rarr;</span>
+                      <span className="group-hover:text-foreground">
+                        Open Lab &rarr;
+                      </span>
                     )}
                   </div>
                 </div>
@@ -283,7 +343,8 @@ export function StudentAssessmentsManager({
 
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {displayedLabAssessments.length} assessment{displayedLabAssessments.length !== 1 ? "s" : ""}
+              {displayedLabAssessments.length} assessment
+              {displayedLabAssessments.length !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -309,7 +370,10 @@ export function StudentAssessmentsManager({
                             assessment.status.slice(1)}
                         </Badge>
                         {assessment.requiresPin && (
-                          <Badge variant="outline" className="text-[10px] py-0 font-normal gap-1">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 font-normal gap-1"
+                          >
                             <Key className="h-2.5 w-2.5 text-amber-500" />
                             PIN
                           </Badge>
@@ -319,7 +383,9 @@ export function StudentAssessmentsManager({
                         <span className="flex h-2 w-2 animate-pulse rounded-full bg-green-500" />
                       )}
                     </div>
-                    <CardTitle className="line-clamp-1">{assessment.title}</CardTitle>
+                    <CardTitle className="line-clamp-1">
+                      {assessment.title}
+                    </CardTitle>
                     <CardDescription className="line-clamp-2 min-h-[40px]">
                       {assessment.description || "No description provided."}
                     </CardDescription>
@@ -395,16 +461,19 @@ export function StudentAssessmentsManager({
         </div>
       )}
 
-      {/* ─── 4. CODING ASSESSMENTS (CARDS GRID MATCHING EXAMS) ──────────── */}
-      {selectedCategory === "coding_assessment" && (
+      {/* ─── 4. CODING ASSESSMENTS: FOLDERS VIEW (FIRST PAGE) ─────────── */}
+      {selectedCategory === "coding_assessment" && !selectedCodingFolderId && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {codingAssessments.length} assessment{codingAssessments.length !== 1 ? "s" : ""}
+              {codingFolders.length} folder
+              {codingFolders.length !== 1 ? "s" : ""} &bull;{" "}
+              {codingAssessments.length} assessment
+              {codingAssessments.length !== 1 ? "s" : ""}
             </p>
           </div>
 
-          {codingAssessments.length === 0 ? (
+          {codingFolders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border border-dashed bg-muted/20">
               <Code2 className="h-8 w-8 text-muted-foreground/60 mb-2" />
               <p className="text-sm font-medium text-foreground">
@@ -415,8 +484,102 @@ export function StudentAssessmentsManager({
               </p>
             </div>
           ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {codingFolders.map((folder) => (
+                <div
+                  key={folder.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedCodingFolderId(folder.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedCodingFolderId(folder.id);
+                    }
+                  }}
+                  className="border rounded-lg p-4 flex flex-col gap-3 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer min-w-0 bg-card"
+                >
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <div className="p-2 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5">
+                        <Code2 className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold text-sm break-words text-foreground">
+                          {folder.name}
+                        </span>
+                        {folder.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                            {folder.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t text-xs text-muted-foreground">
+                    <span>
+                      {folder.assessments.length} assessment
+                      {folder.assessments.length !== 1 ? "s" : ""}
+                    </span>
+                    {folder.activeCount > 0 ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        {folder.activeCount} active now
+                      </span>
+                    ) : (
+                      <span>Open Folder &rarr;</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── 5. CODING ASSESSMENTS INSIDE FOLDER ─────────────────────────── */}
+      {selectedCategory === "coding_assessment" && selectedCodingFolderId && (
+        <div className="flex flex-col gap-4">
+          {/* Header Banner for Selected Coding Folder */}
+          {selectedCodingFolder && (
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-card">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedCodingFolderId(null)}
+                className="gap-1.5 h-8 text-xs font-normal"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to All Folders
+              </Button>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm sm:text-base text-foreground">
+                  {selectedCodingFolder.name}
+                </span>
+                {selectedCodingFolder.description && (
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                    — {selectedCodingFolder.description}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {displayedCodingAssessments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border border-dashed bg-muted/20">
+              <Code2 className="h-8 w-8 text-muted-foreground/60 mb-2" />
+              <p className="text-sm font-medium text-foreground">
+                No assessments in this folder
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                There are no coding assessments scheduled in this folder for
+                your section.
+              </p>
+            </div>
+          ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {codingAssessments.map((assessment) => (
+              {displayedCodingAssessments.map((assessment) => (
                 <Card key={assessment.id} className="flex flex-col">
                   <CardHeader>
                     <div className="mb-2 flex items-center justify-between">
@@ -426,7 +589,10 @@ export function StudentAssessmentsManager({
                             assessment.status.slice(1)}
                         </Badge>
                         {assessment.requiresPin && (
-                          <Badge variant="outline" className="text-[10px] py-0 font-normal gap-1">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 font-normal gap-1"
+                          >
                             <Key className="h-2.5 w-2.5 text-amber-500" />
                             PIN
                           </Badge>
@@ -436,7 +602,9 @@ export function StudentAssessmentsManager({
                         <span className="flex h-2 w-2 animate-pulse rounded-full bg-green-500" />
                       )}
                     </div>
-                    <CardTitle className="line-clamp-1">{assessment.title}</CardTitle>
+                    <CardTitle className="line-clamp-1">
+                      {assessment.title}
+                    </CardTitle>
                     <CardDescription className="line-clamp-2 min-h-[40px]">
                       {assessment.description || "No description provided."}
                     </CardDescription>

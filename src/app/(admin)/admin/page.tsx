@@ -17,7 +17,7 @@ import { getProblems } from "@/actions/admin/problems";
 import { getUsers } from "@/actions/admin/users";
 import { getOpenTicketCount } from "@/actions/tickets";
 import { DashboardAnalytics } from "@/components/admin/dashboard/dashboard-analytics";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default async function AdminDashboard() {
@@ -43,7 +43,7 @@ export default async function AdminDashboard() {
 
   const stats = [
     {
-      title: "Total Users",
+      title: "Users",
       value: usersData.total,
       icon: Users,
       href: "/admin/users",
@@ -52,7 +52,7 @@ export default async function AdminDashboard() {
       iconColor: "text-blue-600 dark:text-blue-400",
     },
     {
-      title: "Exams",
+      title: "Examinations",
       value: examsData.total,
       icon: GraduationCap,
       href: "/admin/exams",
@@ -151,20 +151,24 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Resource Stats */}
-      <div className="grid gap-3.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-7">
+      <div className="grid gap-3.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card
-              className={`bg-linear-to-br ${stat.color} border transition-all hover:shadow-md hover:scale-[1.01] cursor-pointer`}
+              className={`bg-linear-to-br ${stat.color} border transition-all hover:shadow-md hover:scale-[1.01] hover:border-primary/30 cursor-pointer h-full`}
             >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3.5 pb-1">
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className={`h-3.5 w-3.5 ${stat.iconColor}`} />
-              </CardHeader>
-              <CardContent className="p-3.5 pt-0">
-                <div className="text-2xl font-bold">{stat.value}</div>
+              <CardContent className="p-4 flex items-center justify-between gap-3 h-full">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-sm font-semibold text-muted-foreground truncate">
+                    {stat.title}
+                  </p>
+                  <div className="text-3xl font-bold tracking-tight">
+                    {stat.value}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-background/60 dark:bg-background/40 p-2.5 border border-border/50 shrink-0 shadow-xs">
+                  <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
+                </div>
               </CardContent>
             </Card>
           </Link>

@@ -14,10 +14,7 @@ import {
   vivaSubmissions,
 } from "@/db/schema/labs";
 import { user } from "@/db/schema/auth";
-import {
-  userGroups,
-  userGroupMembers,
-} from "@/db/schema/groups";
+import { userGroups, userGroupMembers } from "@/db/schema/groups";
 import {
   checkEntityPermission,
   requireUser,
@@ -43,13 +40,17 @@ export async function getLabs() {
     }
 
     return db.query.labs.findMany({
-      where: inArray(labs.id, assignedLabIds),
+      where: and(
+        inArray(labs.id, assignedLabIds),
+        sql`coalesce(${labs.branch}, '') != 'CODING'`,
+      ),
       orderBy: (l, { asc }) => [asc(l.name)],
       with: { exercises: true },
     });
   }
 
   return db.query.labs.findMany({
+    where: sql`coalesce(${labs.branch}, '') != 'CODING'`,
     orderBy: (l, { asc }) => [asc(l.name)],
     with: { exercises: true },
   });
@@ -69,7 +70,10 @@ export async function createLab(data: {
       where: sql`lower(${labs.name}) = lower(${data.name})`,
     });
     if (existing) {
-      return { success: false, error: `A lab named "${existing.name}" already exists.` };
+      return {
+        success: false,
+        error: `A lab named "${existing.name}" already exists.`,
+      };
     }
 
     const [newLab] = await db
@@ -87,7 +91,10 @@ export async function createLab(data: {
     return { success: true, lab: newLab };
   } catch (error) {
     console.error("Failed to create lab:", error);
-    return { success: false, error: "Permission denied or failed to create lab" };
+    return {
+      success: false,
+      error: "Permission denied or failed to create lab",
+    };
   }
 }
 
@@ -106,11 +113,14 @@ export async function updateLab(data: {
       const duplicate = await db.query.labs.findFirst({
         where: and(
           sql`lower(${labs.name}) = lower(${data.name})`,
-          sql`${labs.id} != ${data.id}`
+          sql`${labs.id} != ${data.id}`,
         ),
       });
       if (duplicate) {
-        return { success: false, error: `A lab named "${duplicate.name}" already exists.` };
+        return {
+          success: false,
+          error: `A lab named "${duplicate.name}" already exists.`,
+        };
       }
     }
 
@@ -136,7 +146,10 @@ export async function updateLab(data: {
     return { success: true, lab: updated };
   } catch (error) {
     console.error("Failed to update lab:", error);
-    return { success: false, error: "Permission denied or failed to update lab" };
+    return {
+      success: false,
+      error: "Permission denied or failed to update lab",
+    };
   }
 }
 
@@ -149,7 +162,10 @@ export async function deleteLab(id: string) {
     return { success: true };
   } catch (error) {
     console.error("Failed to delete lab:", error);
-    return { success: false, error: "Permission denied or failed to delete lab" };
+    return {
+      success: false,
+      error: "Permission denied or failed to delete lab",
+    };
   }
 }
 
@@ -169,7 +185,7 @@ export async function getExercises(labId: string) {
     const assigned = await db.query.labGroupFaculty.findMany({
       where: and(
         eq(labGroupFaculty.labId, labId),
-        eq(labGroupFaculty.facultyId, session.user.id)
+        eq(labGroupFaculty.facultyId, session.user.id),
       ),
       columns: { groupId: true },
     });
@@ -207,10 +223,13 @@ export async function createExercise(data: {
     }
 
     const duplicateTitle = existing.find(
-      (e) => e.title.trim().toLowerCase() === data.title.trim().toLowerCase()
+      (e) => e.title.trim().toLowerCase() === data.title.trim().toLowerCase(),
     );
     if (duplicateTitle) {
-      return { success: false, error: `An exercise named "${duplicateTitle.title}" already exists in this lab.` };
+      return {
+        success: false,
+        error: `An exercise named "${duplicateTitle.title}" already exists in this lab.`,
+      };
     }
 
     const [newExercise] = await db.insert(exercises).values(data).returning();
@@ -220,11 +239,15 @@ export async function createExercise(data: {
   } catch (error: any) {
     console.error("Failed to create exercise:", error);
     if (error?.code === "23505") {
-      return { success: false, error: `Exercise #${data.exerciseNo} already exists in this lab. Please change Exercise Number.` };
+      return {
+        success: false,
+        error: `Exercise #${data.exerciseNo} already exists in this lab. Please change Exercise Number.`,
+      };
     }
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to create exercise",
+      error:
+        error instanceof Error ? error.message : "Failed to create exercise",
     };
   }
 }
@@ -250,11 +273,14 @@ export async function updateExercise(data: {
         where: and(
           eq(exercises.labId, current.labId),
           sql`lower(${exercises.title}) = lower(${data.title})`,
-          sql`${exercises.id} != ${data.id}`
+          sql`${exercises.id} != ${data.id}`,
         ),
       });
       if (sibling) {
-        return { success: false, error: `An exercise named "${sibling.title}" already exists in this lab.` };
+        return {
+          success: false,
+          error: `An exercise named "${sibling.title}" already exists in this lab.`,
+        };
       }
     }
 
@@ -272,7 +298,10 @@ export async function updateExercise(data: {
     return { success: true, exercise: updated };
   } catch (error) {
     console.error("Failed to update exercise:", error);
-    return { success: false, error: "Permission denied or failed to update exercise" };
+    return {
+      success: false,
+      error: "Permission denied or failed to update exercise",
+    };
   }
 }
 
@@ -285,7 +314,10 @@ export async function deleteExercise(id: string) {
     return { success: true };
   } catch (error) {
     console.error("Failed to delete exercise:", error);
-    return { success: false, error: "Permission denied or failed to delete exercise" };
+    return {
+      success: false,
+      error: "Permission denied or failed to delete exercise",
+    };
   }
 }
 
@@ -299,7 +331,7 @@ export async function assignExerciseGroup(data: {
 }) {
   try {
     const session = await requireUser();
-    
+
     if (session.user.role === "faculty") {
       const ex = await db.query.exercises.findFirst({
         where: eq(exercises.id, data.exerciseId),
@@ -311,11 +343,15 @@ export async function assignExerciseGroup(data: {
         where: and(
           eq(labGroupFaculty.labId, ex.labId),
           eq(labGroupFaculty.groupId, data.groupId),
-          eq(labGroupFaculty.facultyId, session.user.id)
+          eq(labGroupFaculty.facultyId, session.user.id),
         ),
       });
       if (!assigned) {
-        return { success: false, error: "You are not assigned to this student section/group for this lab." };
+        return {
+          success: false,
+          error:
+            "You are not assigned to this student section/group for this lab.",
+        };
       }
     } else if (session.user.role !== "admin") {
       return { success: false, error: "Permission denied" };
@@ -338,22 +374,29 @@ export async function assignExerciseGroup(data: {
     return { success: true, group: assigned };
   } catch (error) {
     console.error("Failed to assign exercise group:", error);
-    return { success: false, error: "Permission denied or failed to assign time window" };
+    return {
+      success: false,
+      error: "Permission denied or failed to assign time window",
+    };
   }
 }
 
 export async function removeExerciseGroup(exerciseId: string, groupId: string) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    const _perm = await checkEntityPermission({
+      entity: "labs",
+      action: "update",
+    });
+    if (!_perm.allowed)
+      return { success: false, error: _perm.reason ?? "Permission denied" };
 
     await db
       .delete(exerciseGroups)
       .where(
         and(
           eq(exerciseGroups.exerciseId, exerciseId),
-          eq(exerciseGroups.groupId, groupId)
-        )
+          eq(exerciseGroups.groupId, groupId),
+        ),
       );
 
     revalidatePath("/admin/labs");
@@ -361,7 +404,10 @@ export async function removeExerciseGroup(exerciseId: string, groupId: string) {
     return { success: true };
   } catch (error) {
     console.error("Failed to remove exercise group:", error);
-    return { success: false, error: "Permission denied or failed to remove time window" };
+    return {
+      success: false,
+      error: "Permission denied or failed to remove time window",
+    };
   }
 }
 
@@ -373,8 +419,12 @@ export async function scheduleExerciseForSemester(data: {
   endTime: Date;
 }) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    const _perm = await checkEntityPermission({
+      entity: "labs",
+      action: "update",
+    });
+    if (!_perm.allowed)
+      return { success: false, error: _perm.reason ?? "Permission denied" };
 
     const exercise = await db.query.exercises.findFirst({
       where: eq(exercises.id, data.exerciseId),
@@ -424,8 +474,8 @@ export async function scheduleExerciseForSemester(data: {
               startTime: data.startTime,
               endTime: data.endTime,
             },
-          })
-      )
+          }),
+      ),
     );
 
     revalidatePath("/admin/labs");
@@ -435,7 +485,10 @@ export async function scheduleExerciseForSemester(data: {
     return { success: true, groupsScheduled: groupIds.length };
   } catch (error) {
     console.error("Failed to schedule exercise:", error);
-    return { success: false, error: "Permission denied or failed to schedule exercise" };
+    return {
+      success: false,
+      error: "Permission denied or failed to schedule exercise",
+    };
   }
 }
 
@@ -459,7 +512,9 @@ export async function getMyLab() {
       columns: { labId: true },
     });
 
-    const allowedLabIds = Array.from(new Set(labAssignments.map((a) => a.labId)));
+    const allowedLabIds = Array.from(
+      new Set(labAssignments.map((a) => a.labId)),
+    );
     if (allowedLabIds.length === 0) {
       return [];
     }
@@ -493,7 +548,7 @@ export async function getMyExercises(labId: string) {
 
   return allExercises.map((exercise) => {
     const relevantWindow = exercise.groups.find((g) =>
-      groupIds.includes(g.groupId)
+      groupIds.includes(g.groupId),
     );
 
     let status: "upcoming" | "active" | "ended" | "unscheduled" = "unscheduled";
@@ -529,22 +584,26 @@ export async function assignLabGroupFaculty({
   facultyIds: string[];
 }) {
   try {
-    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    const _perm = await checkEntityPermission({
+      entity: "labs",
+      action: "update",
+    });
+    if (!_perm.allowed)
+      return { success: false, error: _perm.reason ?? "Permission denied" };
 
     await db
       .delete(labGroupFaculty)
       .where(
         and(
           eq(labGroupFaculty.labId, labId),
-          eq(labGroupFaculty.groupId, groupId)
-        )
+          eq(labGroupFaculty.groupId, groupId),
+        ),
       );
 
     if (facultyIds.length > 0) {
-      await db.insert(labGroupFaculty).values(
-        facultyIds.map((facultyId) => ({ labId, groupId, facultyId }))
-      );
+      await db
+        .insert(labGroupFaculty)
+        .values(facultyIds.map((facultyId) => ({ labId, groupId, facultyId })));
     }
 
     revalidatePath("/admin/labs");
@@ -569,7 +628,10 @@ export async function getLabGroupFaculty(labId: string) {
 
     const rows = await db.query.labGroupFaculty.findMany({
       where: isFaculty
-        ? and(eq(labGroupFaculty.labId, labId), eq(labGroupFaculty.facultyId, session.user.id))
+        ? and(
+            eq(labGroupFaculty.labId, labId),
+            eq(labGroupFaculty.facultyId, session.user.id),
+          )
         : eq(labGroupFaculty.labId, labId),
       with: {
         faculty: { columns: { id: true, name: true, email: true } },
@@ -579,11 +641,19 @@ export async function getLabGroupFaculty(labId: string) {
 
     const byGroup = new Map<
       string,
-      { groupId: string; groupName: string; faculty: { id: string; name: string | null; email: string }[] }
+      {
+        groupId: string;
+        groupName: string;
+        faculty: { id: string; name: string | null; email: string }[];
+      }
     >();
     for (const row of rows) {
       if (!byGroup.has(row.groupId)) {
-        byGroup.set(row.groupId, { groupId: row.groupId, groupName: row.group.name, faculty: [] });
+        byGroup.set(row.groupId, {
+          groupId: row.groupId,
+          groupName: row.group.name,
+          faculty: [],
+        });
       }
       byGroup.get(row.groupId)!.faculty.push({
         id: row.faculty.id,
@@ -617,7 +687,7 @@ export async function getFacultyUsers() {
 
 export async function getExerciseSubmissions(
   exerciseId: string,
-  filterGroupId?: string
+  filterGroupId?: string,
 ) {
   try {
     const session = await requireUser();
@@ -635,7 +705,7 @@ export async function getExerciseSubmissions(
       const assigned = await db.query.labGroupFaculty.findMany({
         where: and(
           eq(labGroupFaculty.labId, ex.labId),
-          eq(labGroupFaculty.facultyId, session.user.id)
+          eq(labGroupFaculty.facultyId, session.user.id),
         ),
       });
 
@@ -644,19 +714,31 @@ export async function getExerciseSubmissions(
         return {
           success: true,
           data: {
-            exercise: { id: exerciseId, exerciseNo: 0, title: "", programs: [] },
+            exercise: {
+              id: exerciseId,
+              exerciseNo: 0,
+              title: "",
+              programs: [],
+            },
             students: [],
-            message: "No student groups/sections are assigned to you for this lab.",
+            message:
+              "No student groups/sections are assigned to you for this lab.",
           },
         };
       }
 
-      const targetGroupIds = filterGroupId && filterGroupId !== "all"
-        ? (assignedGroupIds.includes(filterGroupId) ? [filterGroupId] : [])
-        : assignedGroupIds;
+      const targetGroupIds =
+        filterGroupId && filterGroupId !== "all"
+          ? assignedGroupIds.includes(filterGroupId)
+            ? [filterGroupId]
+            : []
+          : assignedGroupIds;
 
       if (targetGroupIds.length === 0) {
-        return { success: false, error: "Section not assigned to you for this lab" };
+        return {
+          success: false,
+          error: "Section not assigned to you for this lab",
+        };
       }
 
       const members = await db.query.userGroupMembers.findMany({
@@ -691,7 +773,7 @@ export async function getExerciseSubmissions(
         id: cq.questionId,
         programNo: idx + 1,
         title: cq.question.title,
-      })
+      }),
     );
 
     const programIds = programList.map((p) => p.id);
@@ -700,7 +782,7 @@ export async function getExerciseSubmissions(
         ? await db.query.labSubmissions.findMany({
             where: and(
               eq(labSubmissions.exerciseId, exerciseId),
-              inArray(labSubmissions.programId, programIds)
+              inArray(labSubmissions.programId, programIds),
             ),
             with: {
               user: {
@@ -838,8 +920,12 @@ export async function getExerciseSubmissions(
       const entry = studentMap.get(m.userId);
       if (entry) {
         entry.marks = parseFloat(m.marks);
-        entry.implementationMarks = m.implementationMarks !== null ? parseFloat(m.implementationMarks) : null;
-        entry.writeUpMarks = m.writeUpMarks !== null ? parseFloat(m.writeUpMarks) : null;
+        entry.implementationMarks =
+          m.implementationMarks !== null
+            ? parseFloat(m.implementationMarks)
+            : null;
+        entry.writeUpMarks =
+          m.writeUpMarks !== null ? parseFloat(m.writeUpMarks) : null;
         entry.vivaMarks = m.vivaMarks !== null ? parseFloat(m.vivaMarks) : null;
       }
     }
@@ -903,13 +989,20 @@ export async function awardMarks({
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await requireUser();
-    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    const _perm = await checkEntityPermission({
+      entity: "labs",
+      action: "update",
+    });
+    if (!_perm.allowed)
+      return { success: false, error: _perm.reason ?? "Permission denied" };
 
     if (session.user.role === "faculty") {
       const windowCheck = await checkAwardMarksWindow(studentId, exerciseId);
       if (!windowCheck.allowed) {
-        return { success: false, error: windowCheck.reason ?? "Grading period has expired" };
+        return {
+          success: false,
+          error: windowCheck.reason ?? "Grading period has expired",
+        };
       }
 
       const ex = await db.query.exercises.findFirst({
@@ -922,7 +1015,7 @@ export async function awardMarks({
       const assigned = await db.query.labGroupFaculty.findMany({
         where: and(
           eq(labGroupFaculty.labId, ex.labId),
-          eq(labGroupFaculty.facultyId, session.user.id)
+          eq(labGroupFaculty.facultyId, session.user.id),
         ),
       });
       const assignedGroupIds = assigned.map((a) => a.groupId);
@@ -930,11 +1023,14 @@ export async function awardMarks({
         const studentMember = await db.query.userGroupMembers.findFirst({
           where: and(
             eq(userGroupMembers.userId, studentId),
-            inArray(userGroupMembers.groupId, assignedGroupIds)
+            inArray(userGroupMembers.groupId, assignedGroupIds),
           ),
         });
         if (!studentMember) {
-          return { success: false, error: "Student is not in your assigned section for this lab" };
+          return {
+            success: false,
+            error: "Student is not in your assigned section for this lab",
+          };
         }
       }
     }
@@ -953,8 +1049,13 @@ export async function awardMarks({
       };
     }
 
-    const hasDetailed = implementationMarks !== undefined && writeUpMarks !== undefined && vivaMarks !== undefined;
-    const total = hasDetailed ? (implementationMarks! + writeUpMarks! + vivaMarks!) : (marks ?? 0);
+    const hasDetailed =
+      implementationMarks !== undefined &&
+      writeUpMarks !== undefined &&
+      vivaMarks !== undefined;
+    const total = hasDetailed
+      ? implementationMarks! + writeUpMarks! + vivaMarks!
+      : (marks ?? 0);
 
     await db
       .insert(exerciseMarks)
@@ -981,7 +1082,10 @@ export async function awardMarks({
     return { success: true };
   } catch (err) {
     console.error("[awardMarks]", err);
-    return { success: false, error: "Permission denied or failed to award marks" };
+    return {
+      success: false,
+      error: "Permission denied or failed to award marks",
+    };
   }
 }
 
@@ -997,8 +1101,12 @@ export async function awardBatchMarks(data: {
 }): Promise<{ success: boolean; count?: number; error?: string }> {
   try {
     const session = await requireUser();
-    const _perm = await checkEntityPermission({ entity: "labs", action: "update" });
-    if (!_perm.allowed) return { success: false, error: _perm.reason ?? "Permission denied" };
+    const _perm = await checkEntityPermission({
+      entity: "labs",
+      action: "update",
+    });
+    if (!_perm.allowed)
+      return { success: false, error: _perm.reason ?? "Permission denied" };
 
     const { exerciseId, groupId, marks } = data;
     if (!marks || marks.length === 0) {
@@ -1016,11 +1124,14 @@ export async function awardBatchMarks(data: {
         where: and(
           eq(labGroupFaculty.labId, ex.labId),
           eq(labGroupFaculty.facultyId, session.user.id),
-          eq(labGroupFaculty.groupId, groupId)
+          eq(labGroupFaculty.groupId, groupId),
         ),
       });
       if (!assigned) {
-        return { success: false, error: "You are not assigned to this section for this lab" };
+        return {
+          success: false,
+          error: "You are not assigned to this section for this lab",
+        };
       }
     }
 
@@ -1030,7 +1141,7 @@ export async function awardBatchMarks(data: {
     const groupMembers = await db.query.userGroupMembers.findMany({
       where: and(
         eq(userGroupMembers.groupId, groupId),
-        inArray(userGroupMembers.userId, studentIds)
+        inArray(userGroupMembers.userId, studentIds),
       ),
       columns: { userId: true },
     });
@@ -1040,12 +1151,12 @@ export async function awardBatchMarks(data: {
     const attendanceRecords = await db.query.exerciseAttendance.findMany({
       where: and(
         eq(exerciseAttendance.exerciseId, exerciseId),
-        inArray(exerciseAttendance.userId, studentIds)
+        inArray(exerciseAttendance.userId, studentIds),
       ),
       columns: { userId: true, present: true },
     });
     const absentStudentIds = new Set(
-      attendanceRecords.filter((a) => !a.present).map((a) => a.userId)
+      attendanceRecords.filter((a) => !a.present).map((a) => a.userId),
     );
 
     const recordsToSave = marks.filter((m) => {
@@ -1060,7 +1171,8 @@ export async function awardBatchMarks(data: {
 
     await db.transaction(async (tx) => {
       for (const item of recordsToSave) {
-        const total = item.implementationMarks + item.writeUpMarks + item.vivaMarks;
+        const total =
+          item.implementationMarks + item.writeUpMarks + item.vivaMarks;
         await tx
           .insert(exerciseMarks)
           .values({
@@ -1104,7 +1216,10 @@ export async function deleteLabSubmission(data: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await requireUser();
-    const perm = await checkEntityPermission({ entity: "labs", action: "update" });
+    const perm = await checkEntityPermission({
+      entity: "labs",
+      action: "update",
+    });
     if (!perm.allowed) {
       return { success: false, error: perm.reason ?? "Permission denied" };
     }
@@ -1121,22 +1236,28 @@ export async function deleteLabSubmission(data: {
       const assigned = await db.query.labGroupFaculty.findMany({
         where: and(
           eq(labGroupFaculty.labId, ex.labId),
-          eq(labGroupFaculty.facultyId, session.user.id)
+          eq(labGroupFaculty.facultyId, session.user.id),
         ),
       });
       const assignedGroupIds = assigned.map((a) => a.groupId);
       if (assignedGroupIds.length === 0) {
-        return { success: false, error: "You are not assigned to any section for this lab" };
+        return {
+          success: false,
+          error: "You are not assigned to any section for this lab",
+        };
       }
 
       const studentMember = await db.query.userGroupMembers.findFirst({
         where: and(
           eq(userGroupMembers.userId, studentId),
-          inArray(userGroupMembers.groupId, assignedGroupIds)
+          inArray(userGroupMembers.groupId, assignedGroupIds),
         ),
       });
       if (!studentMember) {
-        return { success: false, error: "Student is not in your assigned section for this lab" };
+        return {
+          success: false,
+          error: "Student is not in your assigned section for this lab",
+        };
       }
     }
 
@@ -1145,8 +1266,8 @@ export async function deleteLabSubmission(data: {
       .where(
         and(
           eq(labSubmissions.exerciseId, exerciseId),
-          eq(labSubmissions.userId, studentId)
-        )
+          eq(labSubmissions.userId, studentId),
+        ),
       );
 
     await db
@@ -1154,8 +1275,8 @@ export async function deleteLabSubmission(data: {
       .where(
         and(
           eq(vivaSubmissions.exerciseId, exerciseId),
-          eq(vivaSubmissions.userId, studentId)
-        )
+          eq(vivaSubmissions.userId, studentId),
+        ),
       );
 
     await db
@@ -1163,8 +1284,8 @@ export async function deleteLabSubmission(data: {
       .where(
         and(
           eq(exerciseMarks.exerciseId, exerciseId),
-          eq(exerciseMarks.userId, studentId)
-        )
+          eq(exerciseMarks.userId, studentId),
+        ),
       );
 
     revalidatePath("/admin/labs");
@@ -1184,7 +1305,10 @@ export async function deleteSectionLabSubmissions(data: {
 }): Promise<{ success: boolean; count?: number; error?: string }> {
   try {
     const session = await requireUser();
-    const perm = await checkEntityPermission({ entity: "labs", action: "update" });
+    const perm = await checkEntityPermission({
+      entity: "labs",
+      action: "update",
+    });
     if (!perm.allowed) {
       return { success: false, error: perm.reason ?? "Permission denied" };
     }
@@ -1202,11 +1326,14 @@ export async function deleteSectionLabSubmissions(data: {
         where: and(
           eq(labGroupFaculty.labId, ex.labId),
           eq(labGroupFaculty.facultyId, session.user.id),
-          eq(labGroupFaculty.groupId, groupId)
+          eq(labGroupFaculty.groupId, groupId),
         ),
       });
       if (!assigned) {
-        return { success: false, error: "You are not assigned to this section for this lab" };
+        return {
+          success: false,
+          error: "You are not assigned to this section for this lab",
+        };
       }
     }
 
@@ -1225,8 +1352,8 @@ export async function deleteSectionLabSubmissions(data: {
       .where(
         and(
           eq(labSubmissions.exerciseId, exerciseId),
-          inArray(labSubmissions.userId, userIds)
-        )
+          inArray(labSubmissions.userId, userIds),
+        ),
       );
 
     await db
@@ -1234,8 +1361,8 @@ export async function deleteSectionLabSubmissions(data: {
       .where(
         and(
           eq(vivaSubmissions.exerciseId, exerciseId),
-          inArray(vivaSubmissions.userId, userIds)
-        )
+          inArray(vivaSubmissions.userId, userIds),
+        ),
       );
 
     await db
@@ -1243,8 +1370,8 @@ export async function deleteSectionLabSubmissions(data: {
       .where(
         and(
           eq(exerciseMarks.exerciseId, exerciseId),
-          inArray(exerciseMarks.userId, userIds)
-        )
+          inArray(exerciseMarks.userId, userIds),
+        ),
       );
 
     revalidatePath("/admin/labs");
@@ -1264,7 +1391,10 @@ export async function resetSectionMarks(data: {
 }): Promise<{ success: boolean; count?: number; error?: string }> {
   try {
     const session = await requireUser();
-    const perm = await checkEntityPermission({ entity: "labs", action: "update" });
+    const perm = await checkEntityPermission({
+      entity: "labs",
+      action: "update",
+    });
     if (!perm.allowed) {
       return { success: false, error: perm.reason ?? "Permission denied" };
     }
@@ -1282,11 +1412,14 @@ export async function resetSectionMarks(data: {
         where: and(
           eq(labGroupFaculty.labId, ex.labId),
           eq(labGroupFaculty.facultyId, session.user.id),
-          eq(labGroupFaculty.groupId, groupId)
+          eq(labGroupFaculty.groupId, groupId),
         ),
       });
       if (!assigned) {
-        return { success: false, error: "You are not assigned to this section for this lab" };
+        return {
+          success: false,
+          error: "You are not assigned to this section for this lab",
+        };
       }
     }
 
@@ -1306,8 +1439,8 @@ export async function resetSectionMarks(data: {
       .where(
         and(
           eq(exerciseMarks.exerciseId, exerciseId),
-          inArray(exerciseMarks.userId, userIds)
-        )
+          inArray(exerciseMarks.userId, userIds),
+        ),
       );
 
     revalidatePath("/admin/labs");
