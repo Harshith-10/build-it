@@ -20,7 +20,7 @@ export default async function SessionLayout({
   });
 
   if (!session?.user) {
-    redirect("/auth/sign-in");
+    redirect(`/auth/sign-in?callbackURL=/exams/${examId}/session`);
   }
 
   const assignment = await db.query.examAssignments.findFirst({

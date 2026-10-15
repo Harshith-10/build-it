@@ -106,6 +106,7 @@ export const exams = pgTable("exams", {
   endTime: timestamp("end_time").notNull(),
   durationMinutes: integer("duration_minutes").notNull(),
   requiresPin: boolean("requires_pin").default(false).notNull(),
+  requireShieldIt: boolean("require_shieldit").default(true).notNull(),
   status: examStatusEnum("status").default("upcoming").notNull(),
   strategyType: strategyTypeEnum("strategy_type").default("random_n").notNull(),
   gradingStrategy: gradingStrategyEnum("grading_strategy")
