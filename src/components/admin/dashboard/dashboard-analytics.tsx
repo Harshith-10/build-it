@@ -5,7 +5,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
-  Calendar,
   Clock,
   Flame,
   RefreshCw,
@@ -149,11 +148,11 @@ export function DashboardAnalytics({ initialData }: DashboardAnalyticsProps) {
         </div>
 
         {/* KPI Overview Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           {/* Visits Today */}
           <Card className="relative overflow-hidden border bg-linear-to-br from-blue-500/10 via-background to-background">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-base font-semibold text-muted-foreground">
                 Visits Today
               </CardTitle>
               <div className="rounded-full bg-blue-500/10 p-2 text-blue-600 dark:text-blue-400">
@@ -161,8 +160,8 @@ export function DashboardAnalytics({ initialData }: DashboardAnalyticsProps) {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data.overview.visitsToday.toLocaleString()}</div>
-              <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight">{data.overview.visitsToday.toLocaleString()}</div>
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
                 {data.overview.visitsTodayChangePct >= 0 ? (
                   <span className="flex items-center font-medium text-emerald-600 dark:text-emerald-400">
                     <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
@@ -182,7 +181,7 @@ export function DashboardAnalytics({ initialData }: DashboardAnalyticsProps) {
           {/* Online Users Now */}
           <Card className="relative overflow-hidden border bg-linear-to-br from-emerald-500/10 via-background to-background">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-base font-semibold text-muted-foreground">
                 Online Now
               </CardTitle>
               <div className="relative flex items-center justify-center">
@@ -193,37 +192,18 @@ export function DashboardAnalytics({ initialData }: DashboardAnalyticsProps) {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data.overview.onlineUsersNow}</div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight">{data.overview.onlineUsersNow}</div>
+              <p className="text-xs text-muted-foreground mt-1.5">
                 Active in last 15 mins ({data.overview.uniqueUsersToday} unique today)
               </p>
             </CardContent>
           </Card>
 
-          {/* Visits This Week */}
-          <Card className="relative overflow-hidden border bg-linear-to-br from-violet-500/10 via-background to-background">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Visits This Week
-              </CardTitle>
-              <div className="rounded-full bg-violet-500/10 p-2 text-violet-600 dark:text-violet-400">
-                <Calendar className="h-4 w-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {data.overview.visitsThisWeek.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Last 7 days total activity
-              </p>
-            </CardContent>
-          </Card>
 
           {/* Visits This Month */}
           <Card className="relative overflow-hidden border bg-linear-to-br from-amber-500/10 via-background to-background">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-base font-semibold text-muted-foreground">
                 Visits This Month
               </CardTitle>
               <div className="rounded-full bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
@@ -231,10 +211,10 @@ export function DashboardAnalytics({ initialData }: DashboardAnalyticsProps) {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight">
                 {data.overview.visitsThisMonth.toLocaleString()}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1.5">
                 {data.overview.totalVisitsAllTime.toLocaleString()} all-time page visits
               </p>
             </CardContent>

@@ -88,14 +88,14 @@ const adminNavMain = [
     icon: ClipboardCheck,
   },
   {
-    title: "Jet Stats",
-    url: "/admin/jet-stats",
-    icon: Activity,
-  },
-  {
     title: "Requests",
     url: "/admin/requests",
     icon: MessageSquare,
+  },
+  {
+    title: "Jet Stats",
+    url: "/admin/jet-stats",
+    icon: Activity,
   },
 ];
 
