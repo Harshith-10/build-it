@@ -84,7 +84,7 @@ export function useExamOnboarding({
             if (sigRes.success && sigRes.signature && sigRes.nonce && sigRes.timestamp && sigRes.extensionId) {
               shielditPayload = {
                 extensionId: sigRes.extensionId,
-                version: sigRes.version || "1.0.3",
+                version: sigRes.version || "1.0.4",
                 nonce: sigRes.nonce,
                 timestamp: sigRes.timestamp,
                 signature: sigRes.signature,

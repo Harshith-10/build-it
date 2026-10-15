@@ -267,7 +267,7 @@ export default function OnboardingClient({ exam }: OnboardingClientProps) {
                 <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <div className="text-sm">
                   <span className="font-semibold">ShieldIt Proctor Verified</span>
-                  <span className="ml-2 text-xs opacity-80">(v{extensionVersion || "1.0.3"} active)</span>
+                  <span className="ml-2 text-xs opacity-80">(v{extensionVersion || "1.0.4"} active)</span>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Your browser environment is protected and ready for examination.
                   </p>

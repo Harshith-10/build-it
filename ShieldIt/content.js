@@ -68,10 +68,10 @@
   // Synchronously stamp DOM so web apps can detect ShieldIt instantly with 0ms latency
   try {
     document.documentElement.setAttribute("data-shieldit-installed", "true");
-    document.documentElement.setAttribute("data-shieldit-version", "1.0.3");
+    document.documentElement.setAttribute("data-shieldit-version", "1.0.4");
     window.dispatchEvent(
       new CustomEvent("shieldit:ready", {
-        detail: { installed: true, version: "1.0.3", name: "ShieldIt" }
+        detail: { installed: true, version: "1.0.4", name: "ShieldIt" }
       })
     );
     window.postMessage(
@@ -79,7 +79,7 @@
         target: "SHIELDIT_WEB_APP",
         type: "SHIELDIT_READY",
         installed: true,
-        version: "1.0.3"
+        version: "1.0.4"
       },
       "*"
     );
@@ -471,7 +471,7 @@
             action,
             success: true,
             name: "ShieldIt",
-            version: "1.0.3",
+            version: "1.0.4",
             installed: true
           },
           "*"
@@ -590,7 +590,7 @@
             installed: true,
             isLockdownActive: !!response?.isLockdownActive,
             displayCount: response?.displayCount,
-            version: "1.0.3"
+            version: "1.0.4"
           },
           "*"
         );

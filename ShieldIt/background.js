@@ -328,7 +328,7 @@ async function startLockdown(examId, tabId, options = {}, sessionSecret = null) 
  */
 async function stopLockdown(forceAll = false, providedSecret = null) {
   try {
-    console.log(`[ShieldIt v1.0.3] Stop lockdown request: forceAll=${forceAll}, hasProvidedSecret=${!!providedSecret}, isLockdownActive=${state.isLockdownActive}`);
+    console.log(`[ShieldIt v1.0.4] Stop lockdown request: forceAll=${forceAll}, hasProvidedSecret=${!!providedSecret}, isLockdownActive=${state.isLockdownActive}`);
 
     // Anti-tamper check: If lockdown is active, verify authorization
     if (state.isLockdownActive) {
@@ -645,7 +645,7 @@ async function handleIncomingMessage(message, sender) {
       return {
         success: true,
         name: "ShieldIt",
-        version: "1.0.3",
+        version: "1.0.4",
         buildTime: "13:40:00",
         isLockdownActive: state.isLockdownActive,
         activeExamId: state.activeExamId,
@@ -686,7 +686,7 @@ async function handleIncomingMessage(message, sender) {
           nonce,
           timestamp,
           extensionId: chrome.runtime.id,
-          version: "1.0.3",
+          version: "1.0.4",
           isLockdownActive: state.isLockdownActive
         };
       } catch (err) {
