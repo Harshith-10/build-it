@@ -159,10 +159,10 @@ export default async function AdminDashboard() {
             >
               <CardContent className="p-4 flex items-center justify-between gap-3 h-full">
                 <div className="min-w-0 space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground truncate">
+                  <p className="text-sm font-semibold text-muted-foreground truncate">
                     {stat.title}
                   </p>
-                  <div className="text-2xl font-bold tracking-tight">
+                  <div className="text-3xl font-bold tracking-tight">
                     {stat.value}
                   </div>
                 </div>
