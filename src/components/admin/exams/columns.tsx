@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Eye,
   FileSpreadsheet,
+  FileText,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -13,7 +14,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { exportExamRankingsToExcel } from "@/actions/admin/exams";
+import { exportExamRankingsToExcel, getExamCdcReportData } from "@/actions/admin/exams";
+import { exportExamCdcReportPDF } from "@/lib/export-exam-cdc-pdf";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -192,6 +194,22 @@ export const createColumns = (
         }
       };
 
+      const handleDownloadCdcReport = async () => {
+        const toastId = toast.loading("Generating CDC Report PDF...");
+        try {
+          const res = await getExamCdcReportData(exam.id);
+          if (!res.success || !res.data) {
+            toast.error(res.error || "Failed to generate report", { id: toastId });
+            return;
+          }
+          await exportExamCdcReportPDF(res.data);
+          toast.success("CDC Report PDF downloaded!", { id: toastId });
+        } catch (error) {
+          console.error("Failed to generate CDC report PDF", error);
+          toast.error("Failed to generate CDC report PDF", { id: toastId });
+        }
+      };
+
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -226,6 +244,10 @@ export const createColumns = (
             >
               <Users className="w-4 h-4 mr-2" />
               View Submissions
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDownloadCdcReport}>
+              <FileText className="w-4 h-4 mr-2" />
+              View Report
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleGetResults}>
               <FileSpreadsheet className="w-4 h-4 mr-2" />
