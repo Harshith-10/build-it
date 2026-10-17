@@ -2689,3 +2689,319 @@ export async function getAvailableExamSections(
   }
 }
 
+const OFFICIAL_BRANCH_DISPLAY_NAME: Record<string, string> = {
+  CSE: "Computer Science and Engineering",
+  CSM: "CSE (AI & ML)",
+  CSD: "CSE (Data Science)",
+  IT: "Information Technology",
+  ECE: "Electronics and Communication Engineering",
+  EEE: "Electrical and Electronics Engineering",
+  MECH: "Mechanical Engineering",
+  CIVIL: "Civil Engineering",
+  AERO: "Aeronautical Engineering",
+};
+
+const STANDARD_BRANCH_ORDER = [
+  "CSE",
+  "CSM",
+  "CSD",
+  "IT",
+  "ECE",
+  "EEE",
+  "MECH",
+  "CIVIL",
+  "AERO",
+];
+
+export type ExamCdcReportData = {
+  exam: {
+    id: string;
+    title: string;
+    startTime: Date | string;
+    endTime: Date | string;
+    totalPossibleScore: number;
+  };
+  role: "admin" | "faculty";
+  scopeLabel: string;
+  totalAppeared: number;
+  branchSummary: {
+    branchCode: string;
+    branchName: string;
+    total: number;
+    excellence: number;
+    elite: number;
+    gold: number;
+    silver: number;
+    others: number;
+  }[];
+  totals: {
+    total: number;
+    excellence: number;
+    elite: number;
+    gold: number;
+    silver: number;
+    others: number;
+  };
+  students: {
+    sNo: number;
+    rollNumber: string;
+    name: string;
+    branch: string;
+    marks: number;
+    badge: string;
+    timeMin: number;
+  }[];
+};
+
+export async function getExamCdcReportData(examId: string): Promise<{
+  success: boolean;
+  data?: ExamCdcReportData;
+  error?: string;
+}> {
+  try {
+    const access = await ensureExamReadAccess(examId);
+    if (!access.examRecord) {
+      return { success: false, error: "Unauthorized or Exam not found" };
+    }
+
+    const selectedExam = await db.query.exams.findFirst({
+      where: eq(exams.id, examId),
+    });
+    if (!selectedExam) {
+      return { success: false, error: "Exam not found" };
+    }
+
+    let studentIdsFilter: string[] | undefined = undefined;
+    let scopeLabel = "Overall";
+    const isFaculty = !access.isAdmin && access.examRecord.ownerId !== access.session.user.id;
+
+    if (isFaculty) {
+      const assignedSections = await db.query.examGroupFaculty.findMany({
+        where: and(
+          eq(examGroupFaculty.examId, examId),
+          eq(examGroupFaculty.facultyId, access.session.user.id),
+        ),
+        columns: { groupId: true },
+      });
+
+      if (assignedSections.length > 0) {
+        const groupIds = assignedSections.map((s) => s.groupId);
+        const groups = await db.query.userGroups.findMany({
+          where: inArray(userGroups.id, groupIds),
+          columns: { name: true },
+        });
+        const groupNames = groups.map((g) => g.name).filter(Boolean);
+        scopeLabel = groupNames.length > 0 ? groupNames.join(", ") : "Assigned Section";
+
+        const members = await db.query.userGroupMembers.findMany({
+          where: inArray(userGroupMembers.groupId, groupIds),
+          columns: { userId: true },
+        });
+        studentIdsFilter = members.map((m) => m.userId);
+      } else {
+        return {
+          success: false,
+          error: "You are not assigned to any group or section for this exam.",
+        };
+      }
+    }
+
+    const assignmentsData = await db
+      .select({
+        assignment: examAssignments,
+        user: user,
+      })
+      .from(examAssignments)
+      .innerJoin(user, eq(examAssignments.userId, user.id))
+      .where(
+        and(
+          eq(examAssignments.examId, examId),
+          studentIdsFilter && studentIdsFilter.length > 0
+            ? inArray(examAssignments.userId, studentIdsFilter)
+            : studentIdsFilter
+              ? sql`1 = 0`
+              : undefined,
+        ),
+      );
+
+    const gradingStrategy = selectedExam.gradingStrategy;
+    const gradingConfig = selectedExam.gradingConfig as Record<string, any> | undefined;
+
+    const allAssignedQuestionIds = Array.from(
+      new Set(
+        assignmentsData.flatMap(
+          (a) => (a.assignment.assignedQuestionIds as string[]) || [],
+        ),
+      ),
+    );
+
+    const allAssignedQuestions =
+      allAssignedQuestionIds.length > 0
+        ? await db.query.questions.findMany({
+            where: inArray(questions.id, allAssignedQuestionIds),
+            columns: { id: true, difficulty: true },
+          })
+        : [];
+
+    const questionMap = new Map<string, string>();
+    for (const q of allAssignedQuestions) {
+      questionMap.set(q.id, q.difficulty || "medium");
+    }
+
+    const studentList = assignmentsData.map((record) => {
+      const startedAt = record.assignment.startedAt;
+      const completedAt = record.assignment.completedAt;
+      let timeMin = 0;
+      if (startedAt && completedAt) {
+        const diffMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+        timeMin = Math.max(0, Math.round(diffMs / 60000));
+      } else if (startedAt) {
+        const diffMs = new Date().getTime() - new Date(startedAt).getTime();
+        timeMin = Math.max(0, Math.round(diffMs / 60000));
+      }
+
+      const branch = record.user.branch ? normalizeBranch(record.user.branch) : "OTHER";
+      const rollNumber = record.user.username
+        ? record.user.username.toUpperCase()
+        : record.user.displayUsername
+          ? record.user.displayUsername.toUpperCase()
+          : "N/A";
+
+      const rawScore = record.assignment.score ?? 0;
+      const assignedQIds = (record.assignment.assignedQuestionIds as string[]) || [];
+
+      let totalPossible = 0;
+      if (gradingStrategy === "linear") {
+        const marksPerQ = gradingConfig?.totalMarks || 0;
+        totalPossible = assignedQIds.length * marksPerQ;
+      } else if (gradingStrategy === "difficulty_based") {
+        for (const qId of assignedQIds) {
+          const diff = questionMap.get(qId) || "medium";
+          if (diff === "easy") totalPossible += gradingConfig?.easyWeight ?? 5;
+          else if (diff === "hard") totalPossible += gradingConfig?.hardWeight ?? 20;
+          else totalPossible += gradingConfig?.mediumWeight ?? 10;
+        }
+      } else if (gradingStrategy === "count_based") {
+        const thresholds = (gradingConfig?.thresholds || []) as { count: number; marks: number }[];
+        if (thresholds.length > 0) {
+          totalPossible = Math.max(...thresholds.map((t) => t.marks));
+        }
+      }
+
+      if (totalPossible <= 0) {
+        totalPossible = (gradingConfig as any)?.totalMarks || 100;
+      }
+      const maxAchievedScore = Math.max(
+        ...assignmentsData.map((a) => a.assignment.score ?? 0),
+        100,
+      );
+      if (totalPossible < maxAchievedScore) {
+        totalPossible = maxAchievedScore;
+      }
+
+      const percentScore = totalPossible > 0 ? (rawScore / totalPossible) * 100 : rawScore;
+
+      let badge = "-";
+      if (percentScore >= 99.99 || rawScore >= totalPossible) {
+        badge = "Excellence";
+      } else if (percentScore >= 90) {
+        badge = "Elite";
+      } else if (percentScore >= 80) {
+        badge = "Gold";
+      } else if (percentScore >= 75) {
+        badge = "Silver";
+      }
+
+      return {
+        name: record.user.name || "Unknown",
+        rollNumber,
+        branch,
+        marks: Math.round(rawScore),
+        badge,
+        timeMin,
+      };
+    });
+
+    studentList.sort((a, b) => {
+      if (b.marks !== a.marks) return b.marks - a.marks;
+      if (a.timeMin !== b.timeMin) return a.timeMin - b.timeMin;
+      return a.name.localeCompare(b.name);
+    });
+
+    const students = studentList.map((s, idx) => ({
+      sNo: idx + 1,
+      ...s,
+    }));
+
+    // Branch summary
+    const presentBranches = Array.from(new Set(students.map((s) => s.branch)));
+    const orderedBranches = [
+      ...STANDARD_BRANCH_ORDER.filter((b) => presentBranches.includes(b)),
+      ...presentBranches.filter((b) => !STANDARD_BRANCH_ORDER.includes(b)),
+    ];
+
+    const branchSummary = orderedBranches.map((code) => {
+      const branchStudents = students.filter((s) => s.branch === code);
+      let excellence = 0;
+      let elite = 0;
+      let gold = 0;
+      let silver = 0;
+      let others = 0;
+
+      for (const s of branchStudents) {
+        if (s.badge === "Excellence") excellence++;
+        else if (s.badge === "Elite") elite++;
+        else if (s.badge === "Gold") gold++;
+        else if (s.badge === "Silver") silver++;
+        else others++;
+      }
+
+      return {
+        branchCode: code,
+        branchName: OFFICIAL_BRANCH_DISPLAY_NAME[code] || code,
+        total: branchStudents.length,
+        excellence,
+        elite,
+        gold,
+        silver,
+        others,
+      };
+    });
+
+    const totals = {
+      total: students.length,
+      excellence: branchSummary.reduce((acc, b) => acc + b.excellence, 0),
+      elite: branchSummary.reduce((acc, b) => acc + b.elite, 0),
+      gold: branchSummary.reduce((acc, b) => acc + b.gold, 0),
+      silver: branchSummary.reduce((acc, b) => acc + b.silver, 0),
+      others: branchSummary.reduce((acc, b) => acc + b.others, 0),
+    };
+
+    return {
+      success: true,
+      data: {
+        exam: {
+          id: selectedExam.id,
+          title: selectedExam.title,
+          startTime: selectedExam.startTime,
+          endTime: selectedExam.endTime,
+          totalPossibleScore: 100,
+        },
+        role: isFaculty ? "faculty" : "admin",
+        scopeLabel,
+        totalAppeared: students.length,
+        branchSummary,
+        totals,
+        students,
+      },
+    };
+  } catch (error) {
+    console.error("Failed to load CDC report data", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to load report",
+    };
+  }
+}
+
+
