@@ -22,7 +22,7 @@ export default async function CDCExamReportPage({ params }: Props) {
   }
 
   // Fetch all aggregated data for the semester dynamically
-  const result = await getAggregatedCDCReport(exam.semester || "Year III");
+  const result = await getAggregatedCDCReport((exam.strategyConfig as any)?.semester || "Year III");
   
   let dynamicStudentRows: any[] = [];
   

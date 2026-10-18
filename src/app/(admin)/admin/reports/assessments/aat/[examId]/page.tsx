@@ -19,7 +19,7 @@ export default async function AATExamReportPage({ params }: Props) {
   if (!exam) notFound();
 
   // Fetch dynamic AAT data
-  const result = await getAggregatedAATReport(exam.semester || "Year II");
+  const result = await getAggregatedAATReport((exam.strategyConfig as any)?.semester || "Year II");
   
   let dynamicStudentRows: any[] = [];
   

@@ -135,16 +135,35 @@ export async function getAssessmentReportData(examId: string) {
   };
 }
 
+function matchesSemester(exam: any, targetSem: string, defaultSem: string): boolean {
+  if (exam.strategyConfig && typeof exam.strategyConfig === "object" && (exam.strategyConfig as any).semester) {
+    return (exam.strategyConfig as any).semester.toLowerCase() === targetSem.toLowerCase();
+  }
+  if (exam.groups && exam.groups.length > 0) {
+    for (const eg of exam.groups) {
+      const gName = eg.group?.name;
+      if (!gName) continue;
+      if (gName.includes("2024")) return targetSem.toLowerCase() === "year iii".toLowerCase();
+      if (gName.includes("2025")) return targetSem.toLowerCase() === "year ii".toLowerCase();
+      if (gName.includes("2023")) return targetSem.toLowerCase() === "year iv".toLowerCase();
+      if (gName.includes("2026")) return targetSem.toLowerCase() === "year i".toLowerCase();
+    }
+  }
+  if (exam.title) {
+    if (/year\s*iii|3rd\s*year|year\s*3/i.test(exam.title)) return targetSem.toLowerCase() === "year iii".toLowerCase();
+    if (/year\s*ii|2nd\s*year|year\s*2/i.test(exam.title)) return targetSem.toLowerCase() === "year ii".toLowerCase();
+    if (/year\s*iv|4th\s*year|year\s*4/i.test(exam.title)) return targetSem.toLowerCase() === "year iv".toLowerCase();
+    if (/year\s*i\b|1st\s*year|year\s*1/i.test(exam.title)) return targetSem.toLowerCase() === "year i".toLowerCase();
+  }
+  return targetSem.toLowerCase() === defaultSem.toLowerCase();
+}
+
 export async function getAggregatedCDCReport(semester: string) {
   await requireAdmin();
 
   // 1. Get all CDC exams for this semester
-  const semesterExams = await db.query.exams.findMany({
-    where: (e, { eq, and }) =>
-      and(
-        eq(e.assessmentType, "coding_assessment"),
-        eq(e.semester, semester)
-      ),
+  const allCDCExams = await db.query.exams.findMany({
+    where: (e, { eq }) => eq(e.assessmentType, "coding_assessment"),
     with: {
       groups: {
         with: { group: true }
@@ -152,6 +171,8 @@ export async function getAggregatedCDCReport(semester: string) {
     },
     orderBy: (e, { asc }) => [asc(e.startTime)],
   });
+
+  const semesterExams = allCDCExams.filter(e => matchesSemester(e, semester, "Year III"));
 
   if (semesterExams.length === 0) {
     return { success: false as const, error: "No CDC exams found for this semester" };
@@ -282,12 +303,8 @@ export async function getAggregatedAATReport(semester: string) {
   await requireAdmin();
 
   // 1. Get all AAT exams for this semester
-  const semesterExams = await db.query.exams.findMany({
-    where: (e, { eq, and }) =>
-      and(
-        eq(e.assessmentType, "aat"),
-        eq(e.semester, semester)
-      ),
+  const allAATExams = await db.query.exams.findMany({
+    where: (e, { eq }) => eq(e.assessmentType, "aat"),
     with: {
       groups: {
         with: { group: true }
@@ -295,6 +312,8 @@ export async function getAggregatedAATReport(semester: string) {
     },
     orderBy: (e, { asc }) => [asc(e.startTime)],
   });
+
+  const semesterExams = allAATExams.filter(e => matchesSemester(e, semester, "Year II"));
 
   if (semesterExams.length === 0) {
     return { success: false as const, error: "No AAT exams found for this semester", data: { exams: [], studentRows: [] } };
