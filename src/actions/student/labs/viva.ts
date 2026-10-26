@@ -1,6 +1,7 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { exercises, exerciseMarks, vivaQuestionPool, vivaSubmissions } from "@/db/schema";
 import { requireUser } from "@/lib/auth-access";
@@ -158,6 +159,8 @@ export async function saveVivaAnswerAction(input: {
         )
       );
 
+    revalidatePath("/labs");
+    revalidatePath("/labs", "layout");
     return { success: true as const };
   } catch (error) {
     console.error("[saveVivaAnswerAction] Error:", error);

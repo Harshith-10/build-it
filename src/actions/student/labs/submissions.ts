@@ -131,6 +131,8 @@ export async function getMyExercises(labId: string) {
     const vivaCount = isAbsent ? 0 : (exercise.vivaSubmissions?.filter((v) => v.answerText && v.answerText.trim().length > 0).length ?? 0);
     const markEntry = isAbsent ? null : (exercise.marks?.[0] ?? null);
     const isSubmitted = markEntry !== null || (totalPrograms === 0 && vivaCount > 0);
+    const totalSubmissions = isAbsent ? 0 : (exercise.submissions?.length ?? 0);
+    const hasStarted = !isAbsent && (totalSubmissions > 0 || vivaCount > 0 || solvedCount > 0);
 
     return {
       ...exercise,
@@ -138,6 +140,8 @@ export async function getMyExercises(labId: string) {
       windowEnd: window?.endTime ?? null,
       totalPrograms,
       solvedCount,
+      vivaCount,
+      hasStarted,
       isSubmitted,
       isAbsent,
       marks: markEntry ? parseFloat(markEntry.marks) : null,
@@ -420,6 +424,7 @@ export async function markProgramSolved(data: {
       });
 
     revalidatePath("/labs");
+    revalidatePath("/labs", "layout");
     return { success: true, updated: true, isSolved };
   } catch (error) {
     console.error("Failed to mark program as solved:", error);
@@ -587,6 +592,7 @@ export async function submitExercise(exerciseId: string) {
       });
 
     revalidatePath("/labs");
+    revalidatePath("/labs", "layout");
     return { success: true };
   } catch (error) {
     console.error("Failed to submit exercise:", error);

@@ -169,7 +169,7 @@ export default async function ExercisesPage({
 
                 {/* Right side action */}
                 <div className="shrink-0 flex items-center gap-2">
-                  {exercise.isSubmitted || exercise.solvedCount > 0 ? (
+                  {exercise.isSubmitted || (isEnded && exercise.hasStarted) ? (
                     <>
                       <DownloadReportButton
                         exerciseId={exercise.id}
@@ -185,8 +185,8 @@ export default async function ExercisesPage({
                   ) : isActive ? (
                     <Button size="sm" asChild>
                       <Link href={`/labs/${labId}/${exercise.id}`}>
-                        <span className="flex h-2 w-2 rounded-full bg-white mr-2" />
-                        Active
+                        <span className={`flex h-2 w-2 rounded-full bg-white mr-2 ${exercise.hasStarted ? "animate-pulse" : ""}`} />
+                        {exercise.hasStarted ? "Resume" : "Active"}
                       </Link>
                     </Button>
                   ) : isEnded ? (
