@@ -20,9 +20,9 @@ export type FacultyPermissionAction =
   (typeof FACULTY_PERMISSION_ACTIONS)[number];
 
 export const DEFAULT_FACULTY_PERMISSIONS: FacultyPermissions = {
-  problems: { create: true, read: true, update: true, delete: false },
-  collections: { create: true, read: true, update: true, delete: false },
-  exams: { create: true, read: true, update: true, delete: false },
+  problems: { create: false, read: false, update: false, delete: false },
+  collections: { create: false, read: false, update: false, delete: false },
+  exams: { create: false, read: true, update: true, delete: false },
   labs: { create: true, read: true, update: true, delete: false },
 };
 
@@ -66,5 +66,11 @@ export function canFaculty(
   entity: FacultyPermissionEntity,
   action: FacultyPermissionAction,
 ) {
+  if (entity === "problems" || entity === "collections") {
+    return false;
+  }
+  if (entity === "exams" && action === "create") {
+    return false;
+  }
   return permissions[entity][action];
 }

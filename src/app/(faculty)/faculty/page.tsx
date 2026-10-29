@@ -1,36 +1,19 @@
-import { FileQuestion, FlaskConical, GraduationCap, Library, MessageSquare, Plus } from "lucide-react";
+import { FlaskConical, GraduationCap, MessageSquare, Plus } from "lucide-react";
 import Link from "next/link";
-import { getCollections } from "@/actions/admin/collections";
 import { getExams } from "@/actions/admin/exams";
-import { getProblems } from "@/actions/admin/problems";
 import { getOpenTicketCount } from "@/actions/tickets";
 import { getLabs } from "@/actions/admin/labs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default async function FacultyDashboardPage() {
-  const [problemsData, collectionsData, examsData, labsData, openRequestCount] =
-    await Promise.all([
-      getProblems({ limit: 1 }),
-      getCollections({ limit: 1 }),
-      getExams({ limit: 1 }),
-      getLabs(),
-      getOpenTicketCount(),
-    ]);
+  const [examsData, labsData, openRequestCount] = await Promise.all([
+    getExams({ limit: 1 }),
+    getLabs(),
+    getOpenTicketCount(),
+  ]);
 
   const stats = [
-    {
-      title: "My Problems",
-      value: problemsData.total,
-      icon: FileQuestion,
-      href: "/faculty/problems",
-    },
-    {
-      title: "My Collections",
-      value: collectionsData.total,
-      icon: Library,
-      href: "/faculty/collections",
-    },
     {
       title: "My Exams",
       value: examsData.total,
@@ -53,24 +36,6 @@ export default async function FacultyDashboardPage() {
 
   const quickActions = [
     {
-      label: "Create Problem",
-      href: "/faculty/problems/new",
-      icon: FileQuestion,
-      description: "Create a private problem",
-    },
-    {
-      label: "Create Collection",
-      href: "/faculty/collections/new",
-      icon: Library,
-      description: "Create a private collection",
-    },
-    {
-      label: "Create Exam",
-      href: "/faculty/exams/new",
-      icon: GraduationCap,
-      description: "Create and assign a private exam",
-    },
-    {
       label: "Raise Request",
       href: "/faculty/requests",
       icon: MessageSquare,
@@ -88,7 +53,7 @@ export default async function FacultyDashboardPage() {
       </div>
       <Separator />
 
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-3">
         {stats.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card className="border transition-shadow hover:shadow-md cursor-pointer">

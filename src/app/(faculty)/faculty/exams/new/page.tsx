@@ -1,9 +1,15 @@
-"use client";
-
+import { redirect } from "next/navigation";
 import { ExamForm } from "@/components/admin/exams/exam-form";
 import { PageHeader } from "@/components/admin/page-header";
+import { requireFacultyOrAdmin } from "@/lib/auth-access";
 
-export default function FacultyCreateExamPage() {
+export default async function FacultyCreateExamPage() {
+  const session = await requireFacultyOrAdmin();
+
+  if (session.user.role === "faculty") {
+    redirect("/faculty/exams");
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-4 min-h-0 overflow-hidden">
       <PageHeader
