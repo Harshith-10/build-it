@@ -2848,6 +2848,11 @@ export async function getExamCdcReportData(examId: string): Promise<{
       questionMap.set(q.id, q.difficulty || "medium");
     }
 
+    const highestAchievedScore = assignmentsData.reduce(
+      (max, a) => Math.max(max, a.assignment.score ?? 0),
+      0,
+    );
+
     const studentList = assignmentsData.map((record) => {
       const startedAt = record.assignment.startedAt;
       const completedAt = record.assignment.completedAt;
@@ -2857,7 +2862,8 @@ export async function getExamCdcReportData(examId: string): Promise<{
         timeMin = Math.max(0, Math.round(diffMs / 60000));
       } else if (startedAt) {
         const diffMs = new Date().getTime() - new Date(startedAt).getTime();
-        timeMin = Math.max(0, Math.round(diffMs / 60000));
+        const durationMin = selectedExam.durationMinutes || 180;
+        timeMin = Math.max(0, Math.min(Math.round(diffMs / 60000), durationMin));
       }
 
       const branch = record.user.branch ? normalizeBranch(record.user.branch) : "OTHER";
@@ -2889,26 +2895,23 @@ export async function getExamCdcReportData(examId: string): Promise<{
       }
 
       if (totalPossible <= 0) {
-        totalPossible = (gradingConfig as any)?.totalMarks || 100;
+        totalPossible = (gradingConfig as any)?.totalMarks || highestAchievedScore || 100;
       }
-      const maxAchievedScore = Math.max(
-        ...assignmentsData.map((a) => a.assignment.score ?? 0),
-        100,
-      );
-      if (totalPossible < maxAchievedScore) {
-        totalPossible = maxAchievedScore;
+      if (highestAchievedScore > totalPossible) {
+        totalPossible = highestAchievedScore;
       }
 
-      const percentScore = totalPossible > 0 ? (rawScore / totalPossible) * 100 : rawScore;
+      // Scale score down/up to 100
+      const scaledScore = totalPossible > 0 ? (rawScore / totalPossible) * 100 : rawScore;
 
       let badge = "-";
-      if (percentScore >= 99.99 || rawScore >= totalPossible) {
+      if (scaledScore >= 99.99 || rawScore >= totalPossible) {
         badge = "Excellence";
-      } else if (percentScore >= 90) {
+      } else if (scaledScore >= 90) {
         badge = "Elite";
-      } else if (percentScore >= 80) {
+      } else if (scaledScore >= 80) {
         badge = "Gold";
-      } else if (percentScore >= 75) {
+      } else if (scaledScore >= 75) {
         badge = "Silver";
       }
 
@@ -2916,7 +2919,7 @@ export async function getExamCdcReportData(examId: string): Promise<{
         name: record.user.name || "Unknown",
         rollNumber,
         branch,
-        marks: Math.round(rawScore),
+        marks: Math.round(scaledScore),
         badge,
         timeMin,
       };

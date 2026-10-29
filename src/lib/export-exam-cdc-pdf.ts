@@ -224,17 +224,35 @@ export async function exportExamCdcReportPDF(data: ExamCdcReportData) {
       5: { cellWidth: 80, halign: "center" },
     },
     theme: "grid",
-    didDrawPage: () => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(80, 80, 80);
-      const signerTitle = data.role === "admin" ? "DEAN - CDC" : "FACULTY INCHARGE";
-      doc.text(signerTitle, pageWidth - marginR, pageHeight - 24, { align: "right" });
+    didDrawPage: (dataHook: any) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      const pageNum = dataHook.pageNumber || doc.internal.getCurrentPageInfo().pageNumber;
+      doc.text(`Page ${pageNum}`, marginL, pageHeight - 24);
       doc.setTextColor(0, 0, 0);
     },
   });
 
+  // Print signer title only at the end of the report
+  const studentTable = (doc as any).lastAutoTable;
+  const finalY = studentTable ? studentTable.finalY : pageHeight - 50;
+  if (finalY + 36 > pageHeight - 24) {
+    doc.addPage();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Page ${doc.internal.getNumberOfPages()}`, marginL, pageHeight - 24);
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(80, 80, 80);
+  const signerTitle = data.role === "admin" ? "DEAN - CDC" : "FACULTY INCHARGE";
+  doc.text(signerTitle, pageWidth - marginR, pageHeight - 24, { align: "right" });
+  doc.setTextColor(0, 0, 0);
+
   // Download directly
-  const cleanTitle = data.exam.title.replace(/[^a-zA-Z0-9]/g, "_");
+  const cleanTitle = data.exam.title.replace(/[^a-zA-Z0-9]/g, "_") || "Exam";
   doc.save(`${cleanTitle}_Official_Results.pdf`);
 }
