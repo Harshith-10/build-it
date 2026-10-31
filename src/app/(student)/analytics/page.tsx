@@ -20,9 +20,10 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { db } from "@/db";
-import { examAssignments, examGroups, userGroupMembers } from "@/db/schema";
+import { examAssignments, examGroups, exams, questions, userGroupMembers } from "@/db/schema";
 import type { GradingConfigMap } from "@/db/schema/exams";
 import { auth } from "@/lib/auth";
+import { getExamQuestionCount } from "@/lib/exam";
 import { PerformanceChart } from "./performance-chart";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -30,18 +31,59 @@ import { PerformanceChart } from "./performance-chart";
 function getTotalMarks(
   gradingConfig: GradingConfigMap[keyof GradingConfigMap] | null | undefined,
   gradingStrategy: string,
+  assignedQuestionIds: string[],
+  difficultyMap: Map<string, "easy" | "medium" | "hard">,
 ): number | null {
   if (!gradingConfig) return null;
+  const questionCount = assignedQuestionIds.length;
+
   if (gradingStrategy === "linear") {
     const cfg = gradingConfig as GradingConfigMap["linear"];
-    return cfg.totalMarks ?? null;
+    const marksPerQuestion = cfg.totalMarks ?? 0;
+    return questionCount * marksPerQuestion;
   }
+
+  if (gradingStrategy === "difficulty_based") {
+    const cfg = gradingConfig as GradingConfigMap["difficulty_based"];
+    const difficultyMarks = {
+      easy: cfg?.easyWeight || 0,
+      medium: cfg?.mediumWeight || 0,
+      hard: cfg?.hardWeight || 0,
+    };
+    let total = 0;
+    for (const qId of assignedQuestionIds) {
+      const diff = difficultyMap.get(qId);
+      if (diff) {
+        total += difficultyMarks[diff] || 0;
+      }
+    }
+    return total > 0 ? total : null;
+  }
+
+  if (gradingStrategy === "count_based") {
+    const cfg = gradingConfig as GradingConfigMap["count_based"];
+    const thresholds = cfg?.thresholds || [];
+    return thresholds.length > 0
+      ? Math.max(...thresholds.map((r) => r.marks))
+      : null;
+  }
+
+  if (gradingStrategy === "lab_external") {
+    const cfg = gradingConfig as GradingConfigMap["lab_external"];
+    return (
+      (cfg?.easyMarks ?? 20) +
+      (cfg?.mediumMarks ?? 30) +
+      (cfg?.hardMarks ?? 10)
+    );
+  }
+
   return null;
 }
 
 function calcAccuracy(score: number, totalMarks: number | null): number | null {
-  if (!totalMarks || totalMarks === 0) return null;
-  return Math.round((score / totalMarks) * 100);
+  if (!totalMarks || totalMarks <= 0) return null;
+  const percentage = Math.round((score / totalMarks) * 100);
+  return Math.min(100, Math.max(0, percentage));
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -86,31 +128,135 @@ export default async function AnalyticsPage() {
   // ── Compute stats ──────────────────────────────────────────────────────────
   const examsAttempted = done.length;
 
+  // ── Fetch all exams conducted for the student's groups ─────────────────────
+  const now = new Date();
+  const assignedGroupExams =
+    userGroupIds.length > 0
+      ? await db.query.exams.findMany({
+          where: eq(exams.assessmentType, "exam"),
+          with: {
+            groups: {
+              where: inArray(examGroups.groupId, userGroupIds),
+            },
+          },
+        })
+      : [];
+
+  const completedExamIds = new Set(done.map((a) => a.examId));
+
+  // Only count exams that have concluded/ended for the student's groups
+  const concludedExamIds = new Set<string>();
+  for (const exam of assignedGroupExams) {
+    if (exam.groups.length === 0) continue;
+    const isEnded =
+      exam.status === "ended" ||
+      exam.groups.every((g) => (g.endTime ?? exam.endTime) <= now);
+
+    if (isEnded) {
+      concludedExamIds.add(exam.id);
+    }
+  }
+
+  // Total considered exams = all concluded exams + any exam the student already completed
+  const allConsideredExamIds = new Set([
+    ...concludedExamIds,
+    ...completedExamIds,
+  ]);
+
+  const totalAssignedExams = allConsideredExamIds.size;
+  const unattemptedCount = Math.max(0, totalAssignedExams - examsAttempted);
+
+  // Collect all assigned question IDs for difficulty lookup
+  const allAssignedQIds = Array.from(
+    new Set(
+      done.flatMap(
+        (a) => (a.assignedQuestionIds as string[] | null | undefined) || [],
+      ),
+    ),
+  );
+
+  const questionDifficultyMap = new Map<string, "easy" | "medium" | "hard">();
+  if (allAssignedQIds.length > 0) {
+    const qRows = await db.query.questions.findMany({
+      where: inArray(questions.id, allAssignedQIds),
+      columns: { id: true, difficulty: true },
+    });
+    for (const q of qRows) {
+      questionDifficultyMap.set(q.id, q.difficulty);
+    }
+  }
+
   const withAccuracy = done.map((a) => {
+    const assignedQIds =
+      (a.assignedQuestionIds as string[] | null | undefined) || [];
     const totalMarks = getTotalMarks(
       a.exam.gradingConfig,
       a.exam.gradingStrategy,
+      assignedQIds,
+      questionDifficultyMap,
     );
     const accuracy = calcAccuracy(a.score ?? 0, totalMarks);
     return { ...a, totalMarks, accuracy };
   });
 
-  const accuracies = withAccuracy
+  // Collect unattempted conducted exams
+  const unattemptedExams = assignedGroupExams
+    .filter((e) => allConsideredExamIds.has(e.id) && !completedExamIds.has(e.id))
+    .map((exam) => {
+      const slot = exam.groups[0];
+      const examDate =
+        slot?.endTime ?? exam.endTime ?? slot?.startTime ?? exam.startTime;
+
+      const qCount = getExamQuestionCount(exam);
+      let totalMarks: number | null = null;
+      if (exam.gradingStrategy === "linear") {
+        const cfg = exam.gradingConfig as GradingConfigMap["linear"];
+        totalMarks = qCount * (cfg?.totalMarks ?? 0);
+      } else if (exam.gradingStrategy === "count_based") {
+        const cfg = exam.gradingConfig as GradingConfigMap["count_based"];
+        totalMarks = cfg?.thresholds?.length
+          ? Math.max(...cfg.thresholds.map((r) => r.marks))
+          : null;
+      } else if (exam.gradingStrategy === "lab_external") {
+        const cfg = exam.gradingConfig as GradingConfigMap["lab_external"];
+        totalMarks =
+          (cfg?.easyMarks ?? 20) +
+          (cfg?.mediumMarks ?? 30) +
+          (cfg?.hardMarks ?? 10);
+      }
+
+      return {
+        id: exam.id,
+        title: exam.title,
+        score: 0,
+        totalMarks,
+        accuracy: 0,
+        completedAt: examDate,
+        isUnattempted: true,
+      };
+    });
+
+  // Accuracy across attempted exams only (measure of problem-solving correctness)
+  const attemptedAccuracies = withAccuracy
     .map((a) => a.accuracy)
     .filter((a): a is number => a !== null);
 
   const avgAccuracy =
-    accuracies.length > 0
-      ? Math.round(accuracies.reduce((s, a) => s + a, 0) / accuracies.length)
+    attemptedAccuracies.length > 0
+      ? Math.round(
+          attemptedAccuracies.reduce((s, a) => s + a, 0) /
+            attemptedAccuracies.length,
+        )
       : null;
 
-  // Average score as percentage
+  // Average score as percentage across ALL conducted exams (unattempted = 0%)
+  const totalScoreSum = attemptedAccuracies.reduce((s, a) => s + a, 0);
   const avgScore =
-    accuracies.length > 0
-      ? (accuracies.reduce((s, a) => s + a, 0) / accuracies.length).toFixed(1)
+    totalAssignedExams > 0
+      ? (totalScoreSum / totalAssignedExams).toFixed(1)
       : null;
 
-  // Highest score
+  // Highest score across attempted exams
   const highestEntry =
     withAccuracy.length > 0
       ? withAccuracy.reduce((best, cur) =>
@@ -118,27 +264,54 @@ export default async function AnalyticsPage() {
         )
       : null;
 
-  // ── Chart data — monthly average score ────────────────────────────────────
-  const monthlyMap = new Map<string, number[]>();
-  for (const a of withAccuracy) {
-    if (!a.completedAt || a.accuracy === null) continue;
-    const key = a.completedAt.toLocaleDateString("en-US", {
-      month: "short",
-      year: "2-digit",
-    });
-    if (!monthlyMap.has(key)) monthlyMap.set(key, []);
-    monthlyMap.get(key)?.push(a.accuracy);
-  }
+  // Combine completed + unattempted for analytics charts and tables
+  const allAnalyticsExams = [
+    ...withAccuracy.map((a) => ({
+      id: a.id,
+      title: a.exam.title,
+      date: a.completedAt,
+      accuracy: a.accuracy ?? 0,
+      score: a.score ?? 0,
+      totalMarks: a.totalMarks,
+      isUnattempted: false,
+    })),
+    ...unattemptedExams.map((e) => ({
+      id: e.id,
+      title: e.title,
+      date: e.completedAt,
+      accuracy: 0,
+      score: 0,
+      totalMarks: e.totalMarks,
+      isUnattempted: true,
+    })),
+  ];
 
-  const chartData = Array.from(monthlyMap.entries())
-    .map(([month, scores]) => ({
-      month,
-      score: Math.round(scores.reduce((s, v) => s + v, 0) / scores.length),
-    }))
-    .slice(-6); // last 6 months
+  // ── Exam-wise Chart Data (last 10 conducted exams, chronological) ──────────
+  const examChartData = [...allAnalyticsExams]
+    .filter((e) => e.date !== null)
+    .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0))
+    .slice(-10) // Show last 10 exams (or all if < 10) to prevent label crowding
+    .map((item) => ({
+      name: item.title.length > 12 ? `${item.title.slice(0, 10)}…` : item.title,
+      title: item.title,
+      date: item.date
+        ? item.date.toLocaleDateString("en-US", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })
+        : "—",
+      score: item.accuracy,
+      status: item.isUnattempted ? ("unattempted" as const) : ("completed" as const),
+      scoreText: item.isUnattempted
+        ? "0% (Unattempted)"
+        : `${item.score}${item.totalMarks ? ` / ${item.totalMarks}` : ""} (${item.accuracy}%)`,
+    }));
 
   // ── Recent results table (last 10) ────────────────────────────────────────
-  const recentResults = withAccuracy.slice(0, 10);
+  const recentResults = [...allAnalyticsExams]
+    .sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0))
+    .slice(0, 10);
 
   return (
     <ScrollArea className="h-full">
@@ -189,11 +362,18 @@ export default async function AnalyticsPage() {
               <div>
                 <p className="text-4xl font-bold text-green-600 dark:text-green-400">
                   {examsAttempted}
+                  <span className="text-2xl font-normal text-muted-foreground">
+                    {" "}/ {totalAssignedExams}
+                  </span>
                 </p>
               </div>
             </CardContent>
             <CardFooter>
-              <p className="text-sm text-muted-foreground">All time</p>
+              <p className="text-sm text-muted-foreground">
+                {unattemptedCount > 0
+                  ? `${unattemptedCount} unattempted`
+                  : "All attempted"}
+              </p>
             </CardFooter>
           </Card>
 
@@ -258,12 +438,12 @@ export default async function AnalyticsPage() {
               <CardTitle className="text-base">Performance Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              {chartData.length === 0 ? (
+              {examChartData.length === 0 ? (
                 <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
                   No data yet — complete exams to see your trend.
                 </div>
               ) : (
-                <PerformanceChart data={chartData} />
+                <PerformanceChart data={examChartData} />
               )}
             </CardContent>
           </Card>
@@ -353,17 +533,9 @@ export default async function AnalyticsPage() {
                         key={a.id}
                         className="hover:bg-muted/30 transition-colors"
                       >
-                        <td className="px-6 py-3 font-medium">
-                          {a.exam.title}
-                        </td>
+                        <td className="px-6 py-3 font-medium">{a.title}</td>
                         <td className="px-6 py-3 text-muted-foreground">
-                          {a.completedAt
-                            ? a.completedAt.toLocaleDateString("en-US", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "—"}
+                          {a.date ? a.date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                         </td>
                         <td className="px-6 py-3">
                           <span className="font-semibold">{a.score ?? 0}</span>
@@ -383,9 +555,18 @@ export default async function AnalyticsPage() {
                           {a.accuracy !== null ? `${a.accuracy}%` : "—"}
                         </td>
                         <td className="px-6 py-3">
-                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
-                            Completed
-                          </Badge>
+                          {a.isUnattempted ? (
+                            <Badge
+                              variant="outline"
+                              className="bg-neutral-100 text-neutral-600 border-neutral-300 dark:bg-neutral-900 dark:text-neutral-400 dark:border-neutral-700"
+                            >
+                              Unattempted
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
+                              Completed
+                            </Badge>
+                          )}
                         </td>
                       </tr>
                     ))}
