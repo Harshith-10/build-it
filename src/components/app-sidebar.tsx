@@ -144,16 +144,6 @@ const facultyNavMain = [
     icon: LayoutDashboard,
   },
   {
-    title: "Problems",
-    url: "/faculty/problems",
-    icon: FileQuestion,
-  },
-  {
-    title: "Collections",
-    url: "/faculty/collections",
-    icon: Library,
-  },
-  {
     title: "Examinations",
     url: "/faculty/exams",
     icon: GraduationCap,
