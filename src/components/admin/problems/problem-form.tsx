@@ -21,6 +21,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import Markdown from "react-markdown";
+import { markdownUrlTransform } from "@/lib/markdown";
+import { cn } from "@/lib/utils";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -115,6 +117,14 @@ type ProblemFormInitialData = {
   allowedLanguages?: unknown;
   testCases?: unknown;
 };
+
+const ALLOWED_PASTE_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+]);
 
 export function ProblemForm({
   initialData,
@@ -255,6 +265,47 @@ export function ProblemForm({
       }
     });
   }, [initialData, initialize, getGeneratedDraft, form, searchParams]);
+
+  const handleStatementPaste = useCallback(
+    (
+      e: React.ClipboardEvent<HTMLTextAreaElement>,
+      currentValue: string,
+      onChange: (val: string) => void,
+    ) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (
+          item.kind === "file" &&
+          ALLOWED_PASTE_IMAGE_TYPES.has(item.type.toLowerCase())
+        ) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) continue;
+
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64 = reader.result as string;
+            const target = e.currentTarget;
+            const start = target?.selectionStart ?? (currentValue || "").length;
+            const end = target?.selectionEnd ?? (currentValue || "").length;
+            const imgMarkdown = `\n![Image](${base64})\n`;
+            const newValue =
+              (currentValue || "").substring(0, start) +
+              imgMarkdown +
+              (currentValue || "").substring(end);
+            onChange(newValue);
+            toast.success("Image embedded as base64 Markdown");
+          };
+          reader.readAsDataURL(file);
+          break;
+        }
+      }
+    },
+    [],
+  );
 
   // Initialize verify code map from driver code map when language changes
   useEffect(() => {
@@ -465,6 +516,13 @@ export function ProblemForm({
                             className="h-full google-sans w-full resize-none border-0 focus-visible:ring-0 p-4"
                             placeholder="# Problem Description..."
                             {...field}
+                            onPaste={(e) =>
+                              handleStatementPaste(
+                                e,
+                                field.value,
+                                field.onChange,
+                              )
+                            }
                           />
                         </FormControl>
                         <FormMessage className="absolute bottom-2 left-4" />
@@ -476,7 +534,24 @@ export function ProblemForm({
               <div className="flex flex-col min-h-0 space-y-2">
                 <FormLabel className="shrink-0">Preview</FormLabel>
                 <div className="flex-1 min-h-0 google-sans border rounded-md overflow-auto p-4 prose prose-sm dark:prose-invert max-w-none bg-muted/20">
-                  <Markdown remarkPlugins={[remarkGfm]}>
+                  <Markdown
+                    remarkPlugins={[remarkGfm]}
+                    urlTransform={markdownUrlTransform}
+                    components={{
+                      img: ({ src, className, alt, ...props }) => {
+                        if (!src) return null;
+                        return (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={src}
+                            className={cn("max-w-full h-auto rounded-md border my-2", className)}
+                            alt={alt || "Preview image"}
+                            {...props}
+                          />
+                        );
+                      },
+                    }}
+                  >
                     {form.watch("problemStatement") || "*No content*"}
                   </Markdown>
                 </div>

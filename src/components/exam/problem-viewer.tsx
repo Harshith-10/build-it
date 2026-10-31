@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { markdownUrlTransform } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import { useExamStore } from "@/stores/exam-store";
 import type { Question } from "./ide-shell";
@@ -59,6 +60,7 @@ export function ProblemViewer({ question, assignmentId, userId }: ProblemViewerP
               <div className="max-w-none min-w-0 grid grid-cols-[minmax(0,1fr)]">
                 <Markdown
                   remarkPlugins={[remarkGfm]}
+                  urlTransform={markdownUrlTransform}
                   components={{
                     h1: ({ className, children, ...props }) => {
                       const difficultyStyles = (d: string) => {
@@ -183,18 +185,23 @@ export function ProblemViewer({ question, assignmentId, userId }: ProblemViewerP
                         {...props}
                       />
                     ),
-                    img: ({
+                                        img: ({
+                      src,
                       className,
                       alt,
                       ...props
-                    }: React.ImgHTMLAttributes<HTMLImageElement>) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        className={cn("rounded-md border", className)}
-                        alt={alt}
-                        {...props}
-                      />
-                    ),
+                    }: React.ImgHTMLAttributes<HTMLImageElement>) => {
+                      if (!src) return null;
+                      return (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={src}
+                          className={cn("max-w-full h-auto rounded-md border my-4", className)}
+                          alt={alt || "Problem image"}
+                          {...props}
+                        />
+                      );
+                    },
                     hr: ({ ...props }) => (
                       <hr className="my-4 md:my-8" {...props} />
                     ),
