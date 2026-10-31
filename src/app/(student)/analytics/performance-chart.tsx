@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -10,12 +9,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-export interface MonthlyDataPoint {
-  month: string;
-  score: number;
-}
 
 export interface ExamDataPoint {
   name: string;
@@ -27,44 +20,21 @@ export interface ExamDataPoint {
 }
 
 interface PerformanceChartProps {
-  monthlyData: MonthlyDataPoint[];
-  examData: ExamDataPoint[];
+  data: ExamDataPoint[];
 }
 
-export function PerformanceChart({
-  monthlyData,
-  examData,
-}: PerformanceChartProps) {
-  const [tab, setTab] = useState<"monthly" | "exam">("monthly");
-  const isMonthly = tab === "monthly";
-  const currentData = isMonthly ? monthlyData : examData;
-
+export function PerformanceChart({ data }: PerformanceChartProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
-          {isMonthly
-            ? "Monthly average score (including unattempted as 0%)"
-            : "Score percentage per individual exam"}
+          Score percentage per individual exam
         </span>
-        <Tabs
-          value={tab}
-          onValueChange={(v) => setTab(v as "monthly" | "exam")}
-        >
-          <TabsList className="h-8 p-0.5">
-            <TabsTrigger value="monthly" className="text-xs px-2.5 py-1">
-              Monthly
-            </TabsTrigger>
-            <TabsTrigger value="exam" className="text-xs px-2.5 py-1">
-              Exam-wise
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
       <ResponsiveContainer width="100%" height={220}>
         <AreaChart
-          data={currentData}
+          data={data}
           margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
         >
           <defs>
@@ -75,7 +45,7 @@ export function PerformanceChart({
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis
-            dataKey={isMonthly ? "month" : "name"}
+            dataKey="name"
             tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
             tickLine={false}
             axisLine={false}
@@ -90,25 +60,8 @@ export function PerformanceChart({
           <Tooltip
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
-              const data = payload[0].payload as
-                | MonthlyDataPoint
-                | ExamDataPoint;
+              const item = payload[0].payload as ExamDataPoint;
 
-              if (isMonthly) {
-                const item = data as MonthlyDataPoint;
-                return (
-                  <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-2.5 text-xs text-[var(--card-foreground)] shadow-md">
-                    <p className="font-semibold text-muted-foreground mb-1">
-                      {item.month}
-                    </p>
-                    <p className="font-bold text-foreground">
-                      Avg Score: {item.score}%
-                    </p>
-                  </div>
-                );
-              }
-
-              const item = data as ExamDataPoint;
               return (
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-2.5 text-xs text-[var(--card-foreground)] shadow-md max-w-xs space-y-1">
                   <p className="font-semibold text-foreground break-words">

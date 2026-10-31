@@ -286,37 +286,6 @@ export default async function AnalyticsPage() {
     })),
   ];
 
-  // ── Monthly Chart Data (unattempted included as 0%) ────────────────────────
-  const monthlyMap = new Map<string, { label: string; scores: number[] }>();
-
-  for (const item of allAnalyticsExams) {
-    if (!item.date) continue;
-    const yearMonth = `${item.date.getFullYear()}-${String(item.date.getMonth() + 1).padStart(2, "0")}`;
-    const label = item.date.toLocaleDateString("en-US", {
-      month: "short",
-      year: "2-digit",
-    });
-
-    if (!monthlyMap.has(yearMonth)) {
-      monthlyMap.set(yearMonth, { label, scores: [] });
-    }
-    monthlyMap.get(yearMonth)?.scores.push(item.accuracy);
-  }
-
-  const monthlyChartData = Array.from(monthlyMap.entries())
-    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-    .slice(-6)
-    .map(([, { label, scores }]) => ({
-      month: label,
-      score: Math.min(
-        100,
-        Math.max(
-          0,
-          Math.round(scores.reduce((s, v) => s + v, 0) / scores.length),
-        ),
-      ),
-    }));
-
   // ── Exam-wise Chart Data (last 10 conducted exams, chronological) ──────────
   const examChartData = [...allAnalyticsExams]
     .filter((e) => e.date !== null)
@@ -469,12 +438,12 @@ export default async function AnalyticsPage() {
               <CardTitle className="text-base">Performance Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              {monthlyChartData.length === 0 && examChartData.length === 0 ? (
+              {examChartData.length === 0 ? (
                 <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
                   No data yet — complete exams to see your trend.
                 </div>
               ) : (
-                <PerformanceChart monthlyData={monthlyChartData} examData={examChartData} />
+                <PerformanceChart data={examChartData} />
               )}
             </CardContent>
           </Card>
