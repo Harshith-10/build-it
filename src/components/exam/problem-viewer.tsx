@@ -185,18 +185,23 @@ export function ProblemViewer({ question, assignmentId, userId }: ProblemViewerP
                         {...props}
                       />
                     ),
-                    img: ({
+                                        img: ({
+                      src,
                       className,
                       alt,
                       ...props
-                    }: React.ImgHTMLAttributes<HTMLImageElement>) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        className={cn("rounded-md border", className)}
-                        alt={alt}
-                        {...props}
-                      />
-                    ),
+                    }: React.ImgHTMLAttributes<HTMLImageElement>) => {
+                      if (!src) return null;
+                      return (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={src}
+                          className={cn("max-w-full h-auto rounded-md border my-4", className)}
+                          alt={alt || "Problem image"}
+                          {...props}
+                        />
+                      );
+                    },
                     hr: ({ ...props }) => (
                       <hr className="my-4 md:my-8" {...props} />
                     ),

@@ -22,6 +22,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import Markdown from "react-markdown";
 import { markdownUrlTransform } from "@/lib/markdown";
+import { cn } from "@/lib/utils";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -522,7 +523,24 @@ export function ProblemForm({
               <div className="flex flex-col min-h-0 space-y-2">
                 <FormLabel className="shrink-0">Preview</FormLabel>
                 <div className="flex-1 min-h-0 google-sans border rounded-md overflow-auto p-4 prose prose-sm dark:prose-invert max-w-none bg-muted/20">
-                  <Markdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrlTransform}>
+                  <Markdown
+                    remarkPlugins={[remarkGfm]}
+                    urlTransform={markdownUrlTransform}
+                    components={{
+                      img: ({ src, className, alt, ...props }) => {
+                        if (!src) return null;
+                        return (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={src}
+                            className={cn("max-w-full h-auto rounded-md border my-2", className)}
+                            alt={alt || "Preview image"}
+                            {...props}
+                          />
+                        );
+                      },
+                    }}
+                  >
                     {form.watch("problemStatement") || "*No content*"}
                   </Markdown>
                 </div>
