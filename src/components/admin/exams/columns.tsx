@@ -206,7 +206,8 @@ export const createColumns = (
           toast.success("CDC Report PDF downloaded!", { id: toastId });
         } catch (error) {
           console.error("Failed to generate CDC report PDF", error);
-          toast.error("Failed to generate CDC report PDF", { id: toastId });
+          const msg = error instanceof Error ? error.message : "Failed to generate CDC report PDF";
+          toast.error(msg, { id: toastId });
         }
       };
 

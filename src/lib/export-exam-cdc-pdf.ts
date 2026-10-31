@@ -1,57 +1,22 @@
 import type { ExamCdcReportData } from "@/actions/admin/exams";
 
-/**
- * Dynamically loads jsPDF and jspdf-autotable from CDN on-demand.
- * This avoids adding extra dependencies to package.json and pnpm-lock.yaml.
- */
-async function loadJsPdf(): Promise<any> {
+export async function exportExamCdcReportPDF(data: ExamCdcReportData) {
   if (typeof window === "undefined") {
     throw new Error("PDF generation is only supported in the browser");
   }
 
-  if ((window as any).jspdf?.jsPDF) {
-    return (window as any).jspdf;
+  let jsPDF: any;
+  let autoTable: any;
+
+  try {
+    const jspdfModule = await import("jspdf");
+    jsPDF = jspdfModule.default || jspdfModule.jsPDF || jspdfModule;
+    const autotableModule = await import("jspdf-autotable");
+    autoTable = autotableModule.default || autotableModule;
+  } catch (err) {
+    console.error("Failed to load PDF library", err);
+    throw new Error("Failed to initialize PDF generation engine. Please refresh and try again.");
   }
-
-  return new Promise((resolve, reject) => {
-    // If scripts are already being injected, wait for them
-    if (document.getElementById("jspdf-cdn")) {
-      const interval = setInterval(() => {
-        if ((window as any).jspdf?.jsPDF) {
-          clearInterval(interval);
-          resolve((window as any).jspdf);
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(interval);
-        reject(new Error("Timed out loading PDF library"));
-      }, 10000);
-      return;
-    }
-
-    const script1 = document.createElement("script");
-    script1.id = "jspdf-cdn";
-    script1.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-
-    script1.onload = () => {
-      const script2 = document.createElement("script");
-      script2.id = "jspdf-autotable-cdn";
-      script2.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
-      script2.onload = () => {
-        resolve((window as any).jspdf);
-      };
-      script2.onerror = () => reject(new Error("Failed to load PDF autotable library"));
-      document.head.appendChild(script2);
-    };
-
-    script1.onerror = () => reject(new Error("Failed to load PDF library"));
-    document.head.appendChild(script1);
-  });
-}
-
-export async function exportExamCdcReportPDF(data: ExamCdcReportData) {
-  const jspdfModule = await loadJsPdf();
-  const { jsPDF } = jspdfModule;
 
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -67,7 +32,7 @@ export async function exportExamCdcReportPDF(data: ExamCdcReportData) {
     img.src = "/iare-header.jpg";
     await new Promise((resolve) => {
       img.onload = resolve;
-      img.onerror = resolve; // Continue even if image fails
+      img.onerror = resolve; // Continue even if banner fails
     });
     if (img.complete && img.naturalWidth > 0) {
       const bannerHeight = 55;
@@ -87,7 +52,10 @@ export async function exportExamCdcReportPDF(data: ExamCdcReportData) {
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(13);
-  doc.text(`${data.exam.title} Results`, pageWidth / 2, 122, { align: "center" });
+  doc.text(`${data.exam.title} Results`, pageWidth / 2, 122, {
+    align: "center",
+    maxWidth: contentWidth,
+  });
 
   // 3. Date & Scope line
   const stamp = new Date();
@@ -131,7 +99,7 @@ export async function exportExamCdcReportPDF(data: ExamCdcReportData) {
     String(data.totals.silver),
   ]);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     head: [["S No.", "Branch", "Total Students Participated", ...BAND_COLS]],
     body: branchRows,
     startY: 152,
@@ -195,7 +163,7 @@ export async function exportExamCdcReportPDF(data: ExamCdcReportData) {
     s.badge,
   ]);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     head: [["S No.", "Roll No.", "Name", "Branch", "Marks", "Recognition"]],
     body: studentRows,
     startY: nextY + 8,
