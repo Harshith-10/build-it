@@ -118,6 +118,14 @@ type ProblemFormInitialData = {
   testCases?: unknown;
 };
 
+const ALLOWED_PASTE_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+]);
+
 export function ProblemForm({
   initialData,
   // biome-ignore lint/correctness/noUnusedFunctionParameters: TODO: Remove this
@@ -269,7 +277,10 @@ export function ProblemForm({
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        if (item.type.startsWith("image/")) {
+        if (
+          item.kind === "file" &&
+          ALLOWED_PASTE_IMAGE_TYPES.has(item.type.toLowerCase())
+        ) {
           e.preventDefault();
           const file = item.getAsFile();
           if (!file) continue;
