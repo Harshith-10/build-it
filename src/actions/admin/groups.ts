@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, ilike, or, sql, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql, isNull, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { user } from "@/db/schema/auth";
@@ -31,8 +31,10 @@ export async function getGroups({
     ? or(ilike(userGroups.name, `%${search}%`))
     : undefined;
 
-  const departmentClause = userDepartmentId
-    ? eq(userGroups.departmentId, userDepartmentId)
+  // Include groups with NULL departmentId (cross-department groups like "All")
+  // alongside department-specific groups
+  const departmentClause: SQL | undefined = userDepartmentId
+    ? or(eq(userGroups.departmentId, userDepartmentId), isNull(userGroups.departmentId))
     : isNull(userGroups.departmentId);
 
   const whereClause = searchClause ? and(searchClause, departmentClause) : departmentClause;
@@ -120,7 +122,9 @@ export async function getGroup(id: string) {
   const group = await db.query.userGroups.findFirst({
     where: and(
       eq(userGroups.id, id),
-      userDepartmentId ? eq(userGroups.departmentId, userDepartmentId) : isNull(userGroups.departmentId)
+      userDepartmentId
+        ? or(eq(userGroups.departmentId, userDepartmentId), isNull(userGroups.departmentId))
+        : isNull(userGroups.departmentId)
     ),
     with: {
       members: {
