@@ -637,6 +637,37 @@ export async function upsertExam(data: UpsertExamInput) {
     await db.delete(examGroups).where(eq(examGroups.examId, examId));
 
     if (data.assignments && data.assignments.length > 0) {
+      // Resolve "all-users-virtual" to a real DB group
+      for (const assign of data.assignments) {
+        if (assign.groupId === "all-users-virtual") {
+          // Find or create the real "All" group
+          let allGroup = await db.query.userGroups.findFirst({
+            where: eq(userGroups.name, "All"),
+          });
+          if (!allGroup) {
+            const [created] = await db
+              .insert(userGroups)
+              .values({ name: "All", description: "Contains all users." })
+              .returning();
+            allGroup = created;
+          }
+          // Sync all users into the group
+          const allUsers = await db.select({ id: user.id }).from(user);
+          const existingMembers = await db.query.userGroupMembers.findMany({
+            where: eq(userGroupMembers.groupId, allGroup.id),
+            columns: { userId: true },
+          });
+          const existingSet = new Set(existingMembers.map((m) => m.userId));
+          const toAdd = allUsers.filter((u) => !existingSet.has(u.id));
+          if (toAdd.length > 0) {
+            await db.insert(userGroupMembers).values(
+              toAdd.map((u) => ({ groupId: allGroup!.id, userId: u.id }))
+            );
+          }
+          assign.groupId = allGroup.id;
+        }
+      }
+
       const assignmentValues = data.assignments.map((assign) => ({
         examId: examId,
         groupId: assign.groupId,

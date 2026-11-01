@@ -61,8 +61,9 @@ export function GroupSelectionDialog({
         const res = await getGroups({
           limit: 50, // Fetch more for selection
           search: debouncedSearch,
+          includeVirtual: true,
         });
-        setGroups(res.groups.filter((g) => g.id !== "all-users-virtual"));
+        setGroups(res.groups);
       } catch (_error) {
         toast.error("Failed to load groups");
       } finally {
