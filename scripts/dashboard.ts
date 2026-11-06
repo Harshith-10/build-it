@@ -60,6 +60,10 @@ async function main() {
             value: "scripts/exams/view-exam-schedules.ts",
           },
           {
+            name: "Filter Students",
+            value: "scripts/exams/filter-exam-students.ts",
+          },
+          {
             name: "Export Exam Data (Excel)",
             value: "scripts/exams/export-exam.ts",
           },
