@@ -90,6 +90,10 @@ async function main() {
             name: "Validate Problems",
             value: "scripts/problems/validate-problems.ts",
           },
+          {
+            name: "Upload Problems",
+            value: "scripts/problems/upload-problems.ts"
+          },
           { name: "Back", value: "back" },
         ],
         loop: false,
