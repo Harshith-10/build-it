@@ -5,10 +5,11 @@ import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import { ChevronDown, Loader2, Play, RotateCcw, Send } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -95,6 +96,65 @@ export function LabCodePlayground({
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Smart Clipboard tracking: allow internal copy/paste, block external paste
+  const internalClipboard = useRef<string>("");
+
+  const smartClipboardExtension = useMemo(() => {
+    return EditorView.domEventHandlers({
+      paste(event, _view) {
+        const pastedText = event.clipboardData?.getData("text") || "";
+        const internal = internalClipboard.current.trim();
+
+        // If pasted content does not match text copied inside the editor, block it
+        if (pastedText && (!internal || pastedText.trim() !== internal)) {
+          event.preventDefault();
+          event.stopPropagation();
+          toast.error("External Paste Detected!", {
+            description:
+              "Pasting code from outside the laboratory is not permitted.",
+          });
+          return true; // tell CodeMirror event is handled and blocked
+        }
+        return false; // allow internal paste
+      },
+      copy(_event, view) {
+        const selection = view.state.sliceDoc(
+          view.state.selection.main.from,
+          view.state.selection.main.to,
+        );
+        if (selection) {
+          internalClipboard.current = selection;
+        } else {
+          const domSelection = window.getSelection()?.toString();
+          if (domSelection) internalClipboard.current = domSelection;
+        }
+        return false;
+      },
+      cut(_event, view) {
+        const selection = view.state.sliceDoc(
+          view.state.selection.main.from,
+          view.state.selection.main.to,
+        );
+        if (selection) {
+          internalClipboard.current = selection;
+        } else {
+          const domSelection = window.getSelection()?.toString();
+          if (domSelection) internalClipboard.current = domSelection;
+        }
+        return false;
+      },
+      drop(event) {
+        event.preventDefault();
+        toast.error("Drag and drop is disabled in the code editor.");
+        return true;
+      },
+      contextmenu(event) {
+        event.preventDefault();
+        return true;
+      },
+    });
+  }, []);
 
   const {
     runtimes,
@@ -323,9 +383,9 @@ export function LabCodePlayground({
         const allPassed =
           requiredCases.length > 0
             ? requiredCases.every((tc) => {
-                const r = result.results?.find((res) => res.id === tc.id);
-                return r?.passed === true;
-              })
+              const r = result.results?.find((res) => res.id === tc.id);
+              return r?.passed === true;
+            })
             : (result.success && !result.compilationError);
 
         const passedCount = result.results.filter((r) => r.passed).length;
@@ -377,155 +437,159 @@ export function LabCodePlayground({
   return (
     <>
       <ResizablePanelGroup orientation="vertical" className="h-full">
-      <ResizablePanel defaultSize={60} minSize={30}>
-        <div className="flex h-full flex-col">
-          {/* ✅ Toolbar — language + version + theme + run and submit buttons */}
-          <div className="flex items-center justify-between border-b bg-muted/20 px-4 py-1 shrink-0">
-            <div className="flex items-center gap-3">
-              <Select
-                value={selectedLanguage}
-                onValueChange={handleLanguageChange}
-                disabled={runtimeLoading || availableLanguages.length === 0}
-              >
-                <SelectTrigger className="w-[100px] h-7 text-xs">
-                  <SelectValue placeholder="Language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {runtimeLoading ? (
-                    <SelectItem value="loading" disabled>Loading...</SelectItem>
-                  ) : availableLanguages.length === 0 ? (
-                    <SelectItem value="none" disabled>No languages</SelectItem>
-                  ) : (
-                    availableLanguages.map((lang) => (
-                      <SelectItem key={lang} value={lang}>
-                        {formatLanguageName(lang)}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+        <ResizablePanel defaultSize={60} minSize={30}>
+          <div className="flex h-full flex-col">
+            {/* ✅ Toolbar — language + version + theme + run and submit buttons */}
+            <div className="flex items-center justify-between border-b bg-muted/20 px-4 py-1 shrink-0">
+              <div className="flex items-center gap-3">
+                <Select
+                  value={selectedLanguage}
+                  onValueChange={handleLanguageChange}
+                  disabled={runtimeLoading || availableLanguages.length === 0}
+                >
+                  <SelectTrigger className="w-[100px] h-7 text-xs">
+                    <SelectValue placeholder="Language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {runtimeLoading ? (
+                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                    ) : availableLanguages.length === 0 ? (
+                      <SelectItem value="none" disabled>No languages</SelectItem>
+                    ) : (
+                      availableLanguages.map((lang) => (
+                        <SelectItem key={lang} value={lang}>
+                          {formatLanguageName(lang)}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      disabled={runtimeLoading || runtimes.length === 0}
+                    >
+                      {runtimeLoading
+                        ? "Loading..."
+                        : selectedVersion
+                          ? `${selectedLanguage} ${selectedVersion}`
+                          : `No ${selectedLanguage} Runtime`}
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {runtimes
+                      .filter((r) => r.language === selectedLanguage)
+                      .map((runtime) => (
+                        <DropdownMenuItem
+                          key={`${runtime.language}-${runtime.version}`}
+                          onClick={() => setSelectedVersion(runtime.version)}
+                          className={
+                            selectedVersion === runtime.version
+                              ? "bg-accent"
+                              : undefined
+                          }
+                        >
+                          {runtime.language} {runtime.version}
+                        </DropdownMenuItem>
+                      ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResetCode}
+                  title="Clear code from editor"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive gap-1"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Clear
+                </Button>
+                <ThemeToggle />
+                <ButtonGroup>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
-                    disabled={runtimeLoading || runtimes.length === 0}
+                    onClick={handleRunCode}
+                    disabled={isRunning || isSubmitting || !selectedVersion || cooldown > 0}
+                    className="gap-1.5"
                   >
-                    {runtimeLoading
-                      ? "Loading..."
-                      : selectedVersion
-                      ? `${selectedLanguage} ${selectedVersion}`
-                      : `No ${selectedLanguage} Runtime`}
-                    <ChevronDown className="h-3 w-3" />
+                    {isRunning ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5" />
+                    )}
+                    {isRunning
+                      ? "Running..."
+                      : cooldown > 0
+                        ? `Run (${cooldown}s)`
+                        : "Run"}
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {runtimes
-                    .filter((r) => r.language === selectedLanguage)
-                    .map((runtime) => (
-                      <DropdownMenuItem
-                        key={`${runtime.language}-${runtime.version}`}
-                        onClick={() => setSelectedVersion(runtime.version)}
-                        className={
-                          selectedVersion === runtime.version
-                            ? "bg-accent"
-                            : undefined
-                        }
-                      >
-                        {runtime.language} {runtime.version}
-                      </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <Button
+                    size="sm"
+                    onClick={handleSubmitCode}
+                    disabled={isRunning || isSubmitting || !selectedVersion}
+                    className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5" />
+                    )}
+                    {isSubmitting ? "Submitting..." : "Submit"}
+                  </Button>
+                </ButtonGroup>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetCode}
-                title="Clear code from editor"
-                className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive gap-1"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Clear
-              </Button>
-              <ThemeToggle />
-              <ButtonGroup>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRunCode}
-                  disabled={isRunning || isSubmitting || !selectedVersion || cooldown > 0}
-                  className="gap-1.5"
-                >
-                  {isRunning ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Play className="h-3.5 w-3.5" />
-                  )}
-                  {isRunning
-                    ? "Running..."
-                    : cooldown > 0
-                    ? `Run (${cooldown}s)`
-                    : "Run"}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSubmitCode}
-                  disabled={isRunning || isSubmitting || !selectedVersion}
-                  className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Send className="h-3.5 w-3.5" />
-                  )}
-                  {isSubmitting ? "Submitting..." : "Submit"}
-                </Button>
-              </ButtonGroup>
+            {/* Editor */}
+            <div
+              className="flex-1 overflow-hidden text-[14px]"
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <CodeMirror
+                key={`${exercise.id}_${program.id}`}
+                value={code}
+                height="100%"
+                extensions={[
+                  getLanguageExtension(selectedLanguage),
+                  EditorState.tabSize.of(4),
+                  smartClipboardExtension,
+                ]}
+                onChange={(val) => handleCodeChange(val)}
+                theme={theme === "dark" ? "dark" : "light"}
+                className="h-full"
+                basicSetup={{ lineNumbers: true, foldGutter: true }}
+              />
             </div>
           </div>
+        </ResizablePanel>
 
-          {/* Editor */}
-          <div className="flex-1 overflow-hidden text-[14px]">
-            <CodeMirror
-              key={`${exercise.id}_${program.id}`}
-              value={code}
-              height="100%"
-              extensions={[
-                getLanguageExtension(selectedLanguage),
-                EditorState.tabSize.of(4),
-              ]}
-              onChange={(val) => handleCodeChange(val)}
-              theme={theme === "dark" ? "dark" : "light"}
-              className="h-full"
-              basicSetup={{ lineNumbers: true, foldGutter: true }}
-            />
-          </div>
-        </div>
-      </ResizablePanel>
-
-      <ResizableHandle
-        className="w-full h-px"
-        handleOrientation="horizontal"
-        withHandle
-      />
-
-      <ResizablePanel defaultSize={40} minSize={20}>
-        <TestCaseConsole
-          testCases={program.testCases}
-          results={results}
-          consoleOutput={consoleOutput}
-          customInput={customInput}
-          onCustomInputChange={setCustomInput}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          isRunning={isRunning || isSubmitting}
+        <ResizableHandle
+          className="w-full h-px"
+          handleOrientation="horizontal"
+          withHandle
         />
-      </ResizablePanel>
+
+        <ResizablePanel defaultSize={40} minSize={20}>
+          <TestCaseConsole
+            testCases={program.testCases}
+            results={results}
+            consoleOutput={consoleOutput}
+            customInput={customInput}
+            onCustomInputChange={setCustomInput}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            isRunning={isRunning || isSubmitting}
+          />
+        </ResizablePanel>
       </ResizablePanelGroup>
 
       <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
