@@ -1,10 +1,17 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { stopShieldItLockdown } from "@/lib/shieldit/shieldit-client";
 
 export function ReturnToDashboardButton() {
   const router = useRouter();
+
+  // Ensure extensions are unlocked once on results screen
+  useEffect(() => {
+    stopShieldItLockdown().catch(() => {});
+  }, []);
 
   const handleReturn = async () => {
     if (document.fullscreenElement) {

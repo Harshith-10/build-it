@@ -1,0 +1,793 @@
+/**
+ * ShieldIt - Background Service Worker (Manifest V3)
+ * Handles extension lockdown, tab monitoring, display guards, and anti-tampering.
+ */
+
+const STORAGE_KEYS = {
+  DISABLED_EXTENSIONS: "shieldit_disabled_extensions",
+  LOCKDOWN_STATE: "shieldit_lockdown_state",
+  ACTIVE_EXAM: "shieldit_active_exam",
+  EXAM_TAB_ID: "shieldit_exam_tab_id",
+  SESSION_SECRET: "shieldit_session_secret"
+};
+
+// In-memory state cache
+let state = {
+  isLockdownActive: false,
+  lockdownStartTime: 0,
+  activeExamId: null,
+  examTabId: null,
+  examWindowId: null,
+  disabledExtensions: [],
+  sessionSecret: null
+};
+
+let isRestoring = false;
+
+// Scan and inject content scripts and styles into open BuildIt tabs
+async function injectTabs() {
+  console.log("[ShieldIt] Scanning for open BuildIt tabs to inject content scripts...");
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (
+        tab.id &&
+        tab.url &&
+        (tab.url.includes("localhost") ||
+         tab.url.includes("127.0.0.1") ||
+         tab.url.includes("build-it") ||
+         tab.url.includes("buildit") ||
+         tab.url.includes("iare.ac.in"))
+      ) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ["content.js"]
+          });
+          await chrome.scripting.insertCSS({
+            target: { tabId: tab.id },
+            files: ["content.css"]
+          });
+          console.log(`[ShieldIt] Auto-injected into existing tab ${tab.id}: ${tab.url}`);
+        } catch (err) {
+          console.warn(`[ShieldIt] Auto-injection failed on tab ${tab.id}:`, err);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[ShieldIt] Error during tab auto-injection:", err);
+  }
+}
+
+/**
+ * Re-scans all extensions during an active lockdown and disables any that were turned on
+ * (e.g. while ShieldIt was temporarily disabled).
+ * Preserves state.disabledExtensions so the original pre-exam restore snapshot is NOT overwritten!
+ */
+async function enforceLockdown() {
+  if (!state.isLockdownActive || isRestoring) return;
+
+  try {
+    const allExtensions = await chrome.management.getAll();
+    const selfId = chrome.runtime.id;
+
+    // Filter ANY extension that is currently enabled (including third-party and unpacked extensions)
+    const unauthorizedEnabled = allExtensions.filter(
+      (ext) => ext.id !== selfId && ext.enabled && ext.type !== "theme" && ext.mayDisable !== false
+    );
+
+    if (unauthorizedEnabled.length > 0) {
+      console.warn(`[ShieldIt Re-Enforce] Detected ${unauthorizedEnabled.length} extensions active during lockdown:`, unauthorizedEnabled.map((e) => e.name));
+
+      for (const ext of unauthorizedEnabled) {
+        try {
+          await chrome.management.setEnabled(ext.id, false);
+          console.log(`[ShieldIt Re-Enforce] Blocked & disabled: ${ext.name} (${ext.id})`);
+        } catch (err) {
+          console.warn(`[ShieldIt Re-Enforce] Could not disable ${ext.name}:`, err);
+        }
+      }
+
+      const newlyBlockedIds = unauthorizedEnabled.map((e) => e.id);
+      state.disabledExtensions = Array.from(new Set([...(state.disabledExtensions || []), ...newlyBlockedIds]));
+      await persistState();
+      const histData = await chrome.storage.local.get("shieldit_all_paused_history");
+      const existingHist = histData["shieldit_all_paused_history"] || [];
+      const updatedHist = Array.from(new Set([...existingHist, ...newlyBlockedIds]));
+      await chrome.storage.local.set({ shieldit_all_paused_history: updatedHist });
+
+      sendViolationToExamTab({
+        type: "UNAUTHORIZED_EXTENSION_ENABLED",
+        severity: "CRITICAL",
+        message: `Blocked ${unauthorizedEnabled.length} unauthorized extension(s) activated while proctoring was interrupted (${unauthorizedEnabled.map((e) => e.name).join(", ")}).`
+      });
+    }
+  } catch (err) {
+    console.error("[ShieldIt Re-Enforce] Error:", err);
+  }
+}
+
+/**
+ * Checks if ANY tab in the browser is currently running an active exam session.
+ */
+async function isAnyExamSessionOpen() {
+  if (state.examTabId) {
+    try {
+      const tab = await chrome.tabs.get(state.examTabId);
+      if (tab?.url && tab.url.includes("/session") && !tab.url.includes("/results")) {
+        return true;
+      }
+    } catch {}
+  }
+  try {
+    const allTabs = await chrome.tabs.query({});
+    return allTabs.some(
+      (t) => t.url && t.url.includes("/exams/") && t.url.includes("/session") && !t.url.includes("/results")
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Restore state on service worker startup
+let initPromise = null;
+async function initServiceWorker() {
+  try {
+    const data = await chrome.storage.local.get([
+      STORAGE_KEYS.LOCKDOWN_STATE,
+      STORAGE_KEYS.ACTIVE_EXAM,
+      STORAGE_KEYS.EXAM_TAB_ID,
+      STORAGE_KEYS.DISABLED_EXTENSIONS,
+      STORAGE_KEYS.SESSION_SECRET
+    ]);
+
+    state.isLockdownActive = !!data[STORAGE_KEYS.LOCKDOWN_STATE];
+    state.activeExamId = data[STORAGE_KEYS.ACTIVE_EXAM] || null;
+    state.examTabId = data[STORAGE_KEYS.EXAM_TAB_ID] || null;
+    state.disabledExtensions = data[STORAGE_KEYS.DISABLED_EXTENSIONS] || [];
+    state.sessionSecret = data[STORAGE_KEYS.SESSION_SECRET] || null;
+
+    console.log("[ShieldIt] Service worker initialized. Active:", state.isLockdownActive, "Secret loaded:", !!state.sessionSecret);
+
+    // Auto-inject into open tabs so existing sessions detect the extension immediately upon toggle ON
+    await injectTabs();
+
+    // If lockdown was marked active when extension was toggled back ON:
+    // Check if an exam session is genuinely still open in the browser!
+    if (state.isLockdownActive) {
+      const isExamStillOpen = await isAnyExamSessionOpen();
+      if (isExamStillOpen) {
+        console.log("[ShieldIt] Active exam session confirmed running. Re-enforcing lockdown.");
+        await enforceLockdown();
+      } else {
+        console.log("[ShieldIt] No active exam session tab found upon startup. Auto-restoring extensions...");
+        await stopLockdown(true);
+      }
+    }
+  } catch (err) {
+    console.error("[ShieldIt] Failed to initialize state:", err);
+  }
+}
+
+initPromise = initServiceWorker();
+
+// Ensure injection on install/update or browser startup
+chrome.runtime.onInstalled.addListener(async () => {
+  await injectTabs();
+});
+
+chrome.runtime.onStartup.addListener(async () => {
+  await injectTabs();
+});
+
+// Save state to chrome.storage
+async function persistState() {
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.LOCKDOWN_STATE]: state.isLockdownActive,
+    [STORAGE_KEYS.ACTIVE_EXAM]: state.activeExamId,
+    [STORAGE_KEYS.EXAM_TAB_ID]: state.examTabId,
+    [STORAGE_KEYS.DISABLED_EXTENSIONS]: state.disabledExtensions,
+    [STORAGE_KEYS.SESSION_SECRET]: state.sessionSecret
+  });
+}
+
+/**
+ * Get connected displays
+ */
+async function getConnectedDisplays() {
+  if (chrome.system && chrome.system.display) {
+    return await chrome.system.display.getInfo();
+  }
+  return [];
+}
+
+/**
+ * Start Exam Lockdown:
+ * 1. Queries all extensions
+ * 2. Records active non-self extensions
+ * 3. Disables all other extensions
+ * 4. Activates tab/display guards
+ */
+async function startLockdown(examId, tabId, options = {}, sessionSecret = null) {
+  try {
+    console.log(`[ShieldIt] Starting lockdown for exam: ${examId}, tab: ${tabId}, options:`, options);
+
+    // Guard: If lockdown is already active and we already have a snapshot, do not overwrite it!
+    if (state.isLockdownActive && state.disabledExtensions && state.disabledExtensions.length > 0) {
+      console.log("[ShieldIt] Lockdown already active. Preserving current pre-exam snapshot and re-enforcing lockdown.");
+      if (tabId) {
+        state.examTabId = tabId;
+        await persistState();
+      }
+
+      // Re-scan and immediately disable any extensions enabled while ShieldIt was paused:
+      await enforceLockdown();
+
+      return {
+        success: true,
+        disabledCount: state.disabledExtensions.length,
+        examId: state.activeExamId,
+        sessionSecret: state.sessionSecret,
+        alreadyActive: true
+      };
+    }
+
+    // Check display count
+    const displays = await getConnectedDisplays();
+    console.log(`[ShieldIt] Connected displays: ${displays.length}`);
+    if (displays.length > 1 && !options.allowMultipleDisplays) {
+      console.warn(`[ShieldIt] Dual monitors detected: ${displays.length}. Lockdown blocked.`);
+      return {
+        success: false,
+        error: "DUAL_MONITOR_DETECTED",
+        message: `Detected ${displays.length} displays. Please disconnect secondary monitors before starting. (Or enable test mode)`,
+        displayCount: displays.length
+      };
+    }
+
+    // Query all extensions
+    const allExtensions = await chrome.management.getAll();
+    const selfId = chrome.runtime.id;
+
+    // Filter ONLY third-party extensions that are CURRENTLY ENABLED
+    // (Preserve whichever extensions were already disabled by the user!)
+    const extensionsToDisable = allExtensions
+      .filter((ext) => ext.id !== selfId && ext.enabled && ext.type !== "theme" && ext.mayDisable !== false)
+      .map((ext) => ({ id: ext.id, name: ext.name }));
+
+    console.log(`[ShieldIt] Preserving pre-exam state: ${extensionsToDisable.length} enabled extensions will be paused:`, extensionsToDisable.map((e) => e.name));
+
+    const disabledIds = extensionsToDisable.map((e) => e.id);
+    const disabledNames = extensionsToDisable.map((e) => e.name);
+
+    // Generate or use provided session secret
+    const activeSecret = sessionSecret || options?.sessionSecret || ("sec_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9));
+
+    // Persist snapshot BEFORE disabling
+    state.isLockdownActive = true;
+    state.lockdownStartTime = Date.now();
+    state.activeExamId = examId;
+    state.examTabId = tabId || null;
+    state.disabledExtensions = disabledIds;
+    state.sessionSecret = activeSecret;
+
+    if (tabId) {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        if (tab?.windowId) {
+          state.examWindowId = tab.windowId;
+        }
+      } catch (err) {}
+    }
+
+    await persistState();
+
+    // Broadcast lockdown started to all exam tabs immediately
+    sendPayloadToExamTabs({
+      source: "SHIELDIT_EXTENSION",
+      type: "LOCKDOWN_STARTED",
+      examId
+    });
+
+    // Cumulative backup in storage so we never lose paused extensions across sessions
+    const histData = await chrome.storage.local.get("shieldit_all_paused_history");
+    const existingHist = histData["shieldit_all_paused_history"] || [];
+    const updatedHist = Array.from(new Set([...existingHist, ...disabledIds]));
+    await chrome.storage.local.set({ shieldit_all_paused_history: updatedHist });
+
+    // Now disable each extension
+    for (const ext of extensionsToDisable) {
+      try {
+        await chrome.management.setEnabled(ext.id, false);
+        console.log(`[ShieldIt] Successfully disabled: ${ext.name} (${ext.id})`);
+      } catch (err) {
+        console.warn(`[ShieldIt] Could not disable ${ext.name} (${ext.id}):`, err);
+      }
+    }
+
+    console.log(`[ShieldIt] Lockdown active. Successfully paused ${disabledIds.length} extensions.`);
+
+    return {
+      success: true,
+      disabledCount: disabledIds.length,
+      disabledNames,
+      displayCount: displays.length,
+      examId,
+      sessionSecret: activeSecret
+    };
+  } catch (err) {
+    console.error("[ShieldIt] Error starting lockdown:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Stop Exam Lockdown & Restore Extensions:
+ * Validates session secret to prevent students from faking unlock commands.
+ * Re-enables ONLY the extensions that were active before the exam.
+ */
+async function stopLockdown(forceAll = false, providedSecret = null) {
+  try {
+    console.log(`[ShieldIt v1.0.4] Stop lockdown request: forceAll=${forceAll}, hasProvidedSecret=${!!providedSecret}, isLockdownActive=${state.isLockdownActive}`);
+
+    // Anti-tamper check: If lockdown is active, verify authorization
+    if (state.isLockdownActive) {
+      if (forceAll) {
+        // If forceAll is requested, check if an exam tab is actually still open and active
+        const isExamStillOpen = await isAnyExamSessionOpen();
+        if (isExamStillOpen) {
+          console.warn("[ShieldIt] Blocked emergency restore during active exam session.");
+          return {
+            success: false,
+            error: "EXAM_IN_PROGRESS",
+            message: "Cannot restore extensions while an examination is actively open. Complete and submit the exam first."
+          };
+        }
+        console.log("[ShieldIt] No active exam session open. Emergency/startup restore permitted.");
+      } else {
+        // STRICT CHECK: An active exam MUST be unlocked with the matching sessionSecret!
+        if (!providedSecret || !state.sessionSecret || providedSecret !== state.sessionSecret) {
+          console.warn("[ShieldIt VIOLATION] Unauthorized attempt to unlock exam without valid sessionSecret.");
+          sendViolationToExamTab({
+            type: "SECURITY_TAMPERING",
+            severity: "CRITICAL",
+            message: "Unauthorized attempt to terminate lockdown without valid session token."
+          });
+          return {
+            success: false,
+            error: "INVALID_SECRET",
+            message: "Unauthorized unlock attempt. Valid session token required."
+          };
+        }
+      }
+    } else if (!forceAll) {
+      console.log("[ShieldIt] Stop lockdown called but no exam is currently active.");
+      return {
+        success: false,
+        error: "NO_ACTIVE_LOCKDOWN",
+        message: "No exam lockdown is currently active."
+      };
+    }
+
+    // 1. Immediately signal that lockdown is ended and restore is in progress
+    isRestoring = true;
+    state.isLockdownActive = false;
+    await persistState();
+
+    // 2. Fetch the pre-exam snapshot and cumulative history
+    const data = await chrome.storage.local.get([
+      STORAGE_KEYS.DISABLED_EXTENSIONS,
+      "shieldit_all_paused_history"
+    ]);
+    let toRestore = (data[STORAGE_KEYS.DISABLED_EXTENSIONS] && data[STORAGE_KEYS.DISABLED_EXTENSIONS].length > 0)
+      ? data[STORAGE_KEYS.DISABLED_EXTENSIONS]
+      : state.disabledExtensions || [];
+
+    const historyPaused = data["shieldit_all_paused_history"] || [];
+    toRestore = Array.from(new Set([...toRestore, ...historyPaused]));
+
+    // Strictly restore ONLY the extensions that were paused by ShieldIt!
+    // Never turn on extensions that the user already had disabled before the exam started.
+    if (toRestore.length === 0) {
+      console.log("[ShieldIt] No extensions were paused by ShieldIt. Nothing to restore.");
+    }
+
+    console.log(`[ShieldIt] Restoring ${toRestore.length} extensions...`);
+
+    let restoredCount = 0;
+    for (const id of toRestore) {
+      try {
+        await chrome.management.setEnabled(id, true);
+        restoredCount++;
+        console.log(`[ShieldIt] Re-enabled extension: ${id}`);
+      } catch (err) {
+        console.warn(`[ShieldIt] Failed to re-enable extension ${id}:`, err);
+      }
+    }
+
+    // Reset state & storage
+    state.activeExamId = null;
+    state.examTabId = null;
+    state.examWindowId = null;
+    state.disabledExtensions = [];
+    state.sessionSecret = null;
+    await chrome.storage.local.remove("shieldit_all_paused_history");
+    await persistState();
+
+    // Broadcast lockdown stopped to all exam tabs immediately
+    sendPayloadToExamTabs({
+      source: "SHIELDIT_EXTENSION",
+      type: "LOCKDOWN_STOPPED"
+    });
+
+    // Settle delay before re-enabling anti-tamper check
+    setTimeout(() => {
+      isRestoring = false;
+    }, 600);
+
+    console.log(`[ShieldIt] Lockdown ended. Preserved and restored ${restoredCount} extensions.`);
+    return { success: true, restoredCount };
+  } catch (err) {
+    isRestoring = false;
+    console.error("[ShieldIt] Error restoring extensions:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Helper to broadcast messages to all open BuildIt exam tabs
+ */
+function sendPayloadToExamTabs(payload) {
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs || []) {
+      const isTarget =
+        (state.examTabId && tab.id === state.examTabId) ||
+        (tab.url &&
+          (tab.url.includes("/session") ||
+           tab.url.includes("/labs") ||
+           tab.url.includes("test_sandbox") ||
+           tab.url.includes("buildit") ||
+           tab.url.includes("iare.ac.in") ||
+           tab.url.includes("localhost") ||
+           tab.url.includes("127.0.0.1")));
+
+      if (tab.id && isTarget) {
+        chrome.tabs.sendMessage(tab.id, payload).catch(() => {});
+      }
+    }
+  });
+}
+
+/**
+ * Notify the exam tab about a violation
+ */
+function sendViolationToExamTab(violation) {
+  if (!state.isLockdownActive) return;
+
+  const payload = {
+    source: "SHIELDIT_EXTENSION",
+    type: "VIOLATION",
+    violation: {
+      ...violation,
+      timestamp: Date.now(),
+      examId: state.activeExamId
+    }
+  };
+
+  console.warn("[ShieldIt VIOLATION]", violation);
+  sendPayloadToExamTabs(payload);
+}
+
+// ----------------------------------------------------------------------
+// EVENT LISTENERS & GUARDS
+// ----------------------------------------------------------------------
+
+/**
+ * 1. Anti-Tampering: Detect if user attempts to re-enable an extension (e.g. Monica)
+ */
+chrome.management.onEnabled.addListener((info) => {
+  if (!state.isLockdownActive || isRestoring) return;
+  if (info.id === chrome.runtime.id) return;
+
+  console.warn(`[ShieldIt Anti-Tamper] Forbidden extension enabled: ${info.name}`);
+
+  // Immediately re-disable
+  chrome.management.setEnabled(info.id, false).catch(() => {});
+
+  sendViolationToExamTab({
+    type: "UNAUTHORIZED_EXTENSION_ENABLED",
+    name: info.name,
+    extensionId: info.id,
+    severity: "HIGH",
+    message: `Attempted to activate blocked extension: ${info.name}`
+  });
+});
+
+/**
+ * 2. Tab Switch Guard: Detect when the user switches tabs
+ */
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  if (!state.isLockdownActive) return;
+
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    if (!tab) return;
+
+    // Check if the newly activated tab is an exam session or lab tab
+    const isExamTab =
+      tab.url &&
+      (tab.url.includes("/session") ||
+       tab.url.includes("/labs") ||
+       tab.url.includes("test_sandbox"));
+
+    if (isExamTab) {
+      // Student returned to or is on an exam tab
+      state.examTabId = activeInfo.tabId;
+      state.examWindowId = activeInfo.windowId;
+      return;
+    }
+
+    // Student activated a non-exam tab!
+    console.warn(`[ShieldIt] Tab switch violation: User switched to tab ${activeInfo.tabId}`);
+    sendViolationToExamTab({
+      type: "TAB_SWITCH",
+      severity: "HIGH",
+      toTabId: activeInfo.tabId,
+      message: "Tab switch detected: Navigated away from examination"
+    });
+  } catch (err) {
+    if (state.examTabId && activeInfo.tabId !== state.examTabId) {
+      sendViolationToExamTab({
+        type: "TAB_SWITCH",
+        severity: "HIGH",
+        fromTabId: state.examTabId,
+        toTabId: activeInfo.tabId,
+        message: "Switched away from the exam tab"
+      });
+    }
+  }
+});
+
+/**
+ * 3. Window Blur / Focus Guard: Detect when window loses focus (Alt+Tab, app switch, etc.)
+ */
+let lastWindowBlurTime = 0;
+
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  if (!state.isLockdownActive) return;
+
+  // Suppress blur events during initial startup / extension disable transition (first 4 seconds)
+  if (state.lockdownStartTime && Date.now() - state.lockdownStartTime < 4000) {
+    return;
+  }
+
+  // Loss of focus if switched to a non-browser app (WINDOW_ID_NONE)
+  // OR switched to another Chrome window outside the exam window
+  const isBlur =
+    windowId === chrome.windows.WINDOW_ID_NONE ||
+    (state.examWindowId && windowId !== state.examWindowId);
+
+  if (isBlur) {
+    const now = Date.now();
+    if (now - lastWindowBlurTime < 2500) {
+      return;
+    }
+    lastWindowBlurTime = now;
+
+    console.warn(`[ShieldIt] Window blur detected: windowId=${windowId}, examWindowId=${state.examWindowId}`);
+    sendViolationToExamTab({
+      type: "WINDOW_BLUR",
+      severity: "HIGH",
+      message: "Exam window lost focus (Alt+Tab or switched application/window)"
+    });
+  } else if (windowId === state.examWindowId) {
+    console.log("[ShieldIt] Student focused back onto exam window:", windowId);
+  }
+});
+
+/**
+ * 4. Display Guard: Detect display connection changes
+ */
+if (chrome.system && chrome.system.display) {
+  chrome.system.display.onDisplayChanged.addListener(async () => {
+    if (!state.isLockdownActive) return;
+
+    const displays = await getConnectedDisplays();
+    if (displays.length > 1) {
+      sendViolationToExamTab({
+        type: "DISPLAY_ADDED",
+        severity: "CRITICAL",
+        displayCount: displays.length,
+        message: `External display connected (${displays.length} displays active)`
+      });
+    }
+  });
+}
+
+/**
+ * 5. Auto-cleanup: If exam tab is closed, restore extensions
+ */
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (state.isLockdownActive && state.examTabId === tabId) {
+    console.log("[ShieldIt] Exam tab closed. Auto-restoring extensions...");
+    stopLockdown(false, state.sessionSecret);
+  }
+});
+
+/**
+ * 6. Navigation Auto-Restore: If the exam tab navigates to results, auto-restore extensions
+ */
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (state.isLockdownActive && state.examTabId === tabId && tab.url) {
+    // STRICT: Only auto-restore when the user has explicitly reached the exam results screen!
+    if (tab.url.includes("/results")) {
+      console.log("[ShieldIt] Exam results page reached. Auto-restoring extensions...");
+      await stopLockdown(false, state.sessionSecret);
+    }
+  }
+});
+
+// ----------------------------------------------------------------------
+// MESSAGE DISPATCHER (Web App & Internal Popup/Content)
+// ----------------------------------------------------------------------
+
+async function handleIncomingMessage(message, sender) {
+  if (initPromise) {
+    await initPromise;
+  }
+  const { action, payload } = message || {};
+  console.log(`[ShieldIt Message Received] action: ${action}`, payload, sender);
+
+  switch (action) {
+    case "PING":
+    case "HANDSHAKE": {
+      const displays = await getConnectedDisplays();
+      return {
+        success: true,
+        name: "ShieldIt",
+        version: "1.0.4",
+        buildTime: "13:40:00",
+        isLockdownActive: state.isLockdownActive,
+        activeExamId: state.activeExamId,
+        displayCount: displays.length
+      };
+    }
+
+    case "SIGN_CHALLENGE": {
+      try {
+        const { userId, examId, nonce, timestamp } = payload || {};
+        if (!userId || !examId || !nonce || !timestamp) {
+          return { success: false, error: "Missing challenge parameters" };
+        }
+
+        // Production secret is injected during packaging/build.
+        const ATTEST_KEY = "__SHIELDIT_ATTEST_KEY_PLACEHOLDER__";
+        const canonical = `shieldit-attest-v1\n${userId}\n${examId}\n${nonce}\n${timestamp}`;
+        const encoder = new TextEncoder();
+        const cryptoKey = await crypto.subtle.importKey(
+          "raw",
+          encoder.encode(ATTEST_KEY),
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+        const signatureBuf = await crypto.subtle.sign(
+          "HMAC",
+          cryptoKey,
+          encoder.encode(canonical)
+        );
+        const signatureHex = Array.from(new Uint8Array(signatureBuf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        return {
+          success: true,
+          signature: signatureHex,
+          nonce,
+          timestamp,
+          extensionId: chrome.runtime.id,
+          version: "1.0.4",
+          isLockdownActive: state.isLockdownActive
+        };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    case "START_LOCKDOWN": {
+      const tabId = sender.tab?.id || payload?.tabId;
+      if (sender.tab?.windowId) {
+        state.examWindowId = sender.tab.windowId;
+      }
+      const secret = payload?.sessionSecret || payload?.options?.sessionSecret;
+      return await startLockdown(payload?.examId || "unknown", tabId, payload?.options, secret);
+    }
+
+    case "REPORT_VIOLATION": {
+      if (state.isLockdownActive && payload) {
+        sendViolationToExamTab(payload);
+      }
+      return { success: true };
+    }
+
+    case "STOP_LOCKDOWN": {
+      // STRICT SECURITY: A valid sessionSecret must ALWAYS be explicitly provided by the caller.
+      // Origin alone NEVER bypasses session secret verification.
+      const secret = payload?.sessionSecret;
+      if (!secret && state.isLockdownActive && !payload?.forceAll) {
+        return {
+          success: false,
+          error: "MISSING_SECRET",
+          message: "A valid session secret is required to terminate active examination lockdown."
+        };
+      }
+      return await stopLockdown(payload?.forceAll || false, secret);
+    }
+
+    case "GET_STATUS": {
+      const displays = await getConnectedDisplays();
+      if (sender.tab?.id && state.isLockdownActive) {
+        state.examTabId = sender.tab.id;
+      }
+      if (state.isLockdownActive) {
+        const isExamActive = await isAnyExamSessionOpen();
+        if (isExamActive) {
+          enforceLockdown().catch(() => {});
+        } else {
+          console.log("[ShieldIt] GET_STATUS verified no active exam tab. Auto-releasing lockdown...");
+          await stopLockdown(true);
+        }
+      }
+      return {
+        success: true,
+        isLockdownActive: state.isLockdownActive,
+        activeExamId: state.activeExamId,
+        examTabId: state.examTabId,
+        disabledCount: state.disabledExtensions.length,
+        displays
+      };
+    }
+
+    case "RESTORE_EXTENSIONS_EMERGENCY": {
+      let examTabStillOnExam = false;
+      if (state.examTabId) {
+        try {
+          const examTab = await chrome.tabs.get(state.examTabId);
+          if (
+            examTab &&
+            examTab.url &&
+            (examTab.url.includes("/session") || examTab.url.includes("test_sandbox"))
+          ) {
+            examTabStillOnExam = true;
+          }
+        } catch {
+          examTabStillOnExam = false;
+        }
+      }
+
+      if (state.isLockdownActive && examTabStillOnExam) {
+        return {
+          success: false,
+          error: "EXAM_IN_PROGRESS",
+          message: "Cannot restore extensions while an examination is actively in progress. Please submit or finish the exam first."
+        };
+      }
+      return await stopLockdown(true);
+    }
+
+    default:
+      return { success: false, error: `Unknown action: ${action}` };
+  }
+}
+
+// Listen for internal messages (from content.js or popup.js)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  handleIncomingMessage(message, sender).then(sendResponse);
+  return true; // Keep channel open for async response
+});
+
+// Listen for external messages (from BuildIt web application)
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  handleIncomingMessage(message, sender).then(sendResponse);
+  return true;
+});

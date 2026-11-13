@@ -49,6 +49,7 @@ type UpsertExamInput = {
   gradingConfig?: GradingConfigMap[keyof GradingConfigMap] | null;
   assignments?: UpsertExamAssignmentInput[];
   moderatorIds?: string[];
+  requireShieldIt?: boolean;
 };
 
 type GradingStrategy = NonNullable<UpsertExamInput["gradingStrategy"]>;
@@ -577,6 +578,7 @@ export async function upsertExam(data: UpsertExamInput) {
       gradingStrategy,
       gradingConfig,
       requiresPin,
+      requireShieldIt: data.requireShieldIt !== undefined ? data.requireShieldIt : true,
     };
 
     // Validate grading config

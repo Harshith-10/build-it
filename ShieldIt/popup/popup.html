@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShieldIt Proctor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="popup-header">
+      <div class="logo-group">
+        <span class="shield-icon">🛡️</span>
+        <div>
+          <h2>ShieldIt</h2>
+          <span class="version-tag">v1.0.0 &bull; BuildIt Proctor</span>
+        </div>
+      </div>
+      <div id="status-badge" class="badge badge-idle">Idle</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-indicator-row">
+        <span id="status-dot" class="dot dot-idle"></span>
+        <span id="status-title" class="status-title">No Active Exam</span>
+      </div>
+      <p id="status-desc" class="status-desc">ShieldIt is standing by. When you begin an exam on BuildIt, this shield will automatically secure your environment.</p>
+    </div>
+
+    <div id="lockdown-details" class="details-card" style="display: none;">
+      <div class="detail-row">
+        <span class="detail-label">Active Exam:</span>
+        <span id="exam-id" class="detail-val">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Paused Tools:</span>
+        <span id="paused-count" class="detail-val">0 extensions</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Monitors:</span>
+        <span id="monitor-count" class="detail-val">1 display</span>
+      </div>
+      <div class="locked-notice">
+        🔒 Lockdown is enforced by BuildIt. Extensions will be restored automatically upon exam submission.
+      </div>
+    </div>
+
+    <div class="action-footer">
+      <button id="btn-emergency-restore" class="btn btn-restore" title="Restore extensions when no exam is active">
+        Restore All My Extensions
+      </button>
+      <div id="restore-message" class="restore-message"></div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

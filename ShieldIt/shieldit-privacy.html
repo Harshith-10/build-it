@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy | ShieldIt Proctor — Institute of Aeronautical Engineering (IARE)</title>
+  <meta name="description" content="Official Privacy Policy and Data Protection Notice for the ShieldIt Browser Extension by BuildIt at the Institute of Aeronautical Engineering (IARE)." />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <style>
+    :root {
+      --bg: #070a11;
+      --card-bg: #0d1322;
+      --card-inner: #131b2e;
+      --border: #1e293b;
+      --border-light: #2c3c54;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --primary: #38bdf8;
+      --primary-dark: #0284c7;
+      --accent: #10b981;
+      --warning: #f59e0b;
+      --iare-maroon: #800000;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 48px 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+    .institution-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .buildit-logo {
+      height: 48px;
+      width: 48px;
+      object-fit: contain;
+      border-radius: 8px;
+      display: inline-block;
+    }
+    .iare-crest {
+      height: 46px;
+      width: auto;
+      object-fit: contain;
+      display: inline-block;
+    }
+    .brand-divider {
+      width: 1px;
+      height: 32px;
+      background: var(--border-light);
+      display: inline-block;
+    }
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      display: inline-block;
+    }
+    .institution-details {
+      text-align: right;
+    }
+    .institution-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .institution-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .header-title-section {
+      margin-bottom: 28px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 24px 0 32px 0;
+      font-size: 13px;
+    }
+    .meta-item strong {
+      color: var(--text);
+      display: block;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      margin-bottom: 2px;
+    }
+    .badge-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 36px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .badge-success {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .badge-info {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--primary);
+    }
+    .badge-secondary {
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #cbd5e1;
+    }
+    h2 {
+      font-size: 19px;
+      color: #ffffff;
+      margin: 36px 0 14px 0;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-left: 3px solid var(--primary);
+      padding-left: 12px;
+    }
+    h3 {
+      font-size: 15.5px;
+      color: var(--primary);
+      margin: 20px 0 10px 0;
+      font-weight: 600;
+    }
+    p {
+      color: #cbd5e1;
+      font-size: 14.5px;
+      margin-bottom: 16px;
+      text-align: justify;
+    }
+    ul, ol {
+      margin: 0 0 20px 24px;
+      color: #cbd5e1;
+      font-size: 14.5px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    strong {
+      color: #ffffff;
+    }
+    code {
+      background: #1e293b;
+      color: #38bdf8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin: 20px 0 28px 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      text-align: left;
+    }
+    th {
+      background: #111a2e;
+      color: #ffffff;
+      padding: 12px 16px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: #cbd5e1;
+      vertical-align: top;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .callout {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 24px 0;
+      font-size: 14px;
+      color: #e2e8f0;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .footer {
+      margin-top: 48px;
+      border-top: 1px solid var(--border);
+      padding-top: 28px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.8;
+    }
+    .footer strong {
+      color: #e2e8f0;
+    }
+    @media (max-width: 640px) {
+      .container {
+        padding: 24px;
+      }
+      .institution-bar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .institution-details {
+        text-align: left;
+      }
+      h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header with BuildIt Logo & IARE Institutional Info -->
+    <header class="institution-bar">
+      <div class="brand-group">
+        <img
+          id="buildit-logo-img"
+          src="buildit-logo-dark.png"
+          alt="BuildIt Logo"
+          class="buildit-logo"
+        />
+        <span class="brand-divider"></span>
+        <img
+          id="iare-crest-img"
+          src="iare-shield-crest.png"
+          alt="IARE Crest"
+          class="iare-crest"
+        />
+        <span class="brand-title">BuildIt</span>
+      </div>
+      <div class="institution-details">
+        <div class="institution-name">Institute of Aeronautical Engineering</div>
+        <div class="institution-sub">IARE &bull; Autonomous Institute &bull; Hyderabad, Telangana</div>
+      </div>
+    </header>
+
+    <div class="header-title-section">
+      <h1>ShieldIt &mdash; Official Privacy Policy</h1>
+      <div class="subtitle">
+        Proctoring & Exam Lockdown Extension for the BuildIt Assessment Ecosystem at IARE
+      </div>
+    </div>
+
+    <!-- Metadata Block -->
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>Organization</strong>
+        Institute of Aeronautical Engineering (IARE)
+      </div>
+      <div class="meta-item">
+        <strong>Platform</strong>
+        BuildIt Platform (buildit.iare.ac.in)
+      </div>
+      <div class="meta-item">
+        <strong>Effective Date</strong>
+        September 2026
+      </div>
+      <div class="meta-item">
+        <strong>Governance</strong>
+        Examination Cell & Department of CSE / IT
+      </div>
+    </div>
+
+    <!-- Privacy Guarantees Badges -->
+    <div class="badge-bar">
+      <span class="badge badge-success">&#10003; 100% Local On-Device Processing</span>
+      <span class="badge badge-info">&#10003; Single-Purpose Assessment Integrity</span>
+      <span class="badge badge-secondary">&#10003; Zero Telemetry / No Tracking</span>
+      <span class="badge badge-secondary">&#10003; Automatic Extension Restoration</span>
+    </div>
+
+    <!-- Section 1 -->
+    <h2>1. Institutional Context & Scope</h2>
+    <p>
+      This Privacy Policy governs the operation of <strong>ShieldIt</strong> (the "Extension"), a dedicated browser proctoring and assessment environment enforcement tool developed for the <strong>Institute of Aeronautical Engineering (IARE)</strong>, Dundigal, Hyderabad, India.
+    </p>
+    <p>
+      ShieldIt is designed exclusively to preserve academic honesty during formal continuous internal evaluations (CIE), semester-end examinations (SEE), laboratory coding challenges, and recruitment assessments hosted on the institutional <strong>BuildIt</strong> platform (<code>https://buildit.iare.ac.in</code>).
+    </p>
+    <p>
+      ShieldIt strictly adheres to the principle of <strong>data minimization</strong> and operates with complete transparency. It operates solely when an active examination session is initiated by a verified student and detaches automatically upon exam submission.
+    </p>
+
+    <!-- Section 2 -->
+    <h2>2. Browser Permissions & Purpose Specification</h2>
+    <p>
+      To satisfy Google Chrome Web Store policies, every requested browser permission is strictly necessary and directly restricted to assessment integrity functions:
+    </p>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 25%;">Permission</th>
+            <th style="width: 40%;">Functional Purpose</th>
+            <th style="width: 35%;">Privacy Protection & Safeguard</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>management</code></td>
+            <td>
+              Temporarily disables active third-party extensions (such as external AI chatbots, solvers, automated copilot tools, and translation overlays) during the active duration of an exam.
+            </td>
+            <td>
+              Captures a temporary local array of extension IDs solely inside local memory. <strong>All paused extensions are automatically re-enabled</strong> immediately when the exam is submitted or completed. No extension names or IDs are transmitted to external servers.
+            </td>
+          </tr>
+          <tr>
+            <td><code>tabs</code></td>
+            <td>
+              Verifies that the candidate maintains focus on the active examination tab, detecting window minimization or switching away to other tabs during active testing.
+            </td>
+            <td>
+              <strong>Zero browsing history access.</strong> ShieldIt never records, reads, or transmits the URLs, titles, or page content of any candidate tabs. It strictly inspects tab focus change events.
+            </td>
+          </tr>
+          <tr>
+            <td><code>system.display</code></td>
+            <td>
+              Detects connected monitor count to verify compliance with institutional single-display exam guidelines and detect unauthorized secondary monitors or HDMI splitters.
+            </td>
+            <td>
+              Only queries the numeric count of active displays. No hardware identifiers, serial numbers, screen contents, or monitor models are collected or stored.
+            </td>
+          </tr>
+          <tr>
+            <td><code>storage</code></td>
+            <td>
+              Retains the student's pre-exam extension state locally in <code>chrome.storage.local</code> so extensions can be reliably restored even if the browser is closed or refreshed mid-session.
+            </td>
+            <td>
+              Stored entirely within the candidate's local browser storage. The data is wiped clean once the exam session concludes and extensions have been restored.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Section 3 -->
+    <h2>3. Data Collection, Transmission, & Storage</h2>
+    <p>
+      ShieldIt enforces a strict <strong>zero personal surveillance policy</strong>:
+    </p>
+    <ul>
+      <li><strong>No Personal Identifiable Information (PII):</strong> ShieldIt does not request, log, or store student names, roll numbers, credentials, email addresses, or contact information.</li>
+      <li><strong>No Keystroke Logging:</strong> Key interception is restricted solely to preventing unauthorized operating system shortcuts (e.g., <code>F12</code>, <code>Ctrl+Shift+I</code>, <code>Alt+Tab</code>). Keystrokes typed into code editors or problem inputs are never recorded or logged by the extension.</li>
+      <li><strong>No Media Capturing:</strong> ShieldIt contains no camera, microphone, or continuous screen-recording software.</li>
+      <li><strong>No Third-Party Trackers or Analytics:</strong> The extension codebase contains zero analytics packages, telemetry beacons, tracking pixels, or third-party advertising SDKs.</li>
+      <li><strong>No Data Monetization:</strong> Neither IARE nor BuildIt sells, leases, or trades candidate usage data to commercial entities under any circumstances.</li>
+    </ul>
+
+    <!-- Section 4 -->
+    <h2>4. Automatic Restoration of Extensions</h2>
+    <p>
+      The Institute of Aeronautical Engineering recognizes that candidates maintain personalized extensions for their regular academic and personal browsing. ShieldIt is programmed to respect user configurations:
+    </p>
+    <ul>
+      <li>Upon normal submission of an exam or navigation to the exam results page, ShieldIt immediately triggers a restoration routine that re-enables all previously active extensions.</li>
+      <li>If an examination is ended abruptly due to a computer restart or power outage, ShieldIt's popup interface provides a one-click <em>"Restore My Extensions"</em> utility so students can restore their environment without administrative intervention.</li>
+    </ul>
+
+    <!-- Section 5 -->
+    <h2>5. Cryptographic Session Scoping</h2>
+    <p>
+      Communication between the institutional BuildIt web application and the ShieldIt extension occurs over an isolated cryptographic message bridge using ephemeral session tokens generated at exam start. This architectural boundary guarantees that:
+    </p>
+    <ol>
+      <li>Unauthenticated or third-party web domains cannot invoke ShieldIt commands or manipulate extension states.</li>
+      <li>Lockdown guards are active exclusively on verified examination URLs (e.g., <code>https://buildit.iare.ac.in/exams/*/session</code>).</li>
+      <li>Normal browsing outside scheduled examination windows remains entirely unaffected.</li>
+    </ol>
+
+    <!-- Section 6 -->
+    <h2>6. Chrome Web Store Limited Use Disclosure</h2>
+    <div class="callout">
+      <div class="callout-title">
+        <span>&#9888;</span> Compliance with Google Limited Use Requirements
+      </div>
+      <p style="margin-bottom: 0;">
+        ShieldIt's use and transfer of information received from Google APIs to any other app adheres to the
+        <strong>Chrome Web Store User Data Policy</strong>, including the Limited Use requirements. Information retrieved from browser APIs is used strictly to provide the exam lockdown service and is never repurposed for profiling, advertising, or external syndication.
+      </p>
+    </div>
+
+    <!-- Section 7 -->
+    <h2>7. Institutional Inquiries & Governance</h2>
+    <p>
+      ShieldIt is managed under the authority of the <strong>Examination Cell</strong> in coordination with the <strong>Department of Computer Science & Engineering</strong> at the <strong>Institute of Aeronautical Engineering (IARE)</strong>.
+    </p>
+    <p>
+      For any inquiries, privacy concerns, or verification requests regarding ShieldIt proctoring policies, please contact:
+    </p>
+    <ul>
+      <li><strong>Institution:</strong> Institute of Aeronautical Engineering (IARE)</li>
+      <li><strong>Campus Address:</strong> Dundigal, Hyderabad - 500043, Telangana, India</li>
+      <li><strong>Platform URL:</strong> <a href="https://buildit.iare.ac.in" style="color: var(--primary); text-decoration: none;">https://buildit.iare.ac.in</a></li>
+      <li><strong>Administrative Email:</strong> <a href="mailto:support@iare.ac.in" style="color: var(--primary); text-decoration: none;">support@iare.ac.in</a> / <a href="mailto:buildit@iare.ac.in" style="color: var(--primary); text-decoration: none;">buildit@iare.ac.in</a></li>
+    </ul>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>
+        &copy; 2026 <strong>Institute of Aeronautical Engineering (IARE)</strong> &bull; <strong>BuildIt Platform</strong>.<br />
+        All rights reserved. ShieldIt Assessment Integrity Extension.
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      const logo = document.getElementById("buildit-logo-img");
+      if (logo) {
+        const fallbacks = [
+          "buildit-logo-dark.png",
+          "./buildit-logo-dark.png",
+          "/buildit-logo-dark.png",
+          "buildit-logo.png",
+          "/buildit-logo.png",
+          "https://buildit.iare.ac.in/buildit-logo-dark.png",
+          "https://buildit.iare.ac.in/buildit-logo.png"
+        ];
+        let idx = 0;
+        logo.onerror = function () {
+          idx++;
+          if (idx < fallbacks.length) {
+            logo.src = fallbacks[idx];
+          }
+        };
+      }
+
+      const crest = document.getElementById("iare-crest-img");
+      if (crest) {
+        const crestFallbacks = [
+          "iare-shield-crest.png",
+          "./iare-shield-crest.png",
+          "/iare-shield-crest.png",
+          "iare-logo-dark.png",
+          "/iare-logo-dark.png",
+          "https://buildit.iare.ac.in/iare-shield-crest.png"
+        ];
+        let crestIdx = 0;
+        crest.onerror = function () {
+          crestIdx++;
+          if (crestIdx < crestFallbacks.length) {
+            crest.src = crestFallbacks[crestIdx];
+          }
+        };
+      }
+    })();
+  </script>
+</body>
+</html>

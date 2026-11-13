@@ -1,0 +1,73 @@
+{
+  "manifest_version": 3,
+  "name": "ShieldIt - Exam & Lab Lockdown",
+  "version": "1.0.4",
+  "description": "Official secure exam environment and lockdown extension for BuildIt at IARE.",
+  "permissions": [
+    "management",
+    "tabs",
+    "system.display",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://buildit.iare.ac.in/*",
+    "http://localhost/*",
+    "http://localhost:*/*",
+    "http://127.0.0.1/*",
+    "http://127.0.0.1:*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://buildit.iare.ac.in/*",
+        "http://localhost/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:*/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "content.css"],
+      "matches": [
+        "https://buildit.iare.ac.in/*",
+        "http://localhost/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:*/*"
+      ]
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://buildit.iare.ac.in/*",
+      "http://localhost/*",
+      "http://localhost:*/*",
+      "http://127.0.0.1/*",
+      "http://127.0.0.1:*/*"
+    ]
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "ShieldIt Proctor",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

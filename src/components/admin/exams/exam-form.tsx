@@ -79,6 +79,7 @@ const examSchema = z.object({
     )
     .default([]),
   moderatorIds: z.array(z.string()).default([]),
+  requireShieldIt: z.boolean().default(true),
 });
 
 export type ExamFormInput = z.input<typeof examSchema>;
@@ -116,6 +117,7 @@ type ExamFormInitialData = {
   groups?: ExamGroupInitialData[];
   ownerId?: string | null;
   moderatorsList?: ExamModeratorSummary[];
+  requireShieldIt?: boolean;
 };
 
 export function ExamForm({
@@ -185,6 +187,7 @@ export function ExamForm({
             })) || [],
           moderatorIds:
             initialData.moderatorsList?.map((moderator) => moderator.id) || [],
+          requireShieldIt: initialData.requireShieldIt ?? true,
         }
       : {
           title: "",
@@ -198,6 +201,7 @@ export function ExamForm({
           gradingConfig: { totalMarks: 100, thresholds: [] }, // Initialize with empty thresholds for safety
           assignments: [],
           moderatorIds: [],
+          requireShieldIt: true,
         },
   });
 

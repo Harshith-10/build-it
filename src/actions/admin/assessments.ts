@@ -216,6 +216,7 @@ export type UpsertAssessmentInput = {
   totalMarks?: number;
   questionCount?: number;
   requiresPin?: boolean;
+  requireShieldIt?: boolean;
   strategyType?: "random_n" | "fixed_set" | "difficulty_mix" | "lab_external";
   strategyConfig?: StrategyConfig | null;
   gradingStrategy?:
@@ -287,6 +288,7 @@ export async function upsertAssessment(data: UpsertAssessmentInput) {
       labId: data.labId || null,
       durationMinutes: Number(data.durationMinutes) || 60,
       requiresPin: Boolean(data.requiresPin),
+      requireShieldIt: data.requireShieldIt !== undefined ? Boolean(data.requireShieldIt) : true,
       strategyType: data.strategyType || "random_n",
       strategyConfig: data.strategyConfig ?? null,
       gradingStrategy: data.gradingStrategy || "linear",

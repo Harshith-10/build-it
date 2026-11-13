@@ -246,3 +246,35 @@ html.lenis body {
     transform: translateX(10px);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* ShieldIt Extension Status Badge Override                                  */
+/* Default position is bottom-right; fully draggable anywhere by student     */
+/* -------------------------------------------------------------------------- */
+#shieldit-status-badge {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  cursor: grab !important;
+  width: fit-content !important;
+  max-width: fit-content !important;
+  height: auto !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+#shieldit-status-badge:not([data-user-moved="true"]):not([style*="left"]) {
+  top: auto !important;
+  left: auto !important;
+  bottom: 16px !important;
+  right: 18px !important;
+  transform: none !important;
+}
+
+#shieldit-status-badge:active,
+#shieldit-status-badge.shieldit-dragging {
+  cursor: grabbing !important;
+}
+

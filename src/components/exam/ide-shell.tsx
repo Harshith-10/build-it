@@ -12,8 +12,12 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { toast } from "sonner";
 import type { ExamTimingSnapshot } from "@/lib/exam";
+import { AlertTriangle, Check, Copy, RotateCw, ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useExamStore } from "@/stores/exam-store";
+import { useShieldIt } from "@/lib/shieldit/shieldit-client";
 
 import { CodePlayground } from "./code-playground";
 import { ExamHeader } from "./exam-header";
@@ -47,6 +51,7 @@ interface IDEShellProps {
   assignmentId: string;
   completedQuestionIds: string[];
   latestSubmissions?: Record<string, Record<string, string>>;
+  requireShieldIt?: boolean;
 }
 
 function formatCountdown(ms: number): string {
@@ -68,7 +73,11 @@ export function IDEShell({
   assignmentId,
   completedQuestionIds,
   latestSubmissions,
+  requireShieldIt = true,
 }: IDEShellProps) {
+  const isMasterEnabled = process.env.NEXT_PUBLIC_ENABLE_SHIELDIT !== "false";
+  const isShieldItRequired = isMasterEnabled && requireShieldIt;
+
   const [activeQuestionId, setActiveQuestionId] = useQueryState("q", {
     defaultValue: questions[0]?.id || "",
   });
@@ -83,6 +92,85 @@ export function IDEShell({
   );
 
   const initForExam = useExamStore((s) => s.initForExam);
+  const { violations, isInstalled, isLockdownActive, startLockdown, checkStatus } =
+    useShieldIt(assignmentId);
+
+  const [isCheckingExtension, setIsCheckingExtension] = useState(false);
+  const [copiedExtensionsUrl, setCopiedExtensionsUrl] = useState(false);
+
+  const handleManualRecheck = async () => {
+    setIsCheckingExtension(true);
+    try {
+      const status = await checkStatus();
+      if (status.installed) {
+        toast.success("ShieldIt detected! Resuming examination...");
+      } else {
+        toast.error("ShieldIt is still not detected", {
+          description:
+            "Please ensure the toggle is ON in chrome://extensions and try again.",
+        });
+      }
+    } catch {
+      toast.error("Extension check timed out. Please verify ShieldIt is turned ON.");
+    } finally {
+      setIsCheckingExtension(false);
+    }
+  };
+
+  const handleCopyExtensionsUrl = async () => {
+    const textToCopy = "chrome://extensions";
+    let copied = false;
+
+    // 1. Try modern navigator.clipboard (available on HTTPS and localhost)
+    if (typeof navigator !== "undefined" && navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        copied = true;
+      } catch {}
+    }
+
+    // 2. Universal textarea fallback (works on HTTP, IP addresses, unfocused tabs)
+    if (!copied && typeof document !== "undefined") {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "-9999px";
+        textArea.setAttribute("readonly", "");
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copied = document.execCommand("copy");
+        document.body.removeChild(textArea);
+      } catch {}
+    }
+
+    if (copied) {
+      setCopiedExtensionsUrl(true);
+      toast.success("Copied 'chrome://extensions' to clipboard!", {
+        description:
+          "Open a new tab (Ctrl+T / Cmd+T), paste into address bar, and toggle ShieldIt ON.",
+      });
+      setTimeout(() => setCopiedExtensionsUrl(false), 3000);
+    } else {
+      toast.info("Please open chrome://extensions in a new tab to manage extensions.");
+    }
+  };
+
+  // Reinforce lockdown if in active exam session (strictly enforce single-display policy)
+  useEffect(() => {
+    if (isShieldItRequired && isInstalled && !isLockdownActive) {
+      startLockdown(assignmentId, false).catch(() => {});
+    }
+  }, [isShieldItRequired, isInstalled, isLockdownActive, assignmentId, startLockdown]);
+
+  useEffect(() => {
+    if (violations.length > 0) {
+      const latest = violations[violations.length - 1];
+      toast.warning(`Security Notice: ${latest.message || latest.type}`);
+    }
+  }, [violations]);
 
   useEffect(() => setIsMounted(true), []);
 
@@ -175,12 +263,68 @@ export function IDEShell({
                 question={activeQuestion}
                 assignmentId={assignmentId}
                 userId={user.id}
-                isCodingLocked={hardDeadlineReached}
+                isCodingLocked={hardDeadlineReached || (isShieldItRequired && isInstalled === false)}
                 latestSubmissions={latestSubmissions}
               />
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
+
+        {/* Anti-Malpractice Lockout: Freezes exam immediately if ShieldIt is turned off */}
+        {isShieldItRequired && isInstalled === false && (
+          <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-background/95 backdrop-blur-md p-6 text-center animate-in fade-in duration-200">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-6 ring-8 ring-destructive/20 animate-pulse">
+              <ShieldAlert className="h-10 w-10" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight text-destructive">
+              Security Violation: ShieldIt Proctor Disabled
+            </h2>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
+              The <strong>ShieldIt</strong> proctoring extension was turned off, disabled, or removed from your browser during an active examination.
+            </p>
+            <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 max-w-lg text-left text-xs space-y-2">
+              <p className="font-semibold text-destructive flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4" /> Academic Integrity Notice
+              </p>
+              <p className="text-muted-foreground">
+                Turning off proctoring extensions mid-exam is recorded as an academic integrity violation. The examination environment has been frozen until ShieldIt is re-enabled.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Button
+                variant="default"
+                disabled={isCheckingExtension}
+                className="bg-destructive hover:bg-destructive/90 text-white gap-2 shadow-sm font-medium"
+                onClick={handleManualRecheck}
+              >
+                <RotateCw className={`h-4 w-4 ${isCheckingExtension ? "animate-spin" : ""}`} />
+                {isCheckingExtension ? "Checking Status..." : "Re-check Extension Status"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2 border-destructive/30 hover:bg-destructive/10 text-foreground font-medium"
+                onClick={handleCopyExtensionsUrl}
+              >
+                {copiedExtensionsUrl ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4 text-muted-foreground" />
+                )}
+                {copiedExtensionsUrl ? "Copied chrome://extensions" : "Copy chrome://extensions"}
+              </Button>
+            </div>
+            <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
+              <p>
+                Open a new tab to <code className="bg-muted px-1.5 py-0.5 rounded font-mono select-all">chrome://extensions</code> and toggle <strong>ShieldIt</strong> back ON.
+              </p>
+              <p className="text-emerald-500 font-medium">
+                ⚡ Auto-resumes immediately once ShieldIt is enabled — no page reload required.
+              </p>
+            </div>
+          </div>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

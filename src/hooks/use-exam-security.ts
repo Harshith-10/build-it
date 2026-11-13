@@ -30,7 +30,7 @@ interface UseExamSecurityReturn {
   resetViolationState: () => void;
 }
 
-const DEBOUNCE_MS = 1000;
+const DEBOUNCE_MS = 2500;
 
 function isLinuxClient() {
   if (typeof navigator === "undefined") {
@@ -59,8 +59,10 @@ export const useExamSecurity = ({
   // Track whether the first external paste warning has already been shown
   const externalPasteWarned = useRef<boolean>(false);
 
-  // Debounce refs
+  // Debounce refs and startup grace period
   const lastViolationTime = useRef<number>(0);
+  const mountTime = useRef<number>(Date.now());
+  const STARTUP_GRACE_PERIOD_MS = 4000;
 
   // State to track if we expect the user to be in fullscreen
   // We assume yes initially if they are in the exam session
@@ -79,6 +81,16 @@ export const useExamSecurity = ({
       if (now - lastViolationTime.current < DEBOUNCE_MS) {
         return;
       }
+
+      // Suppress transient blur/fullscreen violations during initial page mount & hydration
+      if (
+        (type === "window_blur" || type === "tab_switch" || type === "exited_fullscreen") &&
+        Date.now() - mountTime.current < STARTUP_GRACE_PERIOD_MS
+      ) {
+        console.log(`[ExamSecurity] Startup grace period active; ignored violation: ${type}`);
+        return;
+      }
+
       lastViolationTime.current = now;
 
       console.log(`[ExamSecurity] Violation: ${type} (Severe: ${isSevere})`);
@@ -190,26 +202,97 @@ export const useExamSecurity = ({
 
     // 3. Detect Tab Switching
     const handleVisibilityChange = () => {
+      if (Date.now() - mountTime.current < STARTUP_GRACE_PERIOD_MS) {
+        return;
+      }
       if (document.hidden) {
         reportViolation("tab_switch", true, "Tab switch or window minimized");
       }
     };
 
-    // 4. Detect Window Blur
-    const handleWindowBlur = () => {
-      // Only consider blur a violation if document is NOT hidden (to avoid double counting with visibilityChange)
-      // And if we are actually mounted/active.
-      if (!document.hidden) {
-        reportViolation("window_blur", true, "Window lost focus");
+    // 4. Detect Window Blur (Alt+Tab, clicking outside, switching to another app/window)
+    const handleWindowBlur = (e: Event) => {
+      // Ignore if focus is merely shifting between internal child DOM elements
+      if (e.target && e.target !== window && e.target !== document) {
+        return;
       }
+
+      if (Date.now() - mountTime.current < STARTUP_GRACE_PERIOD_MS) {
+        return;
+      }
+
+      // Small delay to verify if document really lost focus (vs intra-window focus change)
+      setTimeout(() => {
+        if (!document.hasFocus()) {
+          reportViolation("window_blur", true, "Exam window lost focus (Alt+Tab or clicked outside)");
+        }
+      }, 200);
     };
 
     // 5. Fullscreen Check
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
+        if (Date.now() - mountTime.current < STARTUP_GRACE_PERIOD_MS) {
+          return;
+        }
         // If we expect fullscreen and lost it -> Violation
         if (expectFullscreen) {
           reportViolation("exited_fullscreen", true, "Exited fullscreen mode");
+        }
+      }
+    };
+
+    // 6. Shortcut Guard: Catch Alt+Tab and Meta/Windows key immediately at root capture phase
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.altKey && (e.key === "Tab" || e.code === "Tab")) ||
+        (e.ctrlKey && (e.key === "Tab" || e.code === "Tab")) ||
+        e.key === "Meta" ||
+        e.key === "OS"
+      ) {
+        reportViolation("window_blur", true, "Application switch shortcut detected (Alt+Tab / Meta)");
+      }
+    };
+
+    // 7. ShieldIt Extension Violation Listener (CustomEvent)
+    const handleShieldItViolation = (
+      e: CustomEvent<{ type?: string; message?: string }>,
+    ) => {
+      const vType = e.detail?.type;
+      if (
+        vType === "TAB_SWITCH" ||
+        vType === "WINDOW_BLUR" ||
+        vType === "BLOCKED_KEY_PRESS" ||
+        vType === "UNAUTHORIZED_EXTENSION_ENABLED"
+      ) {
+        reportViolation(
+          vType === "WINDOW_BLUR" ? "window_blur" : "tab_switch",
+          true,
+          e.detail?.message || "Focus lost or navigation away detected by ShieldIt",
+        );
+      }
+    };
+
+    // 8. ShieldIt Window Message Listener (postMessage bridge)
+    const handleShieldItMessage = (event: MessageEvent) => {
+      if (
+        event.data &&
+        event.data.target === "SHIELDIT_WEB_APP" &&
+        event.data.type === "SHIELDIT_VIOLATION"
+      ) {
+        const v = event.data.violation;
+        const vType = v?.type;
+        if (
+          vType === "TAB_SWITCH" ||
+          vType === "WINDOW_BLUR" ||
+          vType === "BLOCKED_KEY_PRESS" ||
+          vType === "UNAUTHORIZED_EXTENSION_ENABLED"
+        ) {
+          reportViolation(
+            vType === "WINDOW_BLUR" ? "window_blur" : "tab_switch",
+            true,
+            v?.message || "Focus lost or navigation away detected by ShieldIt",
+          );
         }
       }
     };
@@ -221,7 +304,13 @@ export const useExamSecurity = ({
     document.addEventListener("paste", handlePaste, true);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
+    window.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("message", handleShieldItMessage);
+    window.addEventListener(
+      "shieldit:violation" as unknown as keyof WindowEventMap,
+      handleShieldItViolation as EventListener,
+    );
 
     // Initial Fullscreen enforcement check
     if (!document.fullscreenElement && expectFullscreen) {
@@ -237,7 +326,13 @@ export const useExamSecurity = ({
       document.removeEventListener("paste", handlePaste, true);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("message", handleShieldItMessage);
+      window.removeEventListener(
+        "shieldit:violation" as unknown as keyof WindowEventMap,
+        handleShieldItViolation as EventListener,
+      );
     };
   }, [reportViolation, expectFullscreen]);
 
