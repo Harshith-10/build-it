@@ -5,6 +5,7 @@ import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import {
   ArrowLeft,
@@ -17,7 +18,7 @@ import {
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { markProgramSolved } from "@/actions/student/labs/submissions";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -72,20 +73,31 @@ interface LabCodeEditorProps {
 
 function getLanguageExtension(lang: string) {
   switch (lang) {
-    case "java": return java();
-    case "python": return python();
-    case "rust": return rust();
+    case "java":
+      return java();
+    case "python":
+      return python();
+    case "rust":
+      return rust();
     case "cpp":
-    case "c": return cpp();
-    default: return java();
+    case "c":
+      return cpp();
+    default:
+      return java();
   }
 }
 
 function formatLanguageName(lang: string) {
   const nameMap: Record<string, string> = {
-    cpp: "C++", c: "C", java: "Java", python: "Python",
-    javascript: "JavaScript", typescript: "TypeScript",
-    rust: "Rust", go: "Go", csharp: "C#",
+    cpp: "C++",
+    c: "C",
+    java: "Java",
+    python: "Python",
+    javascript: "JavaScript",
+    typescript: "TypeScript",
+    rust: "Rust",
+    go: "Go",
+    csharp: "C#",
   };
   return nameMap[lang] || lang.charAt(0).toUpperCase() + lang.slice(1);
 }
@@ -107,6 +119,64 @@ export function LabCodeEditor({
   const [consoleOutput, setConsoleOutput] = useState<string>("");
   const [customInput, setCustomInput] = useState("");
 
+  // Smart Clipboard tracking: allow internal copy/paste, block external paste
+  const internalClipboard = useRef<string>("");
+
+  const smartClipboardExtension = useMemo(() => {
+    return EditorView.domEventHandlers({
+      paste(event, _view) {
+        const pastedText = event.clipboardData?.getData("text") || "";
+        const internal = internalClipboard.current.trim();
+
+        if (pastedText && (!internal || pastedText.trim() !== internal)) {
+          event.preventDefault();
+          event.stopPropagation();
+          toast.error("External Paste Detected!", {
+            description:
+              "Pasting code from outside the laboratory is not permitted.",
+          });
+          return true;
+        }
+        return false;
+      },
+      copy(_event, view) {
+        const selection = view.state.sliceDoc(
+          view.state.selection.main.from,
+          view.state.selection.main.to,
+        );
+        if (selection) {
+          internalClipboard.current = selection;
+        } else {
+          const domSelection = window.getSelection()?.toString();
+          if (domSelection) internalClipboard.current = domSelection;
+        }
+        return false;
+      },
+      cut(_event, view) {
+        const selection = view.state.sliceDoc(
+          view.state.selection.main.from,
+          view.state.selection.main.to,
+        );
+        if (selection) {
+          internalClipboard.current = selection;
+        } else {
+          const domSelection = window.getSelection()?.toString();
+          if (domSelection) internalClipboard.current = domSelection;
+        }
+        return false;
+      },
+      drop(event) {
+        event.preventDefault();
+        toast.error("Drag and drop is disabled in the code editor.");
+        return true;
+      },
+      contextmenu(event) {
+        event.preventDefault();
+        return true;
+      },
+    });
+  }, []);
+
   const {
     runtimes,
     selectedLanguage,
@@ -118,7 +188,9 @@ export function LabCodeEditor({
 
   const { isRunning, cooldown, handleRun } = useCodeExecution();
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (!mounted) {
     return (
@@ -130,7 +202,7 @@ export function LabCodeEditor({
   }
 
   const availableLanguages = Array.from(
-    new Set(runtimes.map((r) => r.language))
+    new Set(runtimes.map((r) => r.language)),
   ).sort();
 
   const handleMarkSolved = async () => {
@@ -211,10 +283,16 @@ export function LabCodeEditor({
       {/* ── Main layout ── */}
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup orientation="horizontal" className="h-full">
-
           {/* ── Left: program description ── */}
           <ResizablePanel defaultSize={35} minSize={25}>
-            <ScrollArea className="h-full">
+            <ScrollArea
+              className="h-full select-none"
+              onContextMenu={(e) => e.preventDefault()}
+              onCopy={(e) => {
+                e.preventDefault();
+                toast.error("Copying program description is disabled.");
+              }}
+            >
               <div className="p-6 space-y-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">
@@ -249,7 +327,6 @@ export function LabCodeEditor({
           {/* ── Right: code editor + console ── */}
           <ResizablePanel defaultSize={65} minSize={40}>
             <ResizablePanelGroup orientation="vertical">
-
               {/* ── Code editor ── */}
               <ResizablePanel defaultSize={65} minSize={30}>
                 <div className="flex h-full flex-col">
@@ -259,16 +336,22 @@ export function LabCodeEditor({
                       <Select
                         value={selectedLanguage}
                         onValueChange={setSelectedLanguage}
-                        disabled={runtimeLoading || availableLanguages.length === 0}
+                        disabled={
+                          runtimeLoading || availableLanguages.length === 0
+                        }
                       >
                         <SelectTrigger className="w-[100px] h-7 text-xs">
                           <SelectValue placeholder="Language" />
                         </SelectTrigger>
                         <SelectContent>
                           {runtimeLoading ? (
-                            <SelectItem value="loading" disabled>Loading...</SelectItem>
+                            <SelectItem value="loading" disabled>
+                              Loading...
+                            </SelectItem>
                           ) : availableLanguages.length === 0 ? (
-                            <SelectItem value="none" disabled>No languages</SelectItem>
+                            <SelectItem value="none" disabled>
+                              No languages
+                            </SelectItem>
                           ) : (
                             availableLanguages.map((lang) => (
                               <SelectItem key={lang} value={lang}>
@@ -290,8 +373,8 @@ export function LabCodeEditor({
                             {runtimeLoading
                               ? "Loading..."
                               : selectedVersion
-                              ? `${selectedLanguage} ${selectedVersion}`
-                              : `No ${selectedLanguage} Runtime`}
+                                ? `${selectedLanguage} ${selectedVersion}`
+                                : `No ${selectedLanguage} Runtime`}
                             <ChevronDown className="h-3 w-3" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -301,8 +384,14 @@ export function LabCodeEditor({
                             .map((runtime) => (
                               <DropdownMenuItem
                                 key={`${runtime.language}-${runtime.version}`}
-                                onClick={() => setSelectedVersion(runtime.version)}
-                                className={selectedVersion === runtime.version ? "bg-accent" : undefined}
+                                onClick={() =>
+                                  setSelectedVersion(runtime.version)
+                                }
+                                className={
+                                  selectedVersion === runtime.version
+                                    ? "bg-accent"
+                                    : undefined
+                                }
                               >
                                 {runtime.language} {runtime.version}
                               </DropdownMenuItem>
@@ -325,19 +414,27 @@ export function LabCodeEditor({
                         ) : (
                           <Play className="h-3.5 w-3.5" />
                         )}
-                        {isRunning ? "Running..." : cooldown > 0 ? `Run (${cooldown}s)` : "Run"}
+                        {isRunning
+                          ? "Running..."
+                          : cooldown > 0
+                            ? `Run (${cooldown}s)`
+                            : "Run"}
                       </Button>
                     </div>
                   </div>
 
                   {/* CodeMirror */}
-                  <div className="flex-1 overflow-hidden text-[14px]">
+                  <div
+                    className="flex-1 overflow-hidden text-[14px]"
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
                     <CodeMirror
                       value={code}
                       height="100%"
                       extensions={[
                         getLanguageExtension(selectedLanguage),
                         EditorState.tabSize.of(4),
+                        smartClipboardExtension,
                       ]}
                       onChange={(val) => setCode(val)}
                       theme={theme === "dark" ? "dark" : "light"}
@@ -367,7 +464,8 @@ export function LabCodeEditor({
                       <ResizablePanel defaultSize={60}>
                         <ScrollArea className="h-full">
                           <pre className="p-4 text-xs font-mono text-foreground">
-                            {consoleOutput || "Run your code to see the output here..."}
+                            {consoleOutput ||
+                              "Run your code to see the output here..."}
                           </pre>
                         </ScrollArea>
                       </ResizablePanel>
@@ -394,10 +492,8 @@ export function LabCodeEditor({
                   </div>
                 </div>
               </ResizablePanel>
-
             </ResizablePanelGroup>
           </ResizablePanel>
-
         </ResizablePanelGroup>
       </div>
     </div>

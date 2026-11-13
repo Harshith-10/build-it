@@ -3,6 +3,7 @@
 import { CheckCircle2 } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { LabProgram, LabExercise } from "./lab-ide-shell";
 
@@ -18,7 +19,14 @@ export function LabProblemViewer({
   isSolved,
 }: LabProblemViewerProps) {
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div
+      className="flex h-full flex-col overflow-hidden select-none"
+      onContextMenu={(e) => e.preventDefault()}
+      onCopy={(e) => {
+        e.preventDefault();
+        toast.error("Copying problem description or test cases is disabled.");
+      }}
+    >
       {/* ── Header ── */}
       <div className="border-b px-4 shrink-0 flex items-center">
         <span className="h-10 flex items-center text-sm font-medium border-b-2 border-foreground pr-1">
